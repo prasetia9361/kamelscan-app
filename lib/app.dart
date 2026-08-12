@@ -3,7 +3,6 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/providers/theme_provider.dart';
-import 'core/services/ffmpeg_check_overlay.dart';
 import 'core/theme/app_theme.dart';
 import 'l10n/generated/app_localizations.dart';
 import 'navigation/app_router.dart';
@@ -23,10 +22,11 @@ class KamelScanApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       routerConfig: router,
 
-      // Hamparan diagnostik FFmpeg — hanya aktif di debug, dihapus setelah
-      // butir D.4 DEVIASI_LIBRARY.md tuntas.
-      builder: (context, child) =>
-          FfmpegCheckOverlay(child: child ?? const SizedBox.shrink()),
+      // ⚠️ Jangan menaruh widget yang butuh Overlay/Tooltip di `builder:`.
+      // Pernah dicoba untuk hamparan diagnostik FFmpeg dan gagal — `builder`
+      // berada DI ATAS Navigator, sehingga belum ada Overlay dan Tooltip
+      // melempar "No Overlay widget found". Bungkus di dalam halaman, bukan
+      // di sini.
 
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,

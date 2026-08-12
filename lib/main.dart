@@ -8,7 +8,6 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import 'app.dart';
 import 'core/config/env.dart';
 import 'core/services/ffmpeg_capability_check.dart';
-import 'core/services/ffmpeg_check_overlay.dart';
 import 'core/services/local_db_service.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/supabase_service.dart';
@@ -18,14 +17,86 @@ import 'core/workers/upload_worker.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Gagal cepat bila --dart-define belum diisi. Layar putih tanpa penjelasan
-  // di tangan pengguna jauh lebih mahal daripada crash di terminal.
-  Env.assertConfigured();
+  // Gagal cepat bila --dart-define belum diisi.
+  //
+  // ⚠️ Melempar begitu saja TIDAK cukup: exception sebelum `runApp()` membuat
+  // aplikasi mati tanpa pernah menggambar apa pun, sehingga di perangkat hanya
+  // terlihat **layar hitam polos** — persis kebingungan yang ingin dicegah.
+  // Terjadi sungguhan pada 13 Agustus 2026 saat APK dibangun tanpa
+  // `--dart-define-from-file`. Karena itu kegagalannya ditangkap dan
+  // ditampilkan sebagai layar yang bisa dibaca.
+  try {
+    Env.assertConfigured();
+  } on Object catch (e) {
+    runApp(_ConfigErrorApp(message: '$e'));
+    return;
+  }
 
   if (Env.sentryEnabled) {
     await SentryFlutter.init(_configureSentry, appRunner: _bootstrap);
   } else {
     await _bootstrap();
+  }
+}
+
+/// Layar terakhir sebelum menyerah: menjelaskan mengapa aplikasi tidak bisa
+/// jalan. Sengaja tidak memakai tema, l10n, atau provider apa pun — semuanya
+/// bergantung pada konfigurasi yang justru sedang bermasalah.
+class _ConfigErrorApp extends StatelessWidget {
+  const _ConfigErrorApp({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        backgroundColor: const Color(0xFF1B1B1F),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.settings_ethernet,
+                    color: Color(0xFFFFB4AB), size: 48),
+                const SizedBox(height: 16),
+                const Text(
+                  'Konfigurasi belum lengkap',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  message,
+                  style: const TextStyle(
+                    color: Color(0xFFE6E1E5),
+                    fontSize: 15,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Aplikasi ini dibangun tanpa kredensial. Bangun ulang dengan:\n\n'
+                  'flutter run --dart-define-from-file=env.dev.json',
+                  style: TextStyle(
+                    color: Color(0xFFB9B4BA),
+                    fontFamily: 'monospace',
+                    fontSize: 13,
+                    height: 1.6,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -63,17 +134,8 @@ Future<void> _reportFfmpegCapabilities() async {
     for (final line in report.render().split('\n')) {
       if (line.isNotEmpty) debugPrint(line);
     }
-    // Tampilkan juga di layar, agar verifikasi bisa dilakukan tanpa kabel USB.
-    ffmpegCheckResult.value = report;
   } on Object catch (e) {
     debugPrint('KAMELSCAN_FFMPEG_CHECK GAGAL DIJALANKAN: $e');
-    ffmpegCheckResult.value = FfmpegCheckReport([
-      FfmpegCheckItem(
-        name: 'Pemeriksaan gagal dijalankan',
-        passed: false,
-        detail: '$e',
-      ),
-    ]);
   }
 }
 
