@@ -3,7 +3,7 @@
 -- ============================================================
 
 create table public.package_videos (
-  id                    uuid primary key default uuid_generate_v4(),
+  id                    uuid primary key default gen_random_uuid(),
   tenant_id             uuid not null references public.tenants(id) on delete cascade,
   shop_id               uuid not null references public.shops(id) on delete restrict,
   user_id               uuid not null references public.users(id) on delete restrict,

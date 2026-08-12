@@ -6,7 +6,7 @@
 -- ============================================================
 
 create table public.tutorials (
-  id                    uuid primary key default uuid_generate_v4(),
+  id                    uuid primary key default gen_random_uuid(),
   step_order            integer not null,
   title                 text not null,
   description           text,

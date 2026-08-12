@@ -76,3 +76,6 @@ env.prod.json
 # Berkas konfigurasi layanan pihak ketiga
 /android/app/google-services.json
 /ios/Runner/GoogleService-Info.plist
+
+# Dependensi alat bantu (punya pubspec sendiri)
+tool/**/.dart_tool/

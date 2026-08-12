@@ -3,7 +3,7 @@
 -- ============================================================
 
 create table public.tenants (
-  id                    uuid primary key default uuid_generate_v4(),
+  id                    uuid primary key default gen_random_uuid(),
   owner_id              uuid not null unique,          -- FK ditambahkan di 03_users.sql
   business_name         text,
   legal_name            text,                                     -- nama wajib pajak, untuk faktur

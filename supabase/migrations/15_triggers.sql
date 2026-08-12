@@ -21,6 +21,7 @@ begin
 end;
 $$;
 
+drop trigger if exists trg_users_email_normalized on public.users;
 create trigger trg_users_email_normalized
   before insert or update of email on public.users
   for each row execute function public.set_email_normalized();
@@ -53,7 +54,7 @@ begin
   -- Urutan tenants→users hanya mungkin karena fk_tenants_owner dibuat
   -- DEFERRABLE INITIALLY DEFERRED di 03_users.sql.
   insert into public.tenants (id, owner_id, business_name, tier_plan, status, period_end)
-  values (uuid_generate_v4(), new.id, new.raw_user_meta_data->>'business_name', 'standar', 'trial', null)
+  values (gen_random_uuid(), new.id, new.raw_user_meta_data->>'business_name', 'standar', 'trial', null)
   returning id into v_tenant;
 
   insert into public.users (id, tenant_id, email, username, full_name, phone, role)
@@ -79,6 +80,7 @@ begin
 end;
 $$;
 
+drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
@@ -129,6 +131,7 @@ begin
 end;
 $$;
 
+drop trigger if exists trg_before_video_insert on public.package_videos;
 create trigger trg_before_video_insert
   before insert on public.package_videos
   for each row execute function public.before_video_insert();
@@ -159,6 +162,7 @@ begin
 end;
 $$;
 
+drop trigger if exists trg_after_video_uploaded on public.package_videos;
 create trigger trg_after_video_uploaded
   after update on public.package_videos
   for each row execute function public.after_video_uploaded();
@@ -188,6 +192,7 @@ begin
 end;
 $$;
 
+drop trigger if exists trg_check_packer_limit on public.users;
 create trigger trg_check_packer_limit
   before insert on public.users
   for each row execute function public.check_packer_limit();
@@ -199,6 +204,9 @@ create or replace function public.touch_updated_at()
 returns trigger language plpgsql as $$
 begin new.updated_at := now(); return new; end $$;
 
+drop trigger if exists trg_touch_users on public.users;
 create trigger trg_touch_users   before update on public.users   for each row execute function public.touch_updated_at();
+drop trigger if exists trg_touch_shops on public.shops;
 create trigger trg_touch_shops   before update on public.shops   for each row execute function public.touch_updated_at();
+drop trigger if exists trg_touch_tenants on public.tenants;
 create trigger trg_touch_tenants before update on public.tenants for each row execute function public.touch_updated_at();

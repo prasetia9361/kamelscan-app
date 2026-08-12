@@ -1,0 +1,10 @@
+name: db_migrate
+description: Penjalan migrasi SQL KamelScan ke PostgreSQL/Supabase.
+publish_to: 'none'
+version: 1.0.0
+
+environment:
+  sdk: '>=3.8.0 <4.0.0'
+
+dependencies:
+  postgres: ^3.4.0

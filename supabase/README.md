@@ -34,28 +34,63 @@ satu, jalankan, pastikan sukses sebelum lanjut ke berikutnya.
 
 ---
 
-## 🔴 Dua langkah manual yang tidak bisa lewat SQL
+## Menjalankan dengan alat bawaan repo
 
-Tanpa keduanya aplikasi **tidak akan berfungsi sama sekali**.
+`tool/db_migrate` menjalankan seluruh berkas berurutan dan mencatat mana yang
+sudah dijalankan di tabel `public.schema_migrations`, sehingga aman diulang.
 
-**1. Aktifkan `pg_cron` sebelum menjalankan `16_cron.sql`.**
-Dashboard → Database → Extensions → cari `pg_cron` → aktifkan.
+```powershell
+$env:SUPABASE_DB_HOST='aws-0-<region>.pooler.supabase.com'
+$env:SUPABASE_DB_PORT='5432'
+$env:SUPABASE_DB_USER='postgres.<project-ref>'
+$env:SUPABASE_DB_PASSWORD='<password database>'
+$env:SUPABASE_DB_NAME='postgres'
+cd tool\db_migrate
+dart run bin/migrate.dart status   # lihat mana yang sudah/belum
+dart run bin/migrate.dart up       # jalankan yang belum
+dart run bin/verify.dart           # periksa hasilnya
+```
 
-**2. Aktifkan Auth Hook setelah menjalankan `12_auth_hook.sql`.**
-Dashboard → Authentication → Hooks → *Customize Access Token* → pilih
-`public.custom_access_token_hook`.
-
-Langkah 2 adalah yang paling sering terlewat. Tanpanya JWT tidak memuat
-`tenant_id`, sehingga `current_tenant_id()` mengembalikan NULL dan **setiap
-policy RLS menolak semua akses** — aplikasi akan tampak "kosong" tanpa pesan
-error yang jelas.
+Alamat host dan `<region>` ada di Dashboard → Project Settings → Database →
+Connection string. Gunakan **port 5432 (session mode)**, bukan 6543 — mode
+transaksi tidak cocok untuk DDL.
 
 ---
 
-## Penyimpangan dari Bab 5 — tiga perbaikan wajib
+## 🔴 Satu langkah manual yang tidak bisa lewat SQL
 
-SQL di Bab 5 mengandung tiga kesalahan yang membuatnya tidak dapat dijalankan
-apa adanya. Ketiganya diperbaiki dengan perubahan sekecil mungkin, dan setiap
+**Aktifkan Auth Hook setelah menjalankan `12_auth_hook.sql`.**
+Dashboard → Authentication → Hooks → *Customize Access Token* → pilih
+`public.custom_access_token_hook`.
+
+Ini **wajib** dan paling sering terlewat. Tanpanya JWT tidak memuat `tenant_id`,
+`current_tenant_id()` mengembalikan NULL, dan setiap perbandingan
+`tenant_id = NULL` bernilai NULL — bukan error, melainkan **nol baris**.
+
+Sudah dibuktikan pada 13 Agustus 2026 dengan akun uji yang login sungguhan,
+sebelum hook diaktifkan:
+
+| Tabel | Hasil |
+|---|---|
+| `users` | 1 baris — policy-nya memakai `auth.uid()`, tidak butuh hook |
+| `platform_settings` | 6 baris — policy-nya `using (true)` |
+| `tenants`, `shops`, `package_videos`, `token_wallets` | **0 baris** |
+
+Gejalanya: aplikasi terbuka, login berhasil, tetapi semua daftar kosong dan
+tidak ada satu pun pesan error. Bila Anda melihat gejala itu, **periksa hook ini
+lebih dulu** sebelum mencurigai kode Flutter.
+
+> `pg_cron` **tidak** perlu diaktifkan manual di project ini — `create extension`
+> pada `00_extensions.sql` berhasil dan ketiga job cron sudah terpasang. Bila di
+> project baru ternyata gagal, aktifkan lewat Dashboard → Database → Extensions.
+
+---
+
+## Penyimpangan dari Bab 5 — empat perbaikan wajib
+
+SQL di Bab 5 mengandung empat kesalahan yang membuatnya tidak dapat dijalankan
+apa adanya. Tiga ditemukan saat membaca, satu baru muncul saat benar-benar
+dijalankan. Semuanya diperbaiki dengan perubahan sekecil mungkin, dan setiap
 perbaikan diberi komentar di berkasnya masing-masing.
 
 ### 1. Foreign key melingkar — registrasi pertama pasti gagal
@@ -93,6 +128,26 @@ gratis 100 video tidak bisa diulang dengan `nama+1@gmail.com`.
 
 **Perbaikan:** `old.status is distinct from 'uploaded'` — menangani NULL dengan
 benar tanpa memaksa tipe.
+
+### 4. `uuid_generate_v4()` tak terlihat dari dalam trigger
+
+Semua berkas · **Ini baru ketahuan saat dijalankan, bukan saat dibaca.**
+
+Di Supabase, `uuid-ossp` dan `pgcrypto` dipasang ke schema **`extensions`**,
+bukan `public`. Seluruh trigger `SECURITY DEFINER` menyetel
+`search_path = public` demi keamanan, sehingga `uuid_generate_v4()` tidak
+terlihat dari dalamnya:
+
+```
+SQLSTATE 42883: function uuid_generate_v4() does not exist
+```
+
+Gejalanya di aplikasi hanyalah *"Database error saving new user"* dari Auth API
+— tidak menyebut fungsi mana pun.
+
+**Perbaikan:** seluruh berkas memakai `gen_random_uuid()`, fungsi bawaan
+PostgreSQL 13+ yang berada di `pg_catalog` sehingga selalu terlihat berapa pun
+`search_path`-nya. Kedua ekstensi tetap dipasang sesuai Bab 5.2.
 
 ---
 
@@ -134,3 +189,63 @@ Ulangi sebagai packer. Dengan `shop_history_visible_to_packer = false`
 ⚠️ Uji ini harus dilakukan dengan **JWT sungguhan lewat API**, dengan asumsi
 penyerang memanggil PostgREST langsung tanpa lewat aplikasi. Menguji dari SQL
 editor akan selalu lulus dan tidak membuktikan apa pun.
+
+---
+
+## Hasil verifikasi di database sungguhan — 13 Agustus 2026
+
+Seluruh 17 migrasi dijalankan pada project Supabase `ofggpithmvgnhsshglwx`
+(wilayah ap-southeast-1) memakai `tool/db_migrate`.
+
+| Yang diperiksa | Hasil |
+|---|---|
+| 14 tabel terbentuk | ✅ |
+| RLS aktif di semua tabel aplikasi | ✅ (hanya `schema_migrations` tanpa RLS, memang bukan tabel data) |
+| 30 policy RLS terpasang | ✅ |
+| 7 enum sesuai `enums.dart` | ✅ |
+| 8 trigger + trigger registrasi di `auth.users` | ✅ |
+| 3 job cron terjadwal | ✅ |
+| FK `fk_tenants_owner` DEFERRABLE | ✅ |
+| `normalize_email` | ✅ `Bu.Di+promo@Gmail.com` → `budi@gmail.com`, non-gmail titiknya dipertahankan |
+
+### Uji alur nyata lewat Auth API
+
+**Registrasi owner baru** — satu panggilan `POST /auth/v1/signup` menghasilkan:
+
+| Baris | Isi |
+|---|---|
+| `users` | email asli tersimpan, `email_normalized` = `ujiowner@gmail.com`, role `owner` |
+| `tenants` | `status=trial`, `tier=standar`, `period_end=NULL` (Bab 7.5 — batasnya jumlah video, bukan waktu) |
+| `token_wallets` | saldo 100 / kuota 100, `period_end=NULL` |
+| `token_ledger` | `+100`, alasan `monthly_reset`, catatan "Kuota uji coba gratis" |
+| `tenant_settings` | watermark `bottom_right`, GPS aktif |
+| `user_settings` | tema `default`, bahasa `id`, voice-over aktif |
+
+**Celah alias Gmail tertutup (Bab 7.5).** Pendaftaran kedua dengan
+`uji.owner@gmail.com` — email berbeda, normalisasi sama — ditolak:
+
+```
+23505: duplicate key value violates unique constraint "users_email_normalized_key"
+detail: Key (email_normalized)=(ujiowner@gmail.com) already exists.
+```
+
+**Verifikasi email ditegakkan.** Login sebelum email dikonfirmasi ditolak
+HTTP 400, sesuai alur Bab 6.
+
+### Yang BELUM diuji
+
+- Isolasi antar tenant (Bab 5.7) — perlu dua tenant berisi data dan Auth Hook
+  aktif. **Ini kriteria kelulusan Minggu 2 dan belum terpenuhi.**
+- `before_video_insert`, `after_video_uploaded`, `check_packer_limit` — baru
+  bisa diuji setelah ada alur perekaman (Bab 8).
+- `seed.sql` belum pernah dijalankan.
+
+### Akun uji yang tertinggal di database
+
+`uji.owner+test@gmail.com` / `Password123` — dibuat untuk pengujian di atas dan
+sengaja tidak dihapus agar hook bisa diverifikasi ulang. Hapus sebelum database
+dipakai sungguhan:
+
+```sql
+delete from auth.users where email like 'uji.owner%';
+```
