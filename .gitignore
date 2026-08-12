@@ -60,6 +60,14 @@ env.staging.json
 env.prod.json
 *.env
 
+# Keluaran build. `/build/` saja tidak cukup: Gradle juga menulis
+# android/build/ (mis. laporan `problems-report.html`) yang sempat ikut
+# ter-commit karena hanya folder build di akar yang diabaikan.
+**/build/
+.gradle/
+/android/.gradle/
+/android/local.properties
+
 # Kunci penandatanganan Android
 /android/key.properties
 **/*.keystore
