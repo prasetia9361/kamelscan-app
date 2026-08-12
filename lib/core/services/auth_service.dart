@@ -1,5 +1,8 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../config/app_constants.dart';
 import '../config/env.dart';
 import '../utils/app_failure.dart';
 import '../utils/result.dart';
@@ -37,40 +40,238 @@ class AuthService {
         ),
       );
 
-  /// Registrasi mandiri Owner. `email_normalized` dikirim sebagai metadata
-  /// agar trigger server dapat memakainya tanpa menghitung ulang.
+  /// Registrasi mandiri Owner (Bab 6.2 & 6.3).
+  ///
+  /// Metadata di sini dibaca oleh trigger `handle_new_user` untuk membentuk
+  /// tenant, profil, dompet uji coba, dan pengaturan awal. `role` dikirim
+  /// eksplisit meski server sudah memakai `owner` sebagai bawaan — supaya
+  /// niatnya terbaca dan tidak bergantung pada nilai bawaan yang bisa berubah.
   Future<Result<AuthResponse>> signUp({
     required String email,
     required String password,
     required String fullName,
     String? phone,
+    String? username,
+    String? businessName,
   }) =>
       _guard(
         () => _auth.signUp(
           email: email.trim().toLowerCase(),
           password: password,
-          emailRedirectTo: Env.oauthRedirectUrl,
+          emailRedirectTo: Env.emailVerifyRedirectUrl,
           data: {
+            'role': 'owner',
             'full_name': fullName.trim(),
             'email_normalized': Validators.normalizeEmail(email),
             if (phone != null && phone.trim().isNotEmpty)
               'phone': Validators.normalizePhone(phone),
+            if (username != null && username.trim().isNotEmpty)
+              'username': username.trim().toLowerCase(),
+            if (businessName != null && businessName.trim().isNotEmpty)
+              'business_name': businessName.trim(),
           },
         ),
       );
 
-  /// Login Google.
+  /// Bab 6.6 — Supabase Auth hanya mengenal email, jadi username ditukar
+  /// dulu lewat Edge Function `resolve-username`.
   ///
-  /// ⚠️ `google_sign_in` v7 memakai singleton `GoogleSignIn.instance` dan
-  /// wajib `initialize()` lebih dulu — berbeda total dari v6 yang ditulis di
-  /// Bab 4.2. Implementasi native menyusul di Bab 6; untuk sekarang jalur
-  /// OAuth browser dipakai karena berlaku di semua platform.
-  Future<Result<bool>> signInWithGoogle() => _guard(
+  /// ⚠️ Tabel `users` **tidak** boleh dibuka untuk `anon`; itu akan
+  /// membocorkan seluruh daftar email pelanggan.
+  Future<Result<String>> resolveUsernameToEmail(String username) async {
+    try {
+      final res = await SupabaseService.client.functions.invoke(
+        AppConstants.fnResolveUsername,
+        body: {'username': username.trim().toLowerCase()},
+      );
+      final email = (res.data as Map?)?['email'] as String?;
+      if (email == null || email.isEmpty) {
+        return const Result.err(
+          AppFailure(
+            kind: FailureKind.auth,
+            messageKey: 'errorInvalidCredentials',
+          ),
+        );
+      }
+      return Result.ok(email);
+    } on FunctionException catch (e) {
+      // 404 = username tidak ada. Sengaja dipetakan ke pesan yang sama dengan
+      // "kredensial salah" agar tidak bisa dipakai menebak username terdaftar.
+      if (e.status == 429) {
+        return const Result.err(
+          AppFailure(kind: FailureKind.auth, messageKey: 'errorTooManyAttempts'),
+        );
+      }
+      return const Result.err(
+        AppFailure(kind: FailureKind.auth, messageKey: 'errorInvalidCredentials'),
+      );
+    } on Object catch (e, s) {
+      return Result.err(SupabaseService.mapError(e, s));
+    }
+  }
+
+  /// Login Google (Bab 6.5).
+  ///
+  /// Web memakai alur OAuth lewat browser; mobile memakai `google_sign_in`
+  /// untuk mengambil `idToken` lalu menukarnya di Supabase — sesuai Bab 6.5.
+  ///
+  /// ⚠️ `google_sign_in` v7 memakai singleton `GoogleSignIn.instance` dan wajib
+  /// `initialize()` lebih dulu; berbeda total dari v6 yang ditulis di Bab 4.2
+  /// (lihat DEVIASI_LIBRARY.md bagian B).
+  ///
+  /// ⚠️ Di Android, alur ini **hanya berfungsi setelah SHA-1 dan SHA-256
+  /// keystore debug DAN release didaftarkan di Google Cloud Console**. Bila
+  /// belum, `authenticate()` gagal dengan galat konfigurasi.
+  Future<Result<void>> signInWithGoogle() async {
+    if (!Env.googleSignInConfigured) {
+      return const Result.err(
+        AppFailure(
+          kind: FailureKind.auth,
+          messageKey: 'errorGoogleNotConfigured',
+        ),
+      );
+    }
+
+    if (kIsWeb) {
+      return _guard(
         () => _auth.signInWithOAuth(
           OAuthProvider.google,
           redirectTo: Env.oauthRedirectUrl,
         ),
       );
+    }
+
+    try {
+      final google = GoogleSignIn.instance;
+      await google.initialize(
+        serverClientId: Env.googleWebClientId,
+        clientId: Env.googleIosClientId.isEmpty ? null : Env.googleIosClientId,
+      );
+
+      final account = await google.authenticate();
+      final idToken = account.authentication.idToken;
+      if (idToken == null || idToken.isEmpty) {
+        return const Result.err(
+          AppFailure(kind: FailureKind.auth, messageKey: 'errorGoogleNoToken'),
+        );
+      }
+
+      await _auth.signInWithIdToken(
+        provider: OAuthProvider.google,
+        idToken: idToken,
+      );
+      return okVoid;
+    } on GoogleSignInException catch (e) {
+      // Pengguna menutup dialog pemilihan akun — bukan kegagalan, jangan
+      // ditampilkan sebagai error merah.
+      if (e.code == GoogleSignInExceptionCode.canceled) {
+        return const Result.err(
+          AppFailure(kind: FailureKind.auth, messageKey: 'errorCancelled'),
+        );
+      }
+      return Result.err(
+        AppFailure(
+          kind: FailureKind.auth,
+          messageKey: 'errorGoogleFailed',
+          debugMessage: '${e.code}: ${e.description}',
+        ),
+      );
+    } on Object catch (e, s) {
+      return Result.err(SupabaseService.mapError(e, s));
+    }
+  }
+
+  // ---------------------------------------------------------------
+  // Wajib ganti password saat login pertama (Bab 6.7)
+  // ---------------------------------------------------------------
+
+  /// Dibaca dari `user_metadata`, yang diisi Edge Function `create-packer`.
+  bool get mustChangePassword =>
+      _auth.currentUser?.userMetadata?['must_change_password'] == true;
+
+  /// Dipanggil setelah packer berhasil mengganti password. Flag dihapus agar
+  /// ia tidak dipaksa mengganti lagi di login berikutnya.
+  Future<Result<void>> clearMustChangePassword() => _guard(
+        () => _auth.updateUser(
+          UserAttributes(data: {'must_change_password': false}),
+        ),
+      );
+
+  /// Bab 6.8 — verifikasi ulang password lama sebelum menggantinya.
+  /// Tanpa ini, siapa pun yang menemukan HP tidak terkunci bisa mengambil alih
+  /// akun hanya dengan mengganti password.
+  Future<Result<void>> reauthenticate(String currentPassword) async {
+    final email = _auth.currentUser?.email;
+    if (email == null) {
+      return const Result.err(AppFailure.sessionExpired);
+    }
+    final result = await signInWithPassword(
+      email: email,
+      password: currentPassword,
+    );
+    return result.map((_) {});
+  }
+
+  /// Bab 6.7 — pembuatan akun packer dijalankan Edge Function memakai service
+  /// role. Klien **tidak pernah** memegang kunci itu (Bab 4.4).
+  Future<Result<PackerCredentials>> createPacker({
+    required String email,
+    required String fullName,
+    String? phone,
+    List<String> shopIds = const [],
+  }) async {
+    try {
+      final res = await SupabaseService.client.functions.invoke(
+        AppConstants.fnCreatePacker,
+        body: {
+          'email': email.trim().toLowerCase(),
+          'full_name': fullName.trim(),
+          if (phone != null && phone.trim().isNotEmpty)
+            'phone': Validators.normalizePhone(phone),
+          'shop_ids': shopIds,
+        },
+      );
+      final data = (res.data as Map?)?.cast<String, dynamic>() ?? const {};
+      final password = data['temp_password'] as String?;
+      final userId = data['user_id'] as String?;
+      if (password == null || userId == null) {
+        return const Result.err(
+          AppFailure(kind: FailureKind.unknown, messageKey: 'errorUnknown'),
+        );
+      }
+      return Result.ok(
+        PackerCredentials(
+          userId: userId,
+          email: data['email'] as String? ?? email,
+          temporaryPassword: password,
+        ),
+      );
+    } on FunctionException catch (e) {
+      return Result.err(_mapPackerError(e));
+    } on Object catch (e, s) {
+      return Result.err(SupabaseService.mapError(e, s));
+    }
+  }
+
+  static AppFailure _mapPackerError(FunctionException e) {
+    final code = (e.details is Map)
+        ? (e.details as Map)['error']?.toString()
+        : null;
+    return switch (code) {
+      'PACKER_LIMIT_REACHED' => AppFailure.packerLimitReached,
+      'EMAIL_ALREADY_USED' => const AppFailure(
+          kind: FailureKind.conflict,
+          messageKey: 'errorEmailAlreadyUsed',
+        ),
+      'SUBSCRIPTION_INACTIVE' => AppFailure.subscriptionInactive,
+      'FORBIDDEN' || 'UNAUTHORIZED' => AppFailure.permissionDenied,
+      _ => AppFailure(
+          kind: FailureKind.unknown,
+          messageKey: 'errorUnknown',
+          debugMessage: 'create-packer: ${e.status} $code',
+        ),
+    };
+  }
 
   Future<Result<void>> sendPasswordReset(String email) => _guard(
         () => _auth.resetPasswordForEmail(
@@ -98,6 +299,26 @@ class AuthService {
       return Result<T>.err(SupabaseService.mapError(e, s));
     }
   }
+}
+
+/// Kredensial packer yang baru dibuat.
+///
+/// ⚠️ [temporaryPassword] hanya ada di memori dan **ditampilkan sekali**
+/// (Bab 6.7). Jangan pernah menuliskannya ke log, Sentry, atau penyimpanan
+/// lokal.
+class PackerCredentials {
+  const PackerCredentials({
+    required this.userId,
+    required this.email,
+    required this.temporaryPassword,
+  });
+
+  final String userId;
+  final String email;
+  final String temporaryPassword;
+
+  @override
+  String toString() => 'PackerCredentials($email, password disembunyikan)';
 }
 
 /// Pemetaan pesan Supabase Auth yang sering muncul ke kunci l10n.

@@ -9,6 +9,7 @@ import '../pages/account/packers/packers_page.dart';
 import '../pages/admin/dashboard/admin_dashboard_page.dart';
 import '../pages/admin/payments/admin_payments_page.dart';
 import '../pages/admin/users/admin_users_page.dart';
+import '../pages/auth/change_password/change_password_page.dart';
 import '../pages/auth/forgot_password/forgot_password_page.dart';
 import '../pages/auth/login/login_page.dart';
 import '../pages/auth/register/register_page.dart';
@@ -68,11 +69,19 @@ GoRouter appRouter(Ref ref) {
       GoRoute(path: Routes.register, builder: (_, _) => const RegisterPage()),
       GoRoute(
         path: Routes.verifyEmail,
-        builder: (_, _) => const VerifyEmailPage(),
+        // Email dibawa lewat query agar layar ini tetap bisa dibuka kembali
+        // dari deep link atau setelah aplikasi di-restart.
+        builder: (_, state) => VerifyEmailPage(
+          email: state.uri.queryParameters['email'] ?? '',
+        ),
       ),
       GoRoute(
         path: Routes.forgotPassword,
         builder: (_, _) => const ForgotPasswordPage(),
+      ),
+      GoRoute(
+        path: Routes.changePassword,
+        builder: (_, _) => const ChangePasswordPage(),
       ),
 
       // ---------- Perekaman — mobile saja ----------

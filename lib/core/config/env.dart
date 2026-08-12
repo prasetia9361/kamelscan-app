@@ -42,6 +42,22 @@ class Env {
   static double get sentryTracesSampleRate =>
       double.tryParse(_sentryTracesRaw)?.clamp(0.0, 1.0) ?? 0.2;
 
+  // ---------- Login Google (Bab 6.5) ----------
+  /// Client ID **tipe Web** dari Google Cloud Console, dipakai sebagai
+  /// `serverClientId` di Android agar `idToken` yang dihasilkan diterima
+  /// Supabase. Bukan rahasia — memang dirancang untuk tampil di klien.
+  static const String googleWebClientId =
+      String.fromEnvironment('GOOGLE_WEB_CLIENT_ID');
+
+  /// Client ID khusus iOS. Boleh kosong selama rilis iOS masih ditunda
+  /// (Bab 0.2).
+  static const String googleIosClientId =
+      String.fromEnvironment('GOOGLE_IOS_CLIENT_ID');
+
+  /// Tombol "Masuk dengan Google" disembunyikan bila belum dikonfigurasi,
+  /// daripada tampil lalu gagal saat ditekan.
+  static bool get googleSignInConfigured => googleWebClientId.isNotEmpty;
+
   // ---------- Pembayaran ----------
   /// Hanya CLIENT key. Server key milik Edge Function.
   static const String midtransClientKey =
@@ -65,6 +81,19 @@ class Env {
 
   static bool get isProd => appEnv == AppEnv.prod;
   static bool get isDev => appEnv == AppEnv.dev;
+
+  /// Tujuan tautan verifikasi email dan reset password (Bab 6.4).
+  ///
+  /// Harus didaftarkan di Supabase Dashboard → Authentication →
+  /// URL Configuration → Redirect URLs. Bila tidak terdaftar, Supabase
+  /// mengabaikannya dan memakai Site URL — pengguna mendarat di halaman web,
+  /// bukan kembali ke aplikasi.
+  static String get emailVerifyRedirectUrl =>
+      kIsWebPlatform ? '$webAppBaseUrl/auth/callback' : oauthRedirectUrl;
+
+  /// `kIsWeb` tanpa mengimpor Flutter — Env harus tetap bisa diuji tanpa
+  /// binding widget.
+  static const bool kIsWebPlatform = bool.fromEnvironment('dart.library.js_util');
 
   /// Callback OAuth: mobile memakai deep link, web memakai URL halaman.
   static String get oauthRedirectUrl =>

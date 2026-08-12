@@ -10,6 +10,11 @@ class Routes {
   static const String verifyEmail = '/verify-email';
   static const String forgotPassword = '/forgot-password';
 
+  /// Ganti password. Juga menjadi tujuan paksa bagi packer yang masih memakai
+  /// password sementara (Bab 6.7) — karena itu ia **tidak** masuk daftar
+  /// [public]: pengguna harus sudah login untuk sampai ke sini.
+  static const String changePassword = '/change-password';
+
   /// Halaman bukti publik yang dibuka pihak marketplace tanpa login.
   static const String publicVideo = '/v/:token';
 

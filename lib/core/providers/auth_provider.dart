@@ -27,6 +27,17 @@ bool isSignedIn(Ref ref) {
   );
 }
 
+/// Bab 6.7 — packer yang dibuatkan Owner memakai password sementara dan
+/// **wajib** menggantinya sebelum boleh memakai aplikasi.
+///
+/// Nilainya berasal dari `user_metadata`, yang ikut berubah setelah
+/// `refreshSession()` dipanggil pasca-penggantian.
+@Riverpod(keepAlive: true)
+bool mustChangePassword(Ref ref) {
+  ref.watch(authStateChangesProvider);
+  return ref.read(authRepositoryProvider).mustChangePassword;
+}
+
 @Riverpod(keepAlive: true)
 String? currentUserId(Ref ref) {
   // Bergantung pada isSignedIn agar ikut diperbarui saat sesi berubah.

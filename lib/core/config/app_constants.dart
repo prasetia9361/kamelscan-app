@@ -81,6 +81,7 @@ class AppConstants {
   static const String fnGetVideoUrl = 'get-video-url';
   static const String fnCreatePublicLink = 'create-public-link';
   static const String fnCreatePacker = 'create-packer';
+  static const String fnResolveUsername = 'resolve-username';
   static const String fnMidtransCharge = 'midtrans-charge';
 
   // ---------- Nama tugas WorkManager ----------

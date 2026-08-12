@@ -81,13 +81,13 @@ Future<void> main() async {
   // ::text wajib — tipe citext tidak dikenali driver dan tampil sebagai
   // UndecodedBytes bila tidak di-cast.
   await show('Uji normalize_email (Bab 7.5)', '''
-    select public.normalize_email('Bu.Di+promo\@Gmail.com')::text
+    select public.normalize_email('Bu.Di+promo@Gmail.com')::text
              || '   <= alias gmail (titik & +promo dibuang)'
     union all
-    select public.normalize_email('a.b+x\@company.co.id')::text
+    select public.normalize_email('a.b+x@company.co.id')::text
              || '   <= non-gmail (titik DIPERTAHANKAN)'
     union all
-    select public.normalize_email('BUDI\@Example.COM')::text
+    select public.normalize_email('BUDI@Example.COM')::text
              || '   <= huruf besar jadi kecil';
   ''');
 

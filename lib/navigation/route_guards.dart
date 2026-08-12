@@ -31,6 +31,14 @@ class RouteGuards {
       return _homeFor(_ref.read(currentRoleProvider));
     }
 
+    // Bab 6.7 — packer yang masih memakai password sementara tidak boleh
+    // masuk ke layar mana pun sebelum menggantinya. Password itu sudah dilihat
+    // Owner, jadi selama belum diganti akunnya bukan miliknya sendiri.
+    if (_ref.read(mustChangePasswordProvider) &&
+        location != Routes.changePassword) {
+      return Routes.changePassword;
+    }
+
     final role = _ref.read(currentRoleProvider);
     if (role == null) return null; // konteks sesi masih dimuat
 

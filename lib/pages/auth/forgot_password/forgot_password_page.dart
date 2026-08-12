@@ -1,23 +1,98 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../core/utils/validators.dart';
 import '../../../core/widgets/failure_messages.dart';
-import '../../../core/widgets/page_scaffold_placeholder.dart';
+import '../widgets/auth_scaffold.dart';
+import 'forgot_password_view_model.dart';
 
-/// ForgotPasswordPage — belum dikerjakan.
-///
-/// Spesifikasi: Bab 6.4. Saat digarap, ganti isi `build` dan tambahkan
-/// `forgot_password_view_model.dart` sesuai pola Bab 3.4 (empat kondisi wajib:
-/// loading, error, kosong, berisi).
-class ForgotPasswordPage extends ConsumerWidget {
+/// Lupa password (Bab 6.8).
+class ForgotPasswordPage extends ConsumerStatefulWidget {
   const ForgotPasswordPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return PageScaffoldPlaceholder(
-      title: context.l10n.authForgotPassword,
-      specChapter: 'Bab 6.4',
-      icon: Icons.lock_reset_rounded,
+  ConsumerState<ForgotPasswordPage> createState() => _ForgotPasswordPageState();
+}
+
+class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
+  final _formKey = GlobalKey<FormState>();
+  final _email = TextEditingController();
+
+  @override
+  void dispose() {
+    _email.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.l10n;
+    final state = ref.watch(forgotPasswordViewModelProvider);
+
+    // Setelah terkirim, form diganti pesan — bukan ditumpuk snackbar yang
+    // hilang sebelum sempat dibaca.
+    if (state.sent) {
+      return AuthScaffold(
+        title: t.authForgotTitle,
+        children: [
+          Icon(
+            Icons.mark_email_read_outlined,
+            size: 64,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+          const SizedBox(height: 24),
+          Text(
+            t.authForgotSent,
+            style: const TextStyle(fontSize: 15, height: 1.5),
+          ),
+          const SizedBox(height: 28),
+          AuthPrimaryButton(
+            label: t.commonBack,
+            onPressed: () => context.pop(),
+          ),
+        ],
+      );
+    }
+
+    return AuthScaffold(
+      title: t.authForgotTitle,
+      subtitle: t.authForgotBody,
+      children: [
+        if (state.failure != null)
+          AuthErrorBox(message: context.failureMessage(state.failure!)),
+        Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextFormField(
+                controller: _email,
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.done,
+                autofillHints: const [AutofillHints.email],
+                decoration: InputDecoration(labelText: t.authEmail),
+                validator: (v) {
+                  final key = Validators.email(v);
+                  return key == null ? null : context.messageForKey(key);
+                },
+              ),
+              const SizedBox(height: 20),
+              AuthPrimaryButton(
+                label: t.authSendResetLink,
+                busy: state.sending,
+                onPressed: () {
+                  if (!_formKey.currentState!.validate()) return;
+                  FocusScope.of(context).unfocus();
+                  ref
+                      .read(forgotPasswordViewModelProvider.notifier)
+                      .submit(_email.text);
+                },
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

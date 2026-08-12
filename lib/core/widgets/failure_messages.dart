@@ -56,6 +56,18 @@ extension FailureMessages on BuildContext {
       'validationResiInvalid' => t.validationResiInvalid,
       'validationShopNameRequired' => t.validationShopNameRequired,
       'validationShopNameTooLong' => t.validationShopNameTooLong,
+      'errorTooManyAttempts' => t.errorTooManyAttempts,
+      'errorGoogleNotConfigured' => t.errorGoogleNotConfigured,
+      'errorGoogleNoToken' => t.errorGoogleNoToken,
+      'errorGoogleFailed' => t.errorGoogleFailed,
+      'errorCancelled' => t.errorCancelled,
+      'errorCurrentPasswordWrong' => t.errorCurrentPasswordWrong,
+      'errorInvalidCredentials' => t.errorInvalidCredentials,
+      'errorEmailNotConfirmed' => t.errorEmailNotConfirmed,
+      'errorEmailAlreadyUsed' => t.errorEmailAlreadyUsed,
+      'errorAccountDisabled' => t.errorAccountDisabled,
+      'errorTenantSuspended' => t.errorTenantSuspended,
+      'errorWatermarkFontMissing' => t.errorWatermarkFontMissing,
       _ => t.errorUnknown,
     };
   }

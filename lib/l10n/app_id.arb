@@ -1,11 +1,10 @@
 {
   "@@locale": "id",
-
   "appName": "KamelScan",
-  "@appName": { "description": "Nama aplikasi, tidak diterjemahkan" },
-
+  "@appName": {
+    "description": "Nama aplikasi, tidak diterjemahkan"
+  },
   "appTagline": "Bukti video setiap paket, otomatis.",
-
   "commonOk": "Oke",
   "commonCancel": "Batal",
   "commonSave": "Simpan",
@@ -23,7 +22,6 @@
   "commonDownload": "Unduh",
   "commonCopy": "Salin",
   "commonCopied": "Disalin ke papan klip",
-
   "navHome": "Beranda",
   "navRecord": "Rekam",
   "navHistory": "Riwayat",
@@ -34,13 +32,11 @@
   "navTutorial": "Tutorial",
   "navAdmin": "Admin",
   "navDashboard": "Dasbor",
-
   "emptyTitle": "Belum ada data",
   "emptyHistoryTitle": "Belum ada rekaman",
   "emptyHistoryMessage": "Video yang Anda rekam akan muncul di sini.",
   "emptyShopsTitle": "Belum ada toko",
   "emptyShopsMessage": "Tambahkan toko terlebih dahulu sebelum mulai merekam.",
-
   "errorNetwork": "Tidak ada koneksi internet. Periksa jaringan Anda lalu coba lagi.",
   "errorSessionExpired": "Sesi Anda telah berakhir. Silakan masuk kembali.",
   "errorPermissionDenied": "Anda tidak memiliki akses ke data ini.",
@@ -53,14 +49,12 @@
   "errorWatermarkFontMissing": "Perangkat ini tidak menyediakan huruf yang dibutuhkan untuk menempelkan watermark. Hubungi dukungan.",
   "errorUnknown": "Terjadi kesalahan. Coba lagi beberapa saat.",
   "errorConfigMissing": "Konfigurasi aplikasi belum lengkap. Hubungi dukungan.",
-
   "permissionCameraDenied": "Izin kamera diperlukan untuk merekam video.",
   "permissionMicrophoneDenied": "Izin mikrofon diperlukan untuk merekam suara.",
   "permissionLocationDenied": "Izin lokasi ditolak. Video tetap direkam tanpa koordinat GPS.",
   "permissionStorageDenied": "Izin penyimpanan diperlukan untuk menyimpan video sementara.",
   "permissionOpenSettings": "Buka Pengaturan",
   "locationUnavailable": "Lokasi tidak tersedia",
-
   "validationRequired": "Wajib diisi",
   "validationEmailRequired": "Email wajib diisi",
   "validationEmailInvalid": "Format email tidak valid",
@@ -80,59 +74,69 @@
   "validationResiInvalid": "Nomor resi tidak valid",
   "validationShopNameRequired": "Nama toko wajib diisi",
   "validationShopNameTooLong": "Nama toko maksimal 60 karakter",
-
   "roleAdmin": "Admin",
   "roleOwner": "Pemilik",
   "rolePacker": "Packer",
-
   "tierStandar": "Standar",
   "tierPro": "Pro",
   "tierTrial": "Uji Coba",
-
   "videoTypePacking": "Packing",
   "videoTypeReturn": "Return",
-
   "videoStatusPendingUpload": "Menunggu unggah",
   "videoStatusUploading": "Mengunggah",
   "videoStatusUploaded": "Tersimpan",
   "videoStatusFailed": "Gagal",
   "videoStatusExpired": "Kedaluwarsa",
   "videoStatusDeleted": "Dihapus",
-
   "triggerModeQr": "QR Code",
   "triggerModeBarcode": "Barcode",
   "triggerModeManual": "Input Manual",
-
   "tokenRemaining": "{count, plural, other{{count} token tersisa}}",
   "@tokenRemaining": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
-
   "trialChip": "{count, plural, other{Uji Coba · {count} video tersisa}}",
   "@trialChip": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
-
   "trialLabel": "Uji coba gratis",
   "trialExhausted": "Uji coba gratis Anda telah habis. Pilih paket untuk melanjutkan.",
   "tokenLow": "{count, plural, other{Token tersisa {count}. Pertimbangkan upgrade paket.}}",
   "@tokenLow": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "tokenExhaustedMenuLabel": "Token habis",
-
   "subscriptionExpiredTitle": "Langganan berakhir",
   "subscriptionExpiredMessage": "Perekaman dan pemutaran video dikunci sampai langganan diperpanjang.",
   "subscriptionRenewNow": "Perpanjang Sekarang",
   "subscriptionEndingSoon": "{days, plural, other{Langganan berakhir dalam {days} hari.}}",
   "@subscriptionEndingSoon": {
-    "placeholders": { "days": { "type": "int" } }
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
   },
   "retentionCountdown": "{days, plural, other{Video Anda akan mulai terhapus dalam {days} hari}}",
   "@retentionCountdown": {
-    "placeholders": { "days": { "type": "int" } }
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
   },
-
   "settingsTheme": "Tampilan",
   "settingsThemeDefault": "Ikuti sistem",
   "settingsThemeLight": "Terang",
@@ -141,7 +145,6 @@
   "settingsLanguageId": "Bahasa Indonesia",
   "settingsLanguageEn": "English",
   "settingsVoiceOver": "Suara penanda rekam",
-
   "authLogin": "Masuk",
   "authRegister": "Daftar",
   "authLogout": "Keluar",
@@ -150,8 +153,68 @@
   "authPassword": "Kata sandi",
   "authForgotPassword": "Lupa kata sandi?",
   "authContinueWithGoogle": "Lanjutkan dengan Google",
-
   "webRecordingUnavailable": "Perekaman hanya tersedia di aplikasi mobile.",
   "notFoundPageTitle": "Halaman tidak ditemukan",
-  "notFoundPageMessage": "Alamat yang Anda buka tidak tersedia."
+  "notFoundPageMessage": "Alamat yang Anda buka tidak tersedia.",
+  "errorTooManyAttempts": "Terlalu banyak percobaan. Coba lagi beberapa saat.",
+  "errorGoogleNotConfigured": "Masuk dengan Google belum dikonfigurasi pada aplikasi ini.",
+  "errorGoogleNoToken": "Google tidak mengembalikan token. Coba lagi.",
+  "errorGoogleFailed": "Masuk dengan Google gagal. Coba cara lain.",
+  "errorCancelled": "Dibatalkan.",
+  "errorCurrentPasswordWrong": "Password lama tidak cocok.",
+  "errorInvalidCredentials": "Email/username atau password salah.",
+  "errorEmailNotConfirmed": "Email belum diverifikasi. Cek kotak masuk Anda.",
+  "errorEmailAlreadyUsed": "Email ini sudah terdaftar. Silakan login atau gunakan Lupa Password.",
+  "errorAccountDisabled": "Akun Anda dinonaktifkan. Hubungi pemilik akun.",
+  "errorTenantSuspended": "Akun tenant ditangguhkan. Hubungi dukungan.",
+  "authIdentifier": "Email atau username",
+  "authIdentifierHint": "nama@email.com atau username",
+  "authSignInTitle": "Masuk ke KamelScan",
+  "authSignInSubtitle": "Rekam bukti packing, selesaikan sengketa.",
+  "authNoAccount": "Belum punya akun?",
+  "authHaveAccount": "Sudah punya akun?",
+  "authOr": "atau",
+  "authRegisterTitle": "Buat akun",
+  "authRegisterSubtitle": "Gratis 100 video untuk mencoba.",
+  "authFullName": "Nama lengkap",
+  "authPhone": "Nomor HP",
+  "authUsername": "Username (opsional)",
+  "authUsernameHelp": "Untuk login tanpa mengetik email.",
+  "authBusinessName": "Nama usaha (opsional)",
+  "authConfirmPassword": "Ulangi password",
+  "authAgreeTerms": "Saya setuju dengan Syarat & Ketentuan dan Kebijakan Privasi.",
+  "authMustAgreeTerms": "Anda harus menyetujui Syarat & Ketentuan.",
+  "authVerifyTitle": "Cek email Anda",
+  "authVerifyBody": "Kami mengirim tautan verifikasi ke {email}. Buka tautannya untuk mengaktifkan akun.",
+  "authResendEmail": "Kirim ulang email",
+  "authResendIn": "Kirim ulang dalam {seconds} detik",
+  "authResendSent": "Email verifikasi dikirim ulang.",
+  "authChangeEmail": "Ganti email",
+  "authVerifyWaiting": "Menunggu verifikasi…",
+  "authForgotTitle": "Lupa password",
+  "authForgotBody": "Masukkan email akun Anda. Kami kirimkan tautan untuk membuat password baru.",
+  "authForgotSent": "Jika email tersebut terdaftar, tautan reset sudah dikirim. Cek kotak masuk dan folder spam.",
+  "authSendResetLink": "Kirim tautan reset",
+  "authChangePasswordTitle": "Ganti password",
+  "authCurrentPassword": "Password saat ini",
+  "authNewPassword": "Password baru",
+  "authPasswordChanged": "Password berhasil diganti.",
+  "authMustChangeTitle": "Buat password Anda sendiri",
+  "authMustChangeBody": "Akun ini dibuatkan oleh pemilik toko dengan password sementara. Ganti sekarang sebelum mulai bekerja.",
+  "commonShowPassword": "Tampilkan password",
+  "commonHidePassword": "Sembunyikan password",
+  "@authVerifyBody": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "@authResendIn": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  }
 }

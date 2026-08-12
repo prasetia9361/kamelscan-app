@@ -49,6 +49,25 @@
 	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Deep link verifikasi email, reset password, dan callback OAuth
+	     (Bab 6.4 & 6.5). Skema harus sama dengan AUTH_REDIRECT_SCHEME dan
+	     dengan intent-filter di AndroidManifest.xml.
+
+	     Bab 0.2: rilis iOS ditunda ke setelah MVP, tetapi codebase tetap
+	     dijaga agar dapat dibangun untuk iOS. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>id.kamelscan.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>id.kamelscan.app</string>
+			</array>
+		</dict>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
