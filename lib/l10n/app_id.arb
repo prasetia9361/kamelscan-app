@@ -1,0 +1,157 @@
+{
+  "@@locale": "id",
+
+  "appName": "KamelScan",
+  "@appName": { "description": "Nama aplikasi, tidak diterjemahkan" },
+
+  "appTagline": "Bukti video setiap paket, otomatis.",
+
+  "commonOk": "Oke",
+  "commonCancel": "Batal",
+  "commonSave": "Simpan",
+  "commonDelete": "Hapus",
+  "commonEdit": "Ubah",
+  "commonBack": "Kembali",
+  "commonNext": "Lanjut",
+  "commonClose": "Tutup",
+  "commonRetry": "Coba lagi",
+  "commonSearch": "Cari",
+  "commonLoading": "Memuat…",
+  "commonYes": "Ya",
+  "commonNo": "Tidak",
+  "commonShare": "Bagikan",
+  "commonDownload": "Unduh",
+  "commonCopy": "Salin",
+  "commonCopied": "Disalin ke papan klip",
+
+  "navHome": "Beranda",
+  "navRecord": "Rekam",
+  "navHistory": "Riwayat",
+  "navShops": "Toko",
+  "navAccount": "Akun",
+  "navSettings": "Pengaturan",
+  "navPayment": "Pembayaran",
+  "navTutorial": "Tutorial",
+  "navAdmin": "Admin",
+  "navDashboard": "Dasbor",
+
+  "emptyTitle": "Belum ada data",
+  "emptyHistoryTitle": "Belum ada rekaman",
+  "emptyHistoryMessage": "Video yang Anda rekam akan muncul di sini.",
+  "emptyShopsTitle": "Belum ada toko",
+  "emptyShopsMessage": "Tambahkan toko terlebih dahulu sebelum mulai merekam.",
+
+  "errorNetwork": "Tidak ada koneksi internet. Periksa jaringan Anda lalu coba lagi.",
+  "errorSessionExpired": "Sesi Anda telah berakhir. Silakan masuk kembali.",
+  "errorPermissionDenied": "Anda tidak memiliki akses ke data ini.",
+  "errorNotFound": "Data tidak ditemukan.",
+  "errorResiDuplicate": "Nomor resi ini sudah pernah direkam.",
+  "errorTokenExhausted": "Token Anda habis. Pilih paket untuk melanjutkan perekaman.",
+  "errorSubscriptionInactive": "Langganan Anda tidak aktif. Perpanjang untuk melanjutkan.",
+  "errorPackerLimitReached": "Jumlah akun packer sudah mencapai batas paket Anda.",
+  "errorStorage": "Gagal menyimpan atau mengambil berkas. Coba lagi.",
+  "errorWatermarkFontMissing": "Perangkat ini tidak menyediakan huruf yang dibutuhkan untuk menempelkan watermark. Hubungi dukungan.",
+  "errorUnknown": "Terjadi kesalahan. Coba lagi beberapa saat.",
+  "errorConfigMissing": "Konfigurasi aplikasi belum lengkap. Hubungi dukungan.",
+
+  "permissionCameraDenied": "Izin kamera diperlukan untuk merekam video.",
+  "permissionMicrophoneDenied": "Izin mikrofon diperlukan untuk merekam suara.",
+  "permissionLocationDenied": "Izin lokasi ditolak. Video tetap direkam tanpa koordinat GPS.",
+  "permissionStorageDenied": "Izin penyimpanan diperlukan untuk menyimpan video sementara.",
+  "permissionOpenSettings": "Buka Pengaturan",
+  "locationUnavailable": "Lokasi tidak tersedia",
+
+  "validationRequired": "Wajib diisi",
+  "validationEmailRequired": "Email wajib diisi",
+  "validationEmailInvalid": "Format email tidak valid",
+  "validationPasswordRequired": "Kata sandi wajib diisi",
+  "validationPasswordTooShort": "Kata sandi minimal 8 karakter",
+  "validationPasswordWeak": "Kata sandi harus mengandung huruf dan angka",
+  "validationPasswordMismatch": "Konfirmasi kata sandi tidak cocok",
+  "validationUsernameRequired": "Nama pengguna wajib diisi",
+  "validationUsernameInvalid": "Gunakan 4–20 karakter: huruf kecil, angka, titik, atau garis bawah",
+  "validationNameRequired": "Nama wajib diisi",
+  "validationNameTooShort": "Nama minimal 3 karakter",
+  "validationNameTooLong": "Nama maksimal 80 karakter",
+  "validationPhoneRequired": "Nomor HP wajib diisi",
+  "validationPhoneInvalid": "Nomor HP tidak valid",
+  "validationResiRequired": "Nomor resi wajib diisi",
+  "validationResiNotACode": "Kode ini bukan nomor resi.",
+  "validationResiInvalid": "Nomor resi tidak valid",
+  "validationShopNameRequired": "Nama toko wajib diisi",
+  "validationShopNameTooLong": "Nama toko maksimal 60 karakter",
+
+  "roleAdmin": "Admin",
+  "roleOwner": "Pemilik",
+  "rolePacker": "Packer",
+
+  "tierStandar": "Standar",
+  "tierPro": "Pro",
+  "tierTrial": "Uji Coba",
+
+  "videoTypePacking": "Packing",
+  "videoTypeReturn": "Return",
+
+  "videoStatusPendingUpload": "Menunggu unggah",
+  "videoStatusUploading": "Mengunggah",
+  "videoStatusUploaded": "Tersimpan",
+  "videoStatusFailed": "Gagal",
+  "videoStatusExpired": "Kedaluwarsa",
+  "videoStatusDeleted": "Dihapus",
+
+  "triggerModeQr": "QR Code",
+  "triggerModeBarcode": "Barcode",
+  "triggerModeManual": "Input Manual",
+
+  "tokenRemaining": "{count, plural, other{{count} token tersisa}}",
+  "@tokenRemaining": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "trialChip": "{count, plural, other{Uji Coba · {count} video tersisa}}",
+  "@trialChip": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "trialLabel": "Uji coba gratis",
+  "trialExhausted": "Uji coba gratis Anda telah habis. Pilih paket untuk melanjutkan.",
+  "tokenLow": "{count, plural, other{Token tersisa {count}. Pertimbangkan upgrade paket.}}",
+  "@tokenLow": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "tokenExhaustedMenuLabel": "Token habis",
+
+  "subscriptionExpiredTitle": "Langganan berakhir",
+  "subscriptionExpiredMessage": "Perekaman dan pemutaran video dikunci sampai langganan diperpanjang.",
+  "subscriptionRenewNow": "Perpanjang Sekarang",
+  "subscriptionEndingSoon": "{days, plural, other{Langganan berakhir dalam {days} hari.}}",
+  "@subscriptionEndingSoon": {
+    "placeholders": { "days": { "type": "int" } }
+  },
+  "retentionCountdown": "{days, plural, other{Video Anda akan mulai terhapus dalam {days} hari}}",
+  "@retentionCountdown": {
+    "placeholders": { "days": { "type": "int" } }
+  },
+
+  "settingsTheme": "Tampilan",
+  "settingsThemeDefault": "Ikuti sistem",
+  "settingsThemeLight": "Terang",
+  "settingsThemeDark": "Gelap",
+  "settingsLanguage": "Bahasa",
+  "settingsLanguageId": "Bahasa Indonesia",
+  "settingsLanguageEn": "English",
+  "settingsVoiceOver": "Suara penanda rekam",
+
+  "authLogin": "Masuk",
+  "authRegister": "Daftar",
+  "authLogout": "Keluar",
+  "authLogoutConfirm": "Yakin ingin keluar dari akun ini?",
+  "authEmail": "Email",
+  "authPassword": "Kata sandi",
+  "authForgotPassword": "Lupa kata sandi?",
+  "authContinueWithGoogle": "Lanjutkan dengan Google",
+
+  "webRecordingUnavailable": "Perekaman hanya tersedia di aplikasi mobile.",
+  "notFoundPageTitle": "Halaman tidak ditemukan",
+  "notFoundPageMessage": "Alamat yang Anda buka tidak tersedia."
+}

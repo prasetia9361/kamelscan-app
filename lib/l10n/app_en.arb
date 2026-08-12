@@ -1,0 +1,155 @@
+{
+  "@@locale": "en",
+
+  "appName": "KamelScan",
+  "appTagline": "Video proof for every parcel, automatically.",
+
+  "commonOk": "OK",
+  "commonCancel": "Cancel",
+  "commonSave": "Save",
+  "commonDelete": "Delete",
+  "commonEdit": "Edit",
+  "commonBack": "Back",
+  "commonNext": "Next",
+  "commonClose": "Close",
+  "commonRetry": "Try again",
+  "commonSearch": "Search",
+  "commonLoading": "Loading…",
+  "commonYes": "Yes",
+  "commonNo": "No",
+  "commonShare": "Share",
+  "commonDownload": "Download",
+  "commonCopy": "Copy",
+  "commonCopied": "Copied to clipboard",
+
+  "navHome": "Home",
+  "navRecord": "Record",
+  "navHistory": "History",
+  "navShops": "Shops",
+  "navAccount": "Account",
+  "navSettings": "Settings",
+  "navPayment": "Billing",
+  "navTutorial": "Tutorial",
+  "navAdmin": "Admin",
+  "navDashboard": "Dashboard",
+
+  "emptyTitle": "No data yet",
+  "emptyHistoryTitle": "No recordings yet",
+  "emptyHistoryMessage": "Videos you record will appear here.",
+  "emptyShopsTitle": "No shops yet",
+  "emptyShopsMessage": "Add a shop before you start recording.",
+
+  "errorNetwork": "No internet connection. Check your network and try again.",
+  "errorSessionExpired": "Your session has expired. Please sign in again.",
+  "errorPermissionDenied": "You do not have access to this data.",
+  "errorNotFound": "Data not found.",
+  "errorResiDuplicate": "This tracking number has already been recorded.",
+  "errorTokenExhausted": "You are out of tokens. Choose a plan to keep recording.",
+  "errorSubscriptionInactive": "Your subscription is inactive. Renew to continue.",
+  "errorPackerLimitReached": "You have reached the packer account limit of your plan.",
+  "errorStorage": "Failed to save or fetch the file. Please try again.",
+  "errorWatermarkFontMissing": "This device does not provide the font required to stamp the watermark. Please contact support.",
+  "errorUnknown": "Something went wrong. Please try again shortly.",
+  "errorConfigMissing": "App configuration is incomplete. Contact support.",
+
+  "permissionCameraDenied": "Camera permission is required to record video.",
+  "permissionMicrophoneDenied": "Microphone permission is required to record audio.",
+  "permissionLocationDenied": "Location permission denied. The video is still recorded without GPS coordinates.",
+  "permissionStorageDenied": "Storage permission is required to hold the video temporarily.",
+  "permissionOpenSettings": "Open Settings",
+  "locationUnavailable": "Location unavailable",
+
+  "validationRequired": "Required",
+  "validationEmailRequired": "Email is required",
+  "validationEmailInvalid": "Invalid email format",
+  "validationPasswordRequired": "Password is required",
+  "validationPasswordTooShort": "Password must be at least 8 characters",
+  "validationPasswordWeak": "Password must contain letters and numbers",
+  "validationPasswordMismatch": "Passwords do not match",
+  "validationUsernameRequired": "Username is required",
+  "validationUsernameInvalid": "Use 4–20 characters: lowercase letters, digits, dot or underscore",
+  "validationNameRequired": "Name is required",
+  "validationNameTooShort": "Name must be at least 3 characters",
+  "validationNameTooLong": "Name must be at most 80 characters",
+  "validationPhoneRequired": "Phone number is required",
+  "validationPhoneInvalid": "Invalid phone number",
+  "validationResiRequired": "Tracking number is required",
+  "validationResiNotACode": "This code is not a tracking number.",
+  "validationResiInvalid": "Invalid tracking number",
+  "validationShopNameRequired": "Shop name is required",
+  "validationShopNameTooLong": "Shop name must be at most 60 characters",
+
+  "roleAdmin": "Admin",
+  "roleOwner": "Owner",
+  "rolePacker": "Packer",
+
+  "tierStandar": "Standard",
+  "tierPro": "Pro",
+  "tierTrial": "Trial",
+
+  "videoTypePacking": "Packing",
+  "videoTypeReturn": "Return",
+
+  "videoStatusPendingUpload": "Waiting to upload",
+  "videoStatusUploading": "Uploading",
+  "videoStatusUploaded": "Stored",
+  "videoStatusFailed": "Failed",
+  "videoStatusExpired": "Expired",
+  "videoStatusDeleted": "Deleted",
+
+  "triggerModeQr": "QR Code",
+  "triggerModeBarcode": "Barcode",
+  "triggerModeManual": "Manual input",
+
+  "tokenRemaining": "{count, plural, one{{count} token left} other{{count} tokens left}}",
+  "@tokenRemaining": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "trialChip": "{count, plural, one{Trial · {count} video left} other{Trial · {count} videos left}}",
+  "@trialChip": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "trialLabel": "Free trial",
+  "trialExhausted": "Your free trial is used up. Choose a plan to continue.",
+  "tokenLow": "{count, plural, one{{count} token left. Consider upgrading your plan.} other{{count} tokens left. Consider upgrading your plan.}}",
+  "@tokenLow": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "tokenExhaustedMenuLabel": "Out of tokens",
+
+  "subscriptionExpiredTitle": "Subscription ended",
+  "subscriptionExpiredMessage": "Recording and video playback are locked until you renew.",
+  "subscriptionRenewNow": "Renew now",
+  "subscriptionEndingSoon": "{days, plural, one{Subscription ends in {days} day.} other{Subscription ends in {days} days.}}",
+  "@subscriptionEndingSoon": {
+    "placeholders": { "days": { "type": "int" } }
+  },
+  "retentionCountdown": "{days, plural, one{Your videos start being deleted in {days} day} other{Your videos start being deleted in {days} days}}",
+  "@retentionCountdown": {
+    "placeholders": { "days": { "type": "int" } }
+  },
+
+  "settingsTheme": "Appearance",
+  "settingsThemeDefault": "Follow system",
+  "settingsThemeLight": "Light",
+  "settingsThemeDark": "Dark",
+  "settingsLanguage": "Language",
+  "settingsLanguageId": "Bahasa Indonesia",
+  "settingsLanguageEn": "English",
+  "settingsVoiceOver": "Recording voice cue",
+
+  "authLogin": "Sign in",
+  "authRegister": "Sign up",
+  "authLogout": "Sign out",
+  "authLogoutConfirm": "Are you sure you want to sign out?",
+  "authEmail": "Email",
+  "authPassword": "Password",
+  "authForgotPassword": "Forgot password?",
+  "authContinueWithGoogle": "Continue with Google",
+
+  "webRecordingUnavailable": "Recording is available on the mobile app only.",
+  "notFoundPageTitle": "Page not found",
+  "notFoundPageMessage": "The address you opened is not available."
+}

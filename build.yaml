@@ -1,0 +1,14 @@
+# Konfigurasi code generator.
+#
+# `field_rename: snake` dipasang global agar setiap Model otomatis memetakan
+# `tenantId` ⇄ `tenant_id` tanpa menempelkan @JsonKey di ratusan field.
+# Kolom Supabase seluruhnya snake_case (Bab 5.2).
+targets:
+  $default:
+    builders:
+      json_serializable:
+        options:
+          field_rename: snake
+          explicit_to_json: true
+          create_to_json: true
+          checked: true

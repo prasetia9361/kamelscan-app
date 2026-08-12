@@ -1,4 +1,4 @@
-package com.kamelscan.kamelscan
+package id.kamelscan.app
 
 import io.flutter.embedding.android.FlutterActivity
 

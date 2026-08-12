@@ -43,3 +43,28 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Berkas hasil code generation. Jalankan `dart run build_runner build` setelah
+# clone; CI juga wajib menjalankannya sebelum `flutter analyze`.
+*.freezed.dart
+*.g.dart
+lib/l10n/generated/
+
+# Data sensitif — JANGAN pernah di-commit
+dataapp.md
+panduan_dokumentasi.md
+
+# Variabel lingkungan (Bab 4.4). Hanya env.example.json yang boleh masuk repo.
+env.dev.json
+env.staging.json
+env.prod.json
+*.env
+
+# Kunci penandatanganan Android
+/android/key.properties
+**/*.keystore
+**/*.jks
+
+# Berkas konfigurasi layanan pihak ketiga
+/android/app/google-services.json
+/ios/Runner/GoogleService-Info.plist
