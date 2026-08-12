@@ -232,17 +232,52 @@ detail: Key (email_normalized)=(ujiowner@gmail.com) already exists.
 **Verifikasi email ditegakkan.** Login sebelum email dikonfirmasi ditolak
 HTTP 400, sesuai alur Bab 6.
 
+### ✅ Uji kebocoran tenant — LULUS (kriteria kelulusan Minggu 2)
+
+Dijalankan setelah Auth Hook diaktifkan, dengan **dua tenant** dan JWT sungguhan
+lewat PostgREST — meniru penyerang yang memanggil API langsung tanpa lewat
+aplikasi Flutter.
+
+| Uji | Hasil |
+|---|---|
+| Tiap owner hanya melihat tokonya sendiri | ✅ A melihat 1 (Toko A), B melihat 1 (Toko B) |
+| B membaca toko milik A | ✅ 0 baris |
+| B menyisipkan toko atas nama tenant A | ✅ ditolak HTTP 403 |
+| B membaca `tenants`/`token_wallets`/`tenant_settings`/`package_videos` milik A | ✅ 0 baris semua |
+| B menaikkan role dirinya jadi `admin` | ✅ ditolak `42501` — *new row violates row-level security policy* |
+| B memindahkan dirinya ke tenant A | ✅ ditolak `42501` |
+| B mengubah namanya sendiri (seharusnya boleh) | ✅ 1 baris berubah |
+
+Dua yang terakhir membuktikan `WITH CHECK` pada `users_update_self` bekerja:
+pengguna boleh menyunting profilnya, tetapi tidak boleh menaikkan hak akses
+maupun berpindah tenant.
+
 ### Yang BELUM diuji
 
-- Isolasi antar tenant (Bab 5.7) — perlu dua tenant berisi data dan Auth Hook
-  aktif. **Ini kriteria kelulusan Minggu 2 dan belum terpenuhi.**
 - `before_video_insert`, `after_video_uploaded`, `check_packer_limit` — baru
   bisa diuji setelah ada alur perekaman (Bab 8).
-- `seed.sql` belum pernah dijalankan.
+- Isolasi pada peran **packer** (`shop_history_visible_to_packer`) — perlu akun
+  packer, yang dibuat lewat Edge Function di Bab 6.
+- `seed.sql` belum pernah dijalankan utuh. Cara pembuatan akunnya sudah terbukti
+  (dipakai untuk membuat Owner B), tetapi sisa isinya belum.
+
+### Catatan: email konfirmasi
+
+Layanan email bawaan Supabase menolak mengirim ke domain `example.com` dan punya
+batas kirim yang ketat:
+
+```
+{"code":500,"error_code":"unexpected_failure","msg":"Error sending confirmation email"}
+```
+
+Registrasi tetap **tidak jadi** saat ini terjadi. Untuk pengujian, buat pengguna
+langsung di `auth.users` (seperti `seed.sql`). Untuk produksi, pasang SMTP
+sendiri — kunci Resend sudah tersedia di `dataapp.md`.
 
 ### Akun uji yang tertinggal di database
 
-`uji.owner+test@gmail.com` / `Password123` — dibuat untuk pengujian di atas dan
+`uji.owner+test@gmail.com` dan `owner.b@example.com`, keduanya `Password123` —
+dibuat untuk pengujian di atas dan
 sengaja tidak dihapus agar hook bisa diverifikasi ulang. Hapus sebelum database
 dipakai sungguhan:
 

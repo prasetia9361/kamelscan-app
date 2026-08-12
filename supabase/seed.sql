@@ -60,7 +60,9 @@ begin
     confirmation_token, recovery_token, email_change_token_new, email_change
   ) values (
     '00000000-0000-0000-0000-000000000000', p_id, 'authenticated', 'authenticated',
-    p_email, crypt('Password123', gen_salt('bf')),
+    -- `extensions.` wajib: pgcrypto dipasang di schema extensions, bukan
+    -- public (lihat penyimpangan #4 di README).
+    p_email, extensions.crypt('Password123', extensions.gen_salt('bf')),
     now(), now(), now(),
     '{"provider":"email","providers":["email"]}'::jsonb,
     p_meta, '', '', '', ''
