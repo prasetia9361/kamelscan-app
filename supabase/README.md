@@ -284,3 +284,83 @@ dipakai sungguhan:
 ```sql
 delete from auth.users where email like 'uji.owner%';
 ```
+
+---
+
+## Deploy Edge Function
+
+Butuh **Personal Access Token** Supabase (bukan password database, bukan
+service_role key). Buat sekali di
+<https://supabase.com/dashboard/account/tokens>, lalu:
+
+```powershell
+$env:SUPABASE_ACCESS_TOKEN = 'sbp_xxxxxxxxxxxxxxxx'
+npx --yes supabase@latest functions deploy resolve-username --project-ref <ref>
+npx --yes supabase@latest functions deploy create-packer   --project-ref <ref>
+```
+
+`SUPABASE_URL`, `SUPABASE_ANON_KEY`, dan `SUPABASE_SERVICE_ROLE_KEY` sudah
+tersedia otomatis di dalam Edge Function — tidak perlu diatur manual.
+
+Tanpa langkah ini, **login memakai username** dan **pembuatan akun packer**
+tidak berfungsi: kodenya ada di aplikasi, tetapi fungsinya belum ada di server.
+
+### Menguji setelah deploy
+
+```powershell
+# Harus 404 (username tidak ada) — bukan 500
+curl -X POST "https://<ref>.supabase.co/functions/v1/resolve-username" `
+  -H "apikey: <anon>" -H "Content-Type: application/json" `
+  -d '{\"username\":\"tidakada\"}'
+```
+
+---
+
+## SMTP kustom (Bab 6.4)
+
+⚠️ Layanan email bawaan Supabase **menolak** mengirim ke sebagian domain dan
+dibatasi ± 3–4 email/jam. Registrasi ikut gagal total saat pengiriman gagal —
+bukan sekadar emailnya tidak sampai. Untuk produksi ini **wajib** diganti.
+
+Dashboard → Project Settings → Authentication → SMTP Settings:
+
+| Isian | Nilai |
+|---|---|
+| Host | `smtp.resend.com` |
+| Port | `465` |
+| Username | `resend` |
+| Password | API key Resend (ada di `dataapp.md`) |
+| Sender email | alamat pada domain yang **sudah diverifikasi** di Resend |
+| Sender name | KamelScan |
+
+⚠️ Resend hanya mengizinkan pengiriman dari domain yang sudah diverifikasi.
+Sebelum domain didaftarkan, satu-satunya pengirim yang bisa dipakai adalah
+`onboarding@resend.dev`, dan itu **hanya bisa mengirim ke alamat email pemilik
+akun Resend** — cukup untuk uji coba, tidak cukup untuk pelanggan.
+
+---
+
+## Login Google (Bab 6.5)
+
+Sidik jari keystore **debug** mesin pengembangan saat ini:
+
+```
+SHA-1   : A5:5F:64:C0:95:13:03:19:F2:60:D6:3A:52:71:16:C7:D7:89:3B:FA
+SHA-256 : DB:CE:B3:48:EB:5B:D0:CC:29:C5:B8:84:70:9F:78:94:73:89:0D:01:96:BF:DF:68:CC:A6:B4:AD:A7:39:9A:4E
+```
+
+Daftarkan di Google Cloud Console → Credentials → **Create OAuth client ID** →
+Android, dengan package name `id.kamelscan.app`.
+
+Cara mengambil ulang bila keystore berganti:
+
+```powershell
+& "E:\Android\Android Studio\jbr\bin\keytool.exe" -list -v `
+  -keystore "$env:USERPROFILE\.android\debug.keystore" `
+  -alias androiddebugkey -storepass android
+```
+
+⚠️ Sidik jari di atas hanya berlaku untuk keystore **debug** di komputer ini.
+Keystore **release** belum dibuat. Begitu dibuat, SHA-1 dan SHA-256 miliknya
+**wajib** didaftarkan juga — kalau tidak, login Google berfungsi saat
+pengembangan lalu mati begitu aplikasi terbit di Play Store.
