@@ -218,5 +218,18 @@
         "type": "int"
       }
     }
-  }
+  },
+  "trialLowBanner": "{count} trial videos left. Pick a plan to avoid interruption.",
+  "@trialLowBanner": {"placeholders": {"count": {"type": "int"}}},
+  "trialExhaustedBanner": "Your free trial has run out. Pick a plan to continue.",
+  "quotaLowBanner": "{count} tokens left. Consider upgrading your plan.",
+  "@quotaLowBanner": {"placeholders": {"count": {"type": "int"}}},
+  "quotaExhaustedBanner": "Out of tokens. Renew or upgrade to record again.",
+  "subscriptionExpiryWarning": "Subscription ends in {days} days. Renew now.",
+  "@subscriptionExpiryWarning": {"placeholders": {"days": {"type": "int"}}},
+  "subscriptionExpiryToday": "Subscription ends today. Renew now.",
+  "tokenBalanceLabel": "Tokens available",
+  "trialQuotaLabel": "Free trial",
+  "commonUpgrade": "Upgrade",
+  "commonRenew": "Renew"
 }

@@ -1,6 +1,7 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../config/tier_config.dart';
+import '../domain/quota_status.dart';
 import '../models/app_user.dart';
 import '../models/enums.dart';
 import '../models/tenant.dart';
@@ -44,16 +45,33 @@ class SessionContext {
   bool get isOwner => user.isOwner;
   bool get isPacker => user.isPacker;
 
+  /// Keadaan kuota token (Bab 7.3). Seluruh ambangnya ada di [QuotaStatus]
+  /// agar dapat diuji tanpa perangkat.
+  QuotaStatus get quota => QuotaStatus(
+        balance: wallet?.balance ?? 0,
+        // Saat uji coba, kuota penuhnya 100 dari platform_settings.trial —
+        // bukan kuota bulanan tier (Bab 7.5).
+        quota: wallet?.monthlyQuota ?? (isTrial ? tierCatalog.trial.tokens : 0),
+        isTrial: isTrial,
+      );
+
+  /// Keadaan masa langganan (Bab 7.6).
+  SubscriptionStatus get subscription => SubscriptionStatus(
+        tenantStatus: tenant.status,
+        periodEnd: tenant.periodEnd,
+        isTrial: isTrial,
+      );
+
   /// Bab 7.3 & 7.6 — perekaman butuh langganan aktif **dan** saldo token.
   bool get canRecord =>
-      user.canRecord && tenant.canRecord && (wallet?.balance ?? 0) > 0;
+      user.canRecord && tenant.canRecord && !quota.isExhausted;
 
   /// Alasan perekaman terkunci, agar UI menampilkan pesan yang tepat alih-alih
   /// tombol abu-abu tanpa penjelasan.
   RecordingLock? get recordingLock {
     if (!user.canRecord) return RecordingLock.roleNotAllowed;
     if (!tenant.canRecord) return RecordingLock.subscriptionInactive;
-    if ((wallet?.balance ?? 0) <= 0) {
+    if (quota.isExhausted) {
       return isTrial ? RecordingLock.trialExhausted : RecordingLock.noTokens;
     }
     return null;

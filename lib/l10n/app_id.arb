@@ -221,5 +221,18 @@
         "type": "int"
       }
     }
-  }
+  },
+  "trialLowBanner": "Uji coba tersisa {count} video. Pilih paket agar tidak terputus.",
+  "@trialLowBanner": {"placeholders": {"count": {"type": "int"}}},
+  "trialExhaustedBanner": "Uji coba gratis Anda telah habis. Pilih paket untuk melanjutkan.",
+  "quotaLowBanner": "Token tersisa {count}. Pertimbangkan upgrade paket.",
+  "@quotaLowBanner": {"placeholders": {"count": {"type": "int"}}},
+  "quotaExhaustedBanner": "Token habis. Perpanjang atau naikkan paket untuk merekam lagi.",
+  "subscriptionExpiryWarning": "Langganan berakhir dalam {days} hari. Perpanjang sekarang.",
+  "@subscriptionExpiryWarning": {"placeholders": {"days": {"type": "int"}}},
+  "subscriptionExpiryToday": "Langganan berakhir hari ini. Perpanjang sekarang.",
+  "tokenBalanceLabel": "Token Tersedia",
+  "trialQuotaLabel": "Uji coba gratis",
+  "commonUpgrade": "Upgrade",
+  "commonRenew": "Perpanjang"
 }
