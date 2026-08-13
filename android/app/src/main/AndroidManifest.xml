@@ -1,6 +1,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Flutter hanya menyisipkan INTERNET ke manifest debug & profile.
+         Tanpa baris ini, build RELEASE tidak bisa menghubungi Supabase sama
+         sekali — dan gejalanya hanya muncul setelah aplikasi dipaketkan,
+         bukan saat pengembangan. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
     <application
-        android:label="kamelscan"
+        android:label="KamelScan"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

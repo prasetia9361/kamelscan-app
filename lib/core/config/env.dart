@@ -43,9 +43,15 @@ class Env {
       double.tryParse(_sentryTracesRaw)?.clamp(0.0, 1.0) ?? 0.2;
 
   // ---------- Login Google (Bab 6.5) ----------
-  /// Client ID **tipe Web** dari Google Cloud Console, dipakai sebagai
-  /// `serverClientId` di Android agar `idToken` yang dihasilkan diterima
-  /// Supabase. Bukan rahasia — memang dirancang untuk tampil di klien.
+  /// Client ID **tipe Web**, dipakai sebagai `serverClientId` di Android.
+  ///
+  /// ⚠️ Yang masuk ke aplikasi memang yang tipe Web, BUKAN yang tipe Android.
+  /// Client Android tidak pernah disebut dari kode: cukup ada di Google Cloud
+  /// Console dengan package name + SHA-1 yang cocok, dan Google Play Services
+  /// mencocokkannya sendiri. `idToken` yang dihasilkan beraudiens Client ID
+  /// Web, dan itulah yang diverifikasi Supabase.
+  ///
+  /// Bukan rahasia — memang dirancang untuk tampil di klien.
   static const String googleWebClientId =
       String.fromEnvironment('GOOGLE_WEB_CLIENT_ID');
 
