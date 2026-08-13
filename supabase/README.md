@@ -364,3 +364,32 @@ Cara mengambil ulang bila keystore berganti:
 Keystore **release** belum dibuat. Begitu dibuat, SHA-1 dan SHA-256 miliknya
 **wajib** didaftarkan juga — kalau tidak, login Google berfungsi saat
 pengembangan lalu mati begitu aplikasi terbit di Play Store.
+
+---
+
+## URL Configuration — jebakan senyap
+
+Dashboard → Authentication → URL Configuration:
+
+| Isian | Nilai |
+|---|---|
+| Site URL | `https://kamelscan.com/app` |
+| Redirect URLs | `id.kamelscan.app://**`, `https://kamelscan.com/app/**`, `http://localhost:8080/**` |
+
+⚠️ **Bila `emailRedirectTo` yang dikirim aplikasi tidak tercakup daftar izin,
+Supabase tidak melaporkan kesalahan apa pun.** Ia diam-diam memakai Site URL.
+
+Terjadi 13 Agustus 2026: kode mengirim `id.kamelscan.app://login-callback`
+sementara daftar izin hanya memuat `auth-callback`. Akibatnya tautan verifikasi
+email membuka peramban ke `https://kamelscan.com/app` dan berakhir
+`ERR_NAME_NOT_RESOLVED` — situs webnya memang belum ada. Tidak ada satu pun
+pesan yang menyebut soal daftar izin.
+
+Pola `id.kamelscan.app://**` kini dipakai agar seluruh jalur pada skema itu
+tercakup sekaligus.
+
+📌 **Site URL masih menunjuk ke situs yang belum ada.** `kamelscan.com`
+terverifikasi di Resend untuk keperluan email (data DNS), tetapi belum ada
+catatan A/CNAME untuk situsnya. Selama aplikasi web belum di-deploy (Bab 10),
+setiap kegagalan deep link akan mendarat di halaman "Situs tidak dapat
+dijangkau". Ini wajar untuk tahap sekarang, bukan bug.

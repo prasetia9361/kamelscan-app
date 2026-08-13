@@ -90,10 +90,19 @@ class Env {
 
   /// Tujuan tautan verifikasi email dan reset password (Bab 6.4).
   ///
-  /// Harus didaftarkan di Supabase Dashboard → Authentication →
-  /// URL Configuration → Redirect URLs. Bila tidak terdaftar, Supabase
-  /// mengabaikannya dan memakai Site URL — pengguna mendarat di halaman web,
-  /// bukan kembali ke aplikasi.
+  /// 🔴 Harus tercakup daftar izin di Supabase Dashboard → Authentication →
+  /// URL Configuration → Redirect URLs.
+  ///
+  /// ⚠️ Bila TIDAK tercakup, Supabase **tidak** melaporkan kesalahan apa pun:
+  /// ia diam-diam memakai Site URL sebagai gantinya. Terjadi sungguhan pada
+  /// 13 Agustus 2026 — daftar izin hanya memuat `auth-callback` sedangkan kode
+  /// mengirim `login-callback`, sehingga tautan verifikasi membuka peramban ke
+  /// `https://kamelscan.com/app` dan berakhir `ERR_NAME_NOT_RESOLVED` karena
+  /// situs webnya memang belum ada. Tidak ada satu pun petunjuk yang menyebut
+  /// soal daftar izin.
+  ///
+  /// Daftar izin kini memakai pola `id.kamelscan.app://**` agar seluruh jalur
+  /// pada skema ini tercakup dan ketidakcocokan semacam itu tidak terulang.
   static String get emailVerifyRedirectUrl =>
       kIsWebPlatform ? '$webAppBaseUrl/auth/callback' : oauthRedirectUrl;
 
