@@ -190,3 +190,39 @@ Bergantung pada font sistem berisiko dua hal:
 
 Daftar font sistem di `_systemFontCandidates` adalah jaring pengaman, bukan
 solusi akhir.
+
+---
+
+## H. Jebakan: `flutter build` memakai ulang kernel Dart dengan `--dart-define` lama
+
+**Terjadi 13 Agustus 2026.** Aplikasi berhenti di layar *"Konfigurasi belum
+lengkap"* meski dibangun dengan `--dart-define-from-file=env.dev.json`.
+
+Urutan yang menyebabkannya:
+
+1. `flutter run` dijalankan **tanpa** flag → kernel Dart tanpa kredensial
+   tersimpan di `.dart_tool/flutter_build/`
+2. `flutter build apk --dart-define-from-file=env.dev.json` berikutnya
+   **memakai ulang kernel itu** — nilai `--dart-define` yang berubah tidak
+   selalu membatalkan cache
+3. APK jadi tanpa kredensial, tanpa satu pun peringatan saat membangun
+
+**Cara memastikan APK benar-benar membawa kredensial** (tanpa perlu memasang ke
+perangkat): `--dart-define` yang dipakai `String.fromEnvironment` ikut tertanam
+di `assets/flutter_assets/kernel_blob.bin` pada build debug. Ekstrak APK sebagai
+zip lalu cari teksnya:
+
+```powershell
+$tmp="$env:TEMP\apkchk"; Remove-Item -Recurse -Force $tmp -EA SilentlyContinue
+New-Item -ItemType Directory -Force $tmp | Out-Null
+Copy-Item build\app\outputs\flutter-apk\app-debug.apk "$tmp\a.zip"
+Expand-Archive "$tmp\a.zip" "$tmp\x" -Force
+$kb = Get-ChildItem "$tmp\x" -Recurse -Filter kernel_blob.bin | Select -First 1
+$t = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes($kb.FullName))
+$t.Contains('<project-ref-supabase>')   # harus True
+```
+
+**Pencegahan:** jangan pernah menjalankan `flutter run` polos di proyek ini.
+Pakai `.\run.ps1`, atau tombol Run editor yang konfigurasinya sudah membawa
+flag (`.vscode/launch.json` dan `.idea/runConfigurations/`). Bila terlanjur,
+hapus `.dart_tool/flutter_build` lalu bangun ulang.

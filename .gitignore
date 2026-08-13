@@ -16,7 +16,11 @@ migrate_working_dir/
 *.iml
 *.ipr
 *.iws
-.idea/
+.idea/*
+# Konfigurasi Run Android Studio sengaja DIIKUTKAN. Tanpa ini, tombol Run di
+# editor menjalankan aplikasi tanpa --dart-define-from-file dan aplikasi
+# berhenti di layar "Konfigurasi belum lengkap".
+!.idea/runConfigurations/
 
 # The .vscode folder contains launch configuration and tasks you configure in
 # VS Code which you may wish to be included in version control, so this line
