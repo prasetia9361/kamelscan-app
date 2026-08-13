@@ -393,3 +393,54 @@ terverifikasi di Resend untuk keperluan email (data DNS), tetapi belum ada
 catatan A/CNAME untuk situsnya. Selama aplikasi web belum di-deploy (Bab 10),
 setiap kegagalan deep link akan mendarat di halaman "Situs tidak dapat
 dijangkau". Ini wajar untuk tahap sekarang, bukan bug.
+
+---
+
+## Cloudflare R2 — nama bucket
+
+| Bucket | Isi |
+|---|---|
+| `kamelscan-videos` | video bukti packing |
+| `kamelscan-assets` | logo toko (watermark Pro), spanduk yang dikelola Admin |
+
+⚠️ **Bab 8.7 menulis `scanproof-videos`.** Itu nama dari sebelum produk
+berganti nama, dan bucket dengan nama itu **tidak ada** di akun Cloudflare.
+Memakainya akan menghasilkan kegagalan upload yang membingungkan karena R2
+membalas seolah kunci akses yang salah, bukan bucket yang tidak ada.
+
+Nama bucket dibaca dari secret `R2_BUCKET_VIDEOS`, bukan ditulis mati di kode.
+
+### Secret Edge Function
+
+Kredensial R2 **hanya** hidup di sini, tidak pernah di aplikasi Flutter
+(Bab 8.7) — access key R2 dapat membaca dan menghapus seluruh video seluruh
+pelanggan.
+
+```powershell
+$env:SUPABASE_ACCESS_TOKEN = 'sbp_xxx'
+npx --yes supabase@latest secrets set --project-ref <ref> `
+  R2_ENDPOINT=https://<account>.r2.cloudflarestorage.com `
+  R2_ACCESS_KEY_ID=<key> `
+  R2_SECRET_ACCESS_KEY=<secret> `
+  R2_BUCKET_VIDEOS=kamelscan-videos `
+  R2_BUCKET_ASSETS=kamelscan-assets
+```
+
+---
+
+## ✅ Uji pipeline upload sungguhan — 13 Agustus 2026
+
+Dijalankan lewat API dengan JWT sungguhan, memakai berkas 200 KB.
+
+| Langkah | Hasil |
+|---|---|
+| Sisip `package_videos` | ✅ trigger `before_video_insert` mengisi `tenant_id`, `scan_date` (waktu server), `expires_at` (+30 hari sesuai tier) |
+| `get-upload-url` | ✅ presigned URL 900 detik, kunci `tenant/{id}/2026/08/{video}.mp4` |
+| `PUT` ke R2 | ✅ HTTP 200 |
+| Tandai `uploaded` | ✅ saldo token **100 → 99** |
+| `token_ledger` | ✅ baris `-1 video_upload sisa=99` |
+| RPC `resi_exists` | ✅ `packing` → true, `return` → false (dihitung terpisah, Bab 7.7) |
+| Sisip resi ganda | ✅ ditolak `23505` oleh `uq_resi_per_tenant_type` |
+
+Ini pembuktian pertama bahwa seluruh ekonomi token Bab 7 benar-benar berjalan —
+sebelumnya hanya tertulis di trigger tanpa pernah dijalankan.
