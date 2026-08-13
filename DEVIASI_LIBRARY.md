@@ -226,3 +226,47 @@ $t.Contains('<project-ref-supabase>')   # harus True
 Pakai `.\run.ps1`, atau tombol Run editor yang konfigurasinya sudah membawa
 flag (`.vscode/launch.json` dan `.idea/runConfigurations/`). Bila terlanjur,
 hapus `.dart_tool/flutter_build` lalu bangun ulang.
+
+---
+
+## I. Verifikasi kamera — pratinjau + rekam + analisis frame sekaligus
+
+**Terverifikasi 14 Agustus 2026 · Xiaomi Redmi Note 9 (M2003J15SC)**
+
+Syarat mutlak aturan berhenti Product Owner: pemindaian harus berjalan
+**selama** merekam.
+
+```
+LULUS  Kamera terdeteksi — 2 lensa
+LULUS  Pratinjau kamera menyala
+LULUS  Frame mengalir SELAGI merekam — 107 frame dalam 6 detik
+LULUS  ML Kit memproses frame — 3 frame diproses
+LULUS  Berkas video tersimpan — 2229121 byte
+KESIMPULAN: SEMUA LULUS
+```
+
+**≈ 18 frame per detik** tersedia untuk dianalisis sambil merekam — jauh lebih
+dari cukup. Pemindaian barcode hanya butuh beberapa frame per detik; sisanya
+justru sengaja dilewati agar antrean tidak menumpuk lebih cepat daripada ML Kit
+menyelesaikannya.
+
+### Keputusan yang kini aman diambil
+
+`camera` + `google_mlkit_barcode_scanning` menjadi satu-satunya pemilik kamera
+pada alur perekaman. `mobile_scanner` tetap dipakai di layar lain yang tidak
+merekam.
+
+### ⚠️ Temuan sampingan: ukuran berkas mentah
+
+6 detik menghasilkan **2,2 MB** pada `ResolutionPreset.low` — sekitar
+370 KB/detik. Sebuah rekaman 30 detik berarti ± 11 MB **sebelum** FFmpeg
+memampatkannya.
+
+Ini tidak melanggar target Bab 8.5 (1–3 MB per 30 detik), karena target itu
+berlaku untuk hasil akhir setelah `crf 28`. Tetapi berkas mentah itu tetap
+menempati penyimpanan HP sampai watermark selesai ditempelkan.
+
+Konsekuensi untuk Bab 8.6: **antrian upload harus menyimpan berkas yang sudah
+diproses, bukan yang mentah**, dan berkas mentah dihapus segera setelah FFmpeg
+selesai. Packer yang merekam 50 paket saat sinyal mati akan menahan ± 550 MB
+bila yang disimpan berkas mentah, dibanding ± 100 MB bila yang sudah diproses.
