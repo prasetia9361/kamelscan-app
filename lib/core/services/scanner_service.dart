@@ -2,37 +2,38 @@ import 'dart:async';
 
 import 'package:mobile_scanner/mobile_scanner.dart';
 
+import '../domain/scan_gate.dart';
 import '../models/enums.dart';
 import 'trigger_strategy.dart';
 
-/// Hasil pemindaian yang sudah lolos debounce, normalisasi, dan (bila mode
-/// barcode) konfirmasi pembacaan ganda.
-class ScanResult {
-  const ScanResult({required this.resiCode, required this.mode});
-
-  final String resiCode;
-  final TriggerMode mode;
-}
-
-/// Pembungkus `mobile_scanner` yang menegakkan aturan Bab 4.3 & Bab 8.3.
+/// Pembungkus `mobile_scanner` (Bab 4.3 & Bab 8.3).
 ///
-/// Aturan yang dijaga di sini, bukan di layar:
-/// - Hanya format milik mode aktif yang diaktifkan.
-/// - Kode yang sama tidak dibaca berulang (debounce + `lastScannedCode`).
-/// - Mode barcode 1D menuntut dua pembacaan berturut-turut yang identik.
+/// ⚠️ **Seluruh aturan keputusan ada di [ScanGate], bukan di sini.**
+///
+/// Berkas ini semula menyimpan salinan kedua dari aturan debounce, konfirmasi
+/// pembacaan ganda, dan penghentian — versi yang tidak pernah diuji karena
+/// mengimpor `mobile_scanner`. Setelah aturan berhenti diubah pada
+/// 13 Agustus 2026, kedua salinan itu langsung menyimpang: yang teruji
+/// memakai aturan baru, yang di sini masih memakai aturan lama.
+///
+/// Dua implementasi dari aturan yang sama adalah sumber bug yang pasti
+/// terjadi, hanya soal waktu. Kini tinggal satu, dan yang teruji.
 class ScannerService {
-  ScannerService(this.strategy);
+  ScannerService(this.strategy) : gate = ScanGate(strategy: strategy);
 
   final TriggerStrategy strategy;
+
+  /// Penjaga keputusan. Terbuka agar layar dapat membaca
+  /// [ScanGate.secondsUntilScanStop] untuk hitung mundur.
+  final ScanGate gate;
 
   MobileScannerController? _controller;
   final StreamController<ScanResult> _results =
       StreamController<ScanResult>.broadcast();
 
-  String? _lastAcceptedCode;
-  DateTime? _lastAcceptedAt;
-  String? _pendingConfirmation;
-
+  /// Setiap pembacaan diteruskan, **termasuk yang ditolak** — layar perlu tahu
+  /// bedanya agar dapat menampilkan "Masih merekam X" atau "Tunggu 3 detik".
+  /// Menyaringnya di sini membuat layar kehilangan alasan.
   Stream<ScanResult> get onScan => _results.stream;
 
   MobileScannerController get controller =>
@@ -59,42 +60,24 @@ class ScannerService {
   Future<void> switchCamera() => controller.switchCamera();
 
   /// Dipanggil dari `onDetect` milik `MobileScanner`.
-  void handleDetection(BarcodeCapture capture, {DateTime? now}) {
+  void handleDetection(BarcodeCapture capture) {
     final raw = capture.barcodes
         .map((b) => b.rawValue)
         .firstWhere((v) => v != null && v.isNotEmpty, orElse: () => null);
     if (raw == null) return;
 
-    final code = strategy.accept(raw);
-    if (code == null) return;
+    final result = gate.read(raw);
+    // Pembacaan yang formatnya jelas bukan resi tidak perlu mengganggu layar.
+    if (result.decision == ScanDecision.rejected) return;
 
-    final at = now ?? DateTime.now();
-
-    // Kode yang sama diabaikan selama jendela debounce (Bab 8.3.2).
-    if (_lastAcceptedCode == code &&
-        _lastAcceptedAt != null &&
-        at.difference(_lastAcceptedAt!) < strategy.debounce) {
-      return;
-    }
-
-    // Bab 8.3.3 — terima hanya bila dua pembacaan berturut-turut identik.
-    if (strategy.requiresDoubleRead && _pendingConfirmation != code) {
-      _pendingConfirmation = code;
-      return;
-    }
-
-    _pendingConfirmation = null;
-    _lastAcceptedCode = code;
-    _lastAcceptedAt = at;
-    _results.add(ScanResult(resiCode: code, mode: strategy.mode));
+    _results.add(result);
   }
 
-  /// Bersihkan memori pembacaan — dipanggil saat sesi rekam baru dimulai.
-  void resetHistory() {
-    _lastAcceptedCode = null;
-    _lastAcceptedAt = null;
-    _pendingConfirmation = null;
-  }
+  /// Resi diketik pada mode Input Manual (Bab 8.3.4).
+  String? acceptManual(String typed) => gate.acceptManual(typed);
+
+  /// Siapkan untuk resi berikutnya tanpa keluar dari layar.
+  void resetHistory() => gate.reset();
 
   Future<void> dispose() async {
     await _controller?.dispose();
