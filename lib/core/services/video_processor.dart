@@ -13,7 +13,10 @@ class WatermarkData {
     required this.resiCode,
     required this.serverTime,
     required this.shopName,
+    required this.shopId,
     this.coordinates,
+    this.lat,
+    this.lng,
     this.logoPath,
   });
 
@@ -23,9 +26,18 @@ class WatermarkData {
   final DateTime serverTime;
   final String shopName;
 
+  /// Ditanam ke metadata berkas (Bab 8.5) agar asal video tetap dapat
+  /// ditelusuri saat berkasnya beredar lepas dari aplikasi.
+  final String shopId;
+
   /// `null` bila izin lokasi ditolak; ditampilkan sebagai
   /// "Lokasi tidak tersedia" (Bab 1.3 poin 6).
   final String? coordinates;
+
+  /// Koordinat mentah untuk metadata. Yang tampil di layar tetap
+  /// [coordinates] yang sudah diformat.
+  final double? lat;
+  final double? lng;
 
   /// Logo kustom, hanya tier Pro (Bab 2.2 catatan 4).
   final String? logoPath;

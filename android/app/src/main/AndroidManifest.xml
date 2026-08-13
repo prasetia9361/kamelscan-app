@@ -5,6 +5,46 @@
          bukan saat pengembangan. -->
     <uses-permission android:name="android.permission.INTERNET"/>
 
+    <!-- ============================================================
+         Izin perekaman (Bab 8.9).
+
+         Bab 8.9 menegaskan: minta izin SAAT PERTAMA KALI DIBUTUHKAN, bukan
+         semuanya di awal aplikasi. Deklarasi di sini hanya membuat izinnya
+         mungkin diminta; permintaannya sendiri diatur PermissionService.
+         ============================================================ -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+
+    <!-- Lokasi bersifat OPSIONAL. Bila ditolak, perekaman tetap berjalan dan
+         watermark berbunyi "Lokasi tidak tersedia" (Bab 8.9). -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+
+    <!-- Notifikasi progres upload. Wajib diminta di Android 13+; bila ditolak,
+         upload tetap jalan tanpa notifikasi (Bab 8.9). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
+    <!-- Antrian upload harus bertahan saat aplikasi di latar (Bab 8.7). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+
+    <!-- Unduhan video. READ_EXTERNAL_STORAGE hanya relevan sampai Android 12;
+         sejak Android 13 penyimpanan memakai izin bermedia terpisah. -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
+
+    <!-- Kamera dinyatakan TIDAK wajib agar aplikasi tetap dapat dipasang di
+         perangkat tanpa kamera — Owner dan Admin memakainya hanya untuk
+         memantau, tidak pernah merekam (Bab 2.2). -->
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false"/>
+
     <application
         android:label="KamelScan"
         android:name="${applicationName}"

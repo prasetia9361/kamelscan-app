@@ -5,8 +5,8 @@ import 'package:ffmpeg_kit_flutter_new/ffprobe_kit.dart';
 import 'package:ffmpeg_kit_flutter_new/return_code.dart';
 
 import '../config/app_constants.dart';
+import '../domain/watermark_command.dart';
 import '../models/app_settings.dart';
-import '../models/enums.dart';
 import '../utils/app_failure.dart';
 import '../utils/logger.dart';
 import '../utils/result.dart';
@@ -167,11 +167,13 @@ class MobileVideoProcessor implements VideoProcessor {
     return null;
   }
 
-  /// Susun perintah FFmpeg: skala ke 480p + tempel teks watermark.
+  /// Susun perintah FFmpeg lewat [WatermarkCommand].
   ///
-  /// Filter `drawtext` inilah alasan varian *min-gpl* diwajibkan di Bab 4.3 —
-  /// dan alasan `ffmpeg_kit_flutter_new` harus diverifikasi menyertakannya
-  /// (lihat DEVIASI_LIBRARY.md butir D.4).
+  /// ⚠️ Penyusunan string TIDAK dilakukan di sini. Berkas ini mengimpor
+  /// FFmpeg, sehingga apa pun yang ditulis di dalamnya tidak dapat diuji di
+  /// komputer. Bab 8.5 menyebut escape `:` sebagai penyebab kegagalan ffmpeg
+  /// paling sering — aturan serawan itu harus berada di tempat yang teruji,
+  /// yaitu `core/domain/watermark_command.dart`.
   String _buildCommand({
     required String inputPath,
     required String outputPath,
@@ -180,69 +182,39 @@ class MobileVideoProcessor implements VideoProcessor {
     required String fontFile,
   }) {
     final lines = <String>[
-      data.resiCode,
-      _formatServerTime(data.serverTime),
+      'RESI: ${data.resiCode}',
+      WatermarkCommand.formatStamp(data.serverTime),
       data.shopName,
       if (settings.showGpsOnWatermark)
-        data.coordinates ?? 'Lokasi tidak tersedia',
+        data.coordinates == null
+            ? 'Lokasi tidak tersedia'
+            : 'GPS: ${data.coordinates}',
     ];
 
-    final position = _positionExpression(settings.watermarkPosition);
-    final alpha = settings.watermarkOpacity.clamp(0.0, 1.0);
-
-    final drawTexts = <String>[];
-    for (var i = 0; i < lines.length; i++) {
-      final text = _escapeDrawText(lines[i]);
-      drawTexts.add(
-        "drawtext=text='$text'"
-        ':fontfile=$fontFile'
-        ':fontsize=18'
-        ':fontcolor=white@$alpha'
-        ':borderw=2:bordercolor=black@$alpha'
-        ':${position.x}'
-        ':y=${position.yExpression(i, lines.length)}',
-      );
-    }
-
     // TODO(Bab 8.5): tier Pro menempelkan logo toko lewat `-i logo` + filter
-    // `overlay`. `data.logoPath` sengaja belum dipakai di sini agar tidak ada
-    // jalur setengah jadi yang diam-diam mengabaikan logo pelanggan berbayar.
-    final filters = [
-      'scale=-2:${AppConstants.recordingHeightPx}',
-      ...drawTexts,
-    ].join(',');
+    // `overlay`. `data.logoPath` sengaja belum dipakai agar tidak ada jalur
+    // setengah jadi yang diam-diam mengabaikan logo pelanggan berbayar.
+    final filterChain = WatermarkCommand.buildFilterChain(
+      lines: lines,
+      fontFile: fontFile,
+      position: settings.watermarkPosition,
+      heightPx: AppConstants.recordingHeightPx,
+      boxOpacity: settings.watermarkOpacity.clamp(0.0, 1.0),
+    );
 
-    return '-y -i ${_q(inputPath)} -vf "$filters" '
-        '-c:v libx264 -preset veryfast -crf 28 -c:a aac -b:a 96k '
-        '-movflags +faststart ${_q(outputPath)}';
+    return WatermarkCommand.build(
+      inputPath: inputPath,
+      outputPath: outputPath,
+      filterChain: filterChain,
+      metadataComment: WatermarkCommand.buildMetadataComment(
+        resiCode: data.resiCode,
+        serverTime: data.serverTime,
+        shopId: data.shopId,
+        lat: data.lat,
+        lng: data.lng,
+      ),
+    );
   }
-
-  _WatermarkAnchor _positionExpression(WatermarkPosition p) => switch (p) {
-        WatermarkPosition.topLeft => const _WatermarkAnchor('x=16', top: true),
-        WatermarkPosition.topRight =>
-          const _WatermarkAnchor('x=w-tw-16', top: true),
-        WatermarkPosition.bottomLeft =>
-          const _WatermarkAnchor('x=16', top: false),
-        WatermarkPosition.bottomRight =>
-          const _WatermarkAnchor('x=w-tw-16', top: false),
-      };
-
-  /// Waktu server dalam format yang mudah dibaca petugas resolusi marketplace.
-  String _formatServerTime(DateTime t) {
-    final local = t.toLocal();
-    String two(int v) => v.toString().padLeft(2, '0');
-    return '${two(local.day)}/${two(local.month)}/${local.year} '
-        '${two(local.hour)}.${two(local.minute)}.${two(local.second)}';
-  }
-
-  /// `drawtext` memperlakukan `:`, `'`, `\`, dan `%` sebagai karakter khusus.
-  String _escapeDrawText(String raw) => raw
-      .replaceAll(r'\', r'\\')
-      .replaceAll(':', r'\:')
-      .replaceAll("'", r"\'")
-      .replaceAll('%', r'\%');
-
-  String _q(String path) => '"$path"';
 
   Future<int> _probeDurationSeconds(String path) async {
     try {
@@ -254,21 +226,10 @@ class MobileVideoProcessor implements VideoProcessor {
       return 0;
     }
   }
-}
 
-class _WatermarkAnchor {
-  const _WatermarkAnchor(this.x, {required this.top});
-
-  final String x;
-  final bool top;
-
-  /// Baris ditumpuk ke bawah bila jangkar di atas, ke atas bila di bawah.
-  String yExpression(int index, int total) {
-    const lineHeight = 24;
-    if (top) return '${16 + index * lineHeight}';
-    final fromBottom = 16 + (total - 1 - index) * lineHeight;
-    return 'h-th-$fromBottom';
-  }
+  /// Pembungkus jalur berkas. Sama dengan `WatermarkCommand.quote`, dipakai
+  /// oleh perintah thumbnail yang tidak melewati penyusun watermark.
+  String _q(String path) => WatermarkCommand.quote(path);
 }
 
 VideoProcessor createPlatformVideoProcessor() => MobileVideoProcessor();
