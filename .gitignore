@@ -79,3 +79,6 @@ env.prod.json
 
 # Dependensi alat bantu (punya pubspec sendiri)
 tool/**/.dart_tool/
+
+# Berkas sementara Supabase CLI
+supabase/.temp/
