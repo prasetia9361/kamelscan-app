@@ -91,20 +91,72 @@ class SupabaseService {
       };
     }
 
-    if (error is AuthException) {
-      return AppFailure(
-        kind: FailureKind.auth,
-        messageKey: 'errorSessionExpired',
-        debugMessage: error.message,
-        code: error.statusCode,
-      );
-    }
+    if (error is AuthException) return _mapAuth(error);
 
     if (error is StorageException) {
       return AppFailure.storage(error.message, stack);
     }
 
     return AppFailure.unknown(error, stack);
+  }
+
+  /// Petakan [AuthException] ke pesan yang benar-benar menjelaskan sebabnya.
+  ///
+  /// ⚠️ Sebelumnya SELURUH AuthException dipetakan ke `errorSessionExpired`.
+  /// Akibatnya pendaftaran dengan email yang sudah terpakai menampilkan
+  /// *"Sesi Anda telah berakhir. Silakan masuk kembali."* — pesan yang tidak
+  /// masuk akal dan menyesatkan; pengguna diminta masuk padahal ia sedang
+  /// mencoba mendaftar. Ditemukan saat uji perangkat 13 Agustus 2026.
+  ///
+  /// Bab 6.2 menuntut pesan spesifik untuk email ganda, dan Bab 9.10 melarang
+  /// pesan mentah server sampai ke layar.
+  static AppFailure _mapAuth(AuthException e) {
+    final code = e.code?.toLowerCase() ?? '';
+    final msg = e.message.toLowerCase();
+
+    bool has(String needle) => code.contains(needle) || msg.contains(needle);
+
+    final (FailureKind kind, String key) = switch (true) {
+      // Bab 6.2 — email sudah terdaftar.
+      _ when has('user_already_exists') ||
+              has('already registered') ||
+              has('already been registered') =>
+        (FailureKind.validation, 'errorEmailAlreadyUsed'),
+
+      _ when has('invalid_credentials') || has('invalid login credentials') =>
+        (FailureKind.auth, 'errorInvalidCredentials'),
+
+      _ when has('email_not_confirmed') || has('not confirmed') =>
+        (FailureKind.auth, 'errorEmailNotConfirmed'),
+
+      // Batas kirim email tercapai (Bab 6.4). Bukan salah pengguna — minta
+      // menunggu, jangan suruh mendaftar ulang.
+      _ when has('rate_limit') || has('rate limit') || has('too many') =>
+        (FailureKind.validation, 'errorEmailRateLimited'),
+
+      _ when has('weak_password') =>
+        (FailureKind.validation, 'validationPasswordWeak'),
+
+      _ when has('same_password') =>
+        (FailureKind.validation, 'errorSamePassword'),
+
+      _ when has('email_address_invalid') || has('invalid email') =>
+        (FailureKind.validation, 'validationEmailInvalid'),
+
+      // Barulah ini yang benar-benar soal sesi.
+      _ when has('session') || has('jwt') || has('token is expired') ||
+              e.statusCode == '401' =>
+        (FailureKind.auth, 'errorSessionExpired'),
+
+      _ => (FailureKind.auth, 'errorAuthGeneric'),
+    };
+
+    return AppFailure(
+      kind: kind,
+      messageKey: key,
+      debugMessage: '${e.code ?? '-'}: ${e.message}',
+      code: e.statusCode,
+    );
   }
 
   /// Trigger di server melempar pesan bertanda (Bab 7.4). Petakan ke failure
