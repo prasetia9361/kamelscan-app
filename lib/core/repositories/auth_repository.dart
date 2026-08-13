@@ -99,6 +99,19 @@ class AuthRepository {
   Future<Result<bool>> isUsernameAvailable(String username) =>
       _auth.isUsernameAvailable(username);
 
+  /// Bab 6.2 — lengkapi profil yang tidak terisi saat masuk lewat Google.
+  ///
+  /// Nomor HP disimpan lebih dulu; bila itu gagal, persetujuan **tidak** ikut
+  /// dicatat. Mencatat persetujuan pada profil yang belum lengkap akan membuat
+  /// pengguna lolos dari layar Lengkapi Profil dengan data yang masih kurang.
+  Future<Result<void>> completeProfile({String? phone}) async {
+    if (phone != null && phone.trim().isNotEmpty) {
+      final saved = await _auth.updatePhone(phone);
+      if (saved case Err(:final failure)) return Result.err(failure);
+    }
+    return _auth.acceptTerms();
+  }
+
   Future<Result<void>> signInWithGoogle() => _auth.signInWithGoogle();
 
   Future<Result<void>> sendPasswordReset(String email) =>

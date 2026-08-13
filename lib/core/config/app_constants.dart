@@ -10,6 +10,19 @@ class AppConstants {
 
   static const String appName = 'KamelScan';
 
+  /// Versi dokumen Syarat & Ketentuan yang berlaku (Bab 6.2).
+  ///
+  /// Disimpan bersama waktu persetujuan di `users.terms_version`. **Naikkan
+  /// setiap kali dokumennya direvisi** — pengguna yang menyetujui versi lama
+  /// akan otomatis diminta menyetujui lagi.
+  ///
+  /// Tanpa versi, catatan persetujuan tidak dapat menjawab pertanyaan yang
+  /// justru muncul saat sengketa: "pelanggan ini menyetujui isi yang mana?"
+  static const String termsVersion = '2026-08-01';
+
+  static const String termsUrl = 'https://kamelscan.com/syarat-ketentuan';
+  static const String privacyUrl = 'https://kamelscan.com/kebijakan-privasi';
+
   /// Kontak dukungan. Sumber kebenarannya adalah `platform_settings.contact`
   /// agar Admin bisa mengubahnya tanpa rilis baru (Bab 5.2); nilai di bawah
   /// hanya cadangan untuk layar error saat perangkat offline dan pengaturan

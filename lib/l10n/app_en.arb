@@ -237,5 +237,11 @@
   "recordingStopTooEarly": "Wait {seconds} more seconds before scanning can stop it.",
   "@recordingStopTooEarly": {"placeholders": {"seconds": {"type": "int"}}},
   "recordingShortConfirmTitle": "Video is still short",
-  "recordingShortConfirmBody": "A video under 5 seconds may not be enough as evidence. Stop anyway?"
+  "recordingShortConfirmBody": "A video under 5 seconds may not be enough as evidence. Stop anyway?",
+  "completeProfileTitle": "Complete your profile",
+  "completeProfileBody": "Almost done. These details are required before you start recording.",
+  "completeProfilePhoneHelper": "Used for important notices and account recovery.",
+  "completeProfileSubmit": "Save & continue",
+  "completeProfileReadTerms": "Read Terms & Conditions",
+  "completeProfileReadPrivacy": "Read Privacy Policy"
 }

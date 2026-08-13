@@ -166,6 +166,14 @@ SessionContext requireSession(Ref ref) {
   return session;
 }
 
+/// Bab 6.2 — profil belum memenuhi kolom yang ditandai wajib.
+///
+/// Selalu `false` selagi sesi masih dimuat, agar pengguna tidak sekelebat
+/// terlempar ke layar Lengkapi Profil sebelum profilnya sempat terbaca.
+@riverpod
+bool needsProfileCompletion(Ref ref) =>
+    ref.watch(sessionProvider).value?.user.needsProfileCompletion ?? false;
+
 @riverpod
 UserRole? currentRole(Ref ref) =>
     ref.watch(sessionProvider).value?.role;

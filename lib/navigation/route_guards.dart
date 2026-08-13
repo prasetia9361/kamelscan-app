@@ -39,6 +39,22 @@ class RouteGuards {
       return Routes.changePassword;
     }
 
+    // Bab 6.2 — nomor HP dan persetujuan S&K ditandai WAJIB, tetapi
+    // pendaftaran lewat Google melewati formulir dan tidak pernah menanyakan
+    // keduanya. Tanpa penjagaan ini, seseorang memperoleh tenant dan 100 video
+    // gratis tanpa nomor kontak dan tanpa pernah menyetujui apa pun —
+    // kelalaian yang berbalik menyerang justru saat ada sengketa.
+    if (_ref.read(needsProfileCompletionProvider) &&
+        location != Routes.completeProfile) {
+      return Routes.completeProfile;
+    }
+
+    // Sudah lengkap tetapi membuka layarnya lagi — tidak ada yang perlu diisi.
+    if (location == Routes.completeProfile &&
+        !_ref.read(needsProfileCompletionProvider)) {
+      return _homeFor(_ref.read(currentRoleProvider));
+    }
+
     final role = _ref.read(currentRoleProvider);
     if (role == null) return null; // konteks sesi masih dimuat
 

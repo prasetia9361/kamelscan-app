@@ -15,6 +15,13 @@ class Routes {
   /// [public]: pengguna harus sudah login untuk sampai ke sini.
   static const String changePassword = '/change-password';
 
+  /// Bab 6.2 — tujuan paksa bagi pengguna yang masuk lewat Google tanpa pernah
+  /// mengisi nomor HP maupun menyetujui S&K.
+  ///
+  /// Sama seperti [changePassword], **tidak** masuk daftar [public]: hanya
+  /// dapat dicapai setelah login, dan tidak dapat dilewati.
+  static const String completeProfile = '/complete-profile';
+
   /// Halaman bukti publik yang dibuka pihak marketplace tanpa login.
   static const String publicVideo = '/v/:token';
 

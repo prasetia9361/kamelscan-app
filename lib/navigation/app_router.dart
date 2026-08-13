@@ -10,6 +10,7 @@ import '../pages/admin/dashboard/admin_dashboard_page.dart';
 import '../pages/admin/payments/admin_payments_page.dart';
 import '../pages/admin/users/admin_users_page.dart';
 import '../pages/auth/change_password/change_password_page.dart';
+import '../pages/auth/complete_profile/complete_profile_page.dart';
 import '../pages/auth/forgot_password/forgot_password_page.dart';
 import '../pages/auth/login/login_page.dart';
 import '../pages/auth/register/register_page.dart';
@@ -82,6 +83,10 @@ GoRouter appRouter(Ref ref) {
       GoRoute(
         path: Routes.changePassword,
         builder: (_, _) => const ChangePasswordPage(),
+      ),
+      GoRoute(
+        path: Routes.completeProfile,
+        builder: (_, _) => const CompleteProfilePage(),
       ),
 
       // ---------- Perekaman — mobile saja ----------

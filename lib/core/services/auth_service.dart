@@ -69,8 +69,33 @@ class AuthService {
               'username': username.trim().toLowerCase(),
             if (businessName != null && businessName.trim().isNotEmpty)
               'business_name': businessName.trim(),
+            // Bab 6.2 — centang S&K di formulir dicatat sekarang juga, supaya
+            // pendaftar lewat formulir tidak diminta menyetujui dua kali.
+            // Waktunya ditentukan server oleh trigger, bukan jam perangkat.
+            'terms_version': AppConstants.termsVersion,
           },
         ),
+      );
+
+  /// Catat persetujuan Syarat & Ketentuan (Bab 6.2).
+  ///
+  /// Memakai RPC agar **waktunya ditentukan server**. Jam HP dapat dimundurkan,
+  /// dan catatan persetujuan yang waktunya berasal dari perangkat pelanggan
+  /// tidak ada gunanya justru saat disengketakan — alasan yang sama dengan
+  /// `scan_date` di Bab 5.5b.
+  Future<Result<void>> acceptTerms() => _guard(
+        () => SupabaseService.client.rpc<void>(
+          'accept_terms',
+          params: {'p_version': AppConstants.termsVersion},
+        ),
+      );
+
+  /// Lengkapi nomor HP yang tidak pernah diberikan Google (Bab 6.2).
+  Future<Result<void>> updatePhone(String phone) => _guard(
+        () => SupabaseService.client
+            .from(AppConstants.tblUsers)
+            .update({'phone': Validators.normalizePhone(phone)})
+            .eq('id', SupabaseService.currentUser!.id),
       );
 
   /// Bab 6.2 — apakah username masih bebas.
