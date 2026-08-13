@@ -56,7 +56,33 @@ class RegisterViewModel extends _$RegisterViewModel {
     if (state is RegisterBusy) return;
     state = const RegisterBusy();
 
-    final result = await ref.read(authRepositoryProvider).signUp(
+    final repo = ref.read(authRepositoryProvider);
+
+    // Bab 6.2 — username wajib unik. Diperiksa DI SINI, sebelum signUp.
+    //
+    // Bila dibiarkan sampai server, pelanggarannya terjadi di dalam trigger
+    // `handle_new_user` dan GoTrue membungkusnya menjadi
+    // "Database error saving new user" — pesan yang tidak menyebut username
+    // sama sekali. Pengguna lalu menatap formulir tanpa tahu kolom mana yang
+    // bermasalah. Terjadi sungguhan saat uji perangkat 13 Agustus 2026.
+    final wanted = username?.trim() ?? '';
+    if (wanted.isNotEmpty) {
+      final check = await repo.isUsernameAvailable(wanted);
+      switch (check) {
+        case Err(:final failure):
+          state = RegisterFailed(failure);
+          return;
+        case Ok(value: false):
+          state = RegisterFailed(
+            AppFailure.validation('validationUsernameTaken'),
+          );
+          return;
+        case Ok():
+          break;
+      }
+    }
+
+    final result = await repo.signUp(
           email: email,
           password: password,
           fullName: fullName,

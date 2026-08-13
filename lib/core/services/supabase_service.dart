@@ -143,6 +143,17 @@ class SupabaseService {
       _ when has('email_address_invalid') || has('invalid email') =>
         (FailureKind.validation, 'validationEmailInvalid'),
 
+      // Kegagalan di dalam trigger `handle_new_user` dibungkus GoTrue menjadi
+      // pesan buram ini — penyebab aslinya (biasanya username atau email yang
+      // sudah dipakai) tidak ikut disertakan.
+      //
+      // Ketersediaan username sudah diperiksa lebih dulu lewat RPC
+      // `is_username_available`, jadi yang tersisa di sini hanyalah kondisi
+      // balapan: dua pendaftar mengklaim username yang sama nyaris bersamaan.
+      // Pesannya menyebut kemungkinan penyebab, bukan menyerah begitu saja.
+      _ when has('database error saving new user') =>
+        (FailureKind.conflict, 'errorSignUpConflict'),
+
       // Barulah ini yang benar-benar soal sesi.
       _ when has('session') || has('jwt') || has('token is expired') ||
               e.statusCode == '401' =>

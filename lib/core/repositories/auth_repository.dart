@@ -91,6 +91,14 @@ class AuthRepository {
         : signInWithUsername(username: id, password: password);
   }
 
+  /// Bab 6.2 — apakah username masih bebas dipakai.
+  ///
+  /// Dijawab server lewat RPC `is_username_available`, bukan kueri langsung ke
+  /// tabel `users`: Bab 6.6 melarang mengekspos tabel itu ke peran `anon`
+  /// karena membocorkan daftar email pelanggan.
+  Future<Result<bool>> isUsernameAvailable(String username) =>
+      _auth.isUsernameAvailable(username);
+
   Future<Result<void>> signInWithGoogle() => _auth.signInWithGoogle();
 
   Future<Result<void>> sendPasswordReset(String email) =>

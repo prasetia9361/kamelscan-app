@@ -73,6 +73,23 @@ class AuthService {
         ),
       );
 
+  /// Bab 6.2 — apakah username masih bebas.
+  ///
+  /// Dicek sebelum `signUp` dikirim. Bila dibiarkan sampai server, pelanggaran
+  /// `users_username_key` terjadi di dalam trigger `handle_new_user` dan
+  /// GoTrue membungkusnya menjadi *"Database error saving new user"* — pesan
+  /// yang tidak menyebut username sama sekali.
+  ///
+  /// Memakai RPC `is_username_available` yang hanya mengembalikan boolean,
+  /// bukan kueri ke tabel `users` (Bab 6.6).
+  Future<Result<bool>> isUsernameAvailable(String username) => _guard(() async {
+        final res = await SupabaseService.client.rpc<dynamic>(
+          'is_username_available',
+          params: {'p_username': username.trim().toLowerCase()},
+        );
+        return res == true;
+      });
+
   /// Bab 6.6 — Supabase Auth hanya mengenal email, jadi username ditukar
   /// dulu lewat Edge Function `resolve-username`.
   ///
