@@ -7,6 +7,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'app.dart';
 import 'core/config/env.dart';
+import 'core/services/camera_capability_check.dart';
 import 'core/services/ffmpeg_capability_check.dart';
 import 'core/services/local_db_service.dart';
 import 'core/services/notification_service.dart';
@@ -123,6 +124,24 @@ Future<void> _bootstrap() async {
   // dibatasi waktu agar tidak menggantung bila FFmpeg bermasalah.
   if (kDebugMode && !kIsWeb) {
     unawaited(_reportFfmpegCapabilities());
+  }
+}
+
+/// Verifikasi kamera (Bab 8.1) — dipanggil manual dari layar setup, bukan saat
+/// aplikasi dibuka.
+///
+/// Berbeda dari pemeriksaan FFmpeg: yang ini **menyalakan kamera dan merekam**
+/// selama 6 detik. Menjalankannya otomatis di setiap peluncuran akan merebut
+/// kamera dan meminta izin pada saat pengguna tidak meminta apa pun.
+Future<void> reportCameraCapabilities() async {
+  try {
+    final report = await runCameraCapabilityCheck()
+        .timeout(const Duration(seconds: 60));
+    for (final line in report.render().split('\n')) {
+      if (line.isNotEmpty) debugPrint(line);
+    }
+  } on Object catch (e) {
+    debugPrint('KAMELSCAN_CAMERA_CHECK GAGAL DIJALANKAN: $e');
   }
 }
 

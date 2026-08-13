@@ -1,4 +1,5 @@
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,6 +9,7 @@ import '../../../core/models/shop.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_state_views.dart';
 import '../../../core/widgets/failure_messages.dart';
+import '../../../main.dart' show reportCameraCapabilities;
 import '../../../navigation/route_names.dart';
 import 'recording_setup_view_model.dart';
 
@@ -24,7 +26,30 @@ class RecordingSetupPage extends ConsumerWidget {
     final async = ref.watch(recordingSetupViewModelProvider);
 
     return Scaffold(
-      appBar: AppBar(title: Text(t.recordSetupTitle)),
+      appBar: AppBar(
+        title: Text(t.recordSetupTitle),
+        actions: [
+          // ⚠️ Alat verifikasi sementara (Bab 8.1). Membuktikan perangkat
+          // sanggup menjalankan pratinjau + rekam + analisis frame sekaligus —
+          // syarat mutlak aturan pindai-untuk-berhenti. Hapus setelah
+          // terverifikasi di beberapa perangkat.
+          if (kDebugMode)
+            IconButton(
+              icon: const Icon(Icons.biotech_outlined),
+              tooltip: 'Uji kemampuan kamera',
+              onPressed: () async {
+                final messenger = ScaffoldMessenger.of(context);
+                messenger.showSnackBar(const SnackBar(
+                  content: Text('Menguji kamera 6 detik... lihat log'),
+                ));
+                await reportCameraCapabilities();
+                messenger.showSnackBar(const SnackBar(
+                  content: Text('Selesai. Hasil ada di log (KAMELSCAN_CAMERA_CHECK).'),
+                ));
+              },
+            ),
+        ],
+      ),
       body: async.when(
         loading: () => const AppListSkeleton(),
         error: (e, _) => AppErrorView(

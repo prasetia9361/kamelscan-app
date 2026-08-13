@@ -42,6 +42,18 @@ dependencies:
   # ---------- Kamera & scanner ----------
   camera: ^0.12.0
   mobile_scanner: ^7.4.0            # DEVIASI: doc ^5.1.1
+  # DEVIASI: tidak ada di Bab 4.2. Disetujui Product Owner 14 Agustus 2026.
+  #
+  # Aturan berhenti (pindai resi SAMA setelah 5 detik) menuntut pemindaian
+  # berjalan SELAMA merekam. `camera` dan `mobile_scanner` tidak dapat memakai
+  # kamera bersamaan, dan `startImageStream` melempar CameraException bila
+  # perekaman sudah berjalan.
+  #
+  # Satu-satunya jalan: startVideoRecording(onAvailable:) mengalirkan frame
+  # sambil merekam, lalu frame itu dibaca sendiri. mobile_scanner tidak
+  # menyediakan pembacaan frame mentah — ia hanya bisa memegang kameranya
+  # sendiri. ML Kit dipakai langsung untuk itu.
+  google_mlkit_barcode_scanning: ^0.14.0
   permission_handler: ^13.0.1       # DEVIASI: doc ^11.3.1
 
   # ---------- Video ----------
