@@ -39,26 +39,57 @@ void main() {
           ScanDecision.rejected);
     });
 
-    test('kode yang sama terbaca ulang saat merekam diabaikan', () {
+    test('resi SAMA sebelum 5 detik belum boleh menghentikan', () {
+      // Kamera yang masih menghadap label tidak boleh langsung menghentikan
+      // rekaman yang baru saja dimulai.
+      final g = gate(TriggerMode.qrCode)..read('SPXID000123456');
+      now = now.add(const Duration(seconds: 2));
+      final r = g.read('SPXID000123456');
+      expect(r.decision, ScanDecision.stopTooEarly);
+      expect(g.isRecording, isTrue);
+      expect(g.secondsUntilScanStop, greaterThan(0));
+    });
+
+    test('resi SAMA setelah 5 detik menghentikan (aturan Product Owner)', () {
+      final g = gate(TriggerMode.qrCode)..read('SPXID000123456');
+      now = now.add(const Duration(seconds: 6));
+      final r = g.read('SPXID000123456');
+      expect(r.decision, ScanDecision.stopRequested);
+      expect(r.resiCode, 'SPXID000123456');
+      expect(g.canStopByScan, isTrue);
+    });
+
+    test('tepat pada detik ke-5 sudah boleh menghentikan', () {
       final g = gate(TriggerMode.qrCode)..read('SPXID000123456');
       now = now.add(const Duration(seconds: 5));
-      expect(g.read('SPXID000123456').decision, ScanDecision.duplicateIgnored);
-      expect(g.isRecording, isTrue);
+      expect(g.read('SPXID000123456').decision, ScanDecision.stopRequested);
     });
 
-    test('kode BERBEDA saat merekam meminta berhenti', () {
+    test('resi BERBEDA tidak menghentikan, perekaman lanjut', () {
+      // Penyimpangan dari Bab 8.3.2: menghentikan dengan resi lain memaksa
+      // packer mencari label paket lain untuk paket terakhir.
       final g = gate(TriggerMode.qrCode)..read('SPXID000000001');
-      now = now.add(const Duration(seconds: 5));
+      now = now.add(const Duration(seconds: 10));
       final r = g.read('SPXID000000002');
-      expect(r.decision, ScanDecision.stopRequested);
-      expect(r.resiCode, 'SPXID000000002');
+      expect(r.decision, ScanDecision.otherResiIgnored);
+      expect(g.isRecording, isTrue);
+      expect(g.activeResi, 'SPXID000000001');
     });
 
-    test('kode berbeda dalam jeda debounce belum menghentikan', () {
-      // Label sebelah yang terbaca sekejap setelah mulai bukan niat berhenti.
+    test('resi berbeda melaporkan resi yang SEDANG direkam, bukan yang dipindai', () {
+      // Layar harus bisa berkata "Masih merekam SPXID000000001".
       final g = gate(TriggerMode.qrCode)..read('SPXID000000001');
-      now = now.add(const Duration(milliseconds: 400));
-      expect(g.read('SPXID000000002').decision, ScanDecision.duplicateIgnored);
+      now = now.add(const Duration(seconds: 10));
+      expect(g.read('SPXID000000002').resiCode, 'SPXID000000001');
+    });
+
+    test('sisa detik menghitung mundur menuju nol', () {
+      final g = gate(TriggerMode.qrCode)..read('SPXID000123456');
+      expect(g.secondsUntilScanStop, 5);
+      now = now.add(const Duration(seconds: 3));
+      expect(g.secondsUntilScanStop, 2);
+      now = now.add(const Duration(seconds: 3));
+      expect(g.secondsUntilScanStop, 0);
     });
 
     test('bip dan getar hanya pada pembacaan yang diterima (Bab 8.3.5)', () {
@@ -66,7 +97,7 @@ void main() {
       final ok = g.read('SPXID000123456');
       expect(ok.shouldBeep, isTrue);
       expect(ok.shouldVibrate, isTrue);
-      now = now.add(const Duration(seconds: 5));
+      now = now.add(const Duration(seconds: 6));
       expect(g.read('SPXID000123456').shouldBeep, isFalse);
     });
   });
@@ -150,7 +181,7 @@ void main() {
       final g = gate(TriggerMode.manual);
       g.acceptManual('JNE-00012345');
       now = now.add(const Duration(seconds: 5));
-      expect(g.read('JNE-00099999').decision, ScanDecision.duplicateIgnored);
+      expect(g.read('JNE-00099999').decision, ScanDecision.otherResiIgnored);
       expect(g.isRecording, isTrue);
     });
 

@@ -15,6 +15,7 @@
 /// tercampur dengan kode kamera.
 library;
 
+import '../config/app_constants.dart';
 import '../models/enums.dart';
 
 enum RecordingPhase {
@@ -88,6 +89,16 @@ class RecordingState {
     final left = maxDuration - elapsed;
     return left.isNegative ? Duration.zero : left;
   }
+
+  /// Video sependek ini kemungkinan tidak berguna sebagai bukti.
+  ///
+  /// ⚠️ Ini **tidak** memblokir tombol Berhenti. Bab 8.3.1 menyebut tombol itu
+  /// satu-satunya cara berhenti yang pasti berfungsi — mematikannya akan
+  /// menjebak packer yang menyadari salah pindai atau kamera menghadap arah
+  /// keliru. Yang dilakukan hanyalah meminta konfirmasi sekali.
+  bool get needsShortVideoConfirm =>
+      phase == RecordingPhase.recording &&
+      elapsed < AppConstants.minRecordingBeforeScanStop;
 
   /// Bab 8.4 — voice-over mengucapkan "Lima detik lagi" tepat sekali.
   bool get isFinalCountdown =>

@@ -234,5 +234,11 @@
   "tokenBalanceLabel": "Token Tersedia",
   "trialQuotaLabel": "Uji coba gratis",
   "commonUpgrade": "Upgrade",
-  "commonRenew": "Perpanjang"
+  "commonRenew": "Perpanjang",
+  "recordingStillRecording": "Masih merekam {resi}. Pindai resi yang sama untuk berhenti.",
+  "@recordingStillRecording": {"placeholders": {"resi": {"type": "String"}}},
+  "recordingStopTooEarly": "Tunggu {seconds} detik lagi sebelum bisa dihentikan dengan pindai.",
+  "@recordingStopTooEarly": {"placeholders": {"seconds": {"type": "int"}}},
+  "recordingShortConfirmTitle": "Video masih pendek",
+  "recordingShortConfirmBody": "Video di bawah 5 detik mungkin tidak cukup sebagai bukti. Tetap hentikan?"
 }

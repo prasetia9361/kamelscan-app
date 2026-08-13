@@ -231,5 +231,11 @@
   "tokenBalanceLabel": "Tokens available",
   "trialQuotaLabel": "Free trial",
   "commonUpgrade": "Upgrade",
-  "commonRenew": "Renew"
+  "commonRenew": "Renew",
+  "recordingStillRecording": "Still recording {resi}. Scan the same code to stop.",
+  "@recordingStillRecording": {"placeholders": {"resi": {"type": "String"}}},
+  "recordingStopTooEarly": "Wait {seconds} more seconds before scanning can stop it.",
+  "@recordingStopTooEarly": {"placeholders": {"seconds": {"type": "int"}}},
+  "recordingShortConfirmTitle": "Video is still short",
+  "recordingShortConfirmBody": "A video under 5 seconds may not be enough as evidence. Stop anyway?"
 }

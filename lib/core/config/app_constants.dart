@@ -31,6 +31,29 @@ class AppConstants {
   /// Debounce pengecekan resi ganda pada mode input manual (Bab 7.7).
   static const Duration manualResiCheckDebounce = Duration(milliseconds: 500);
 
+  /// Lama perekaman minimum sebelum pemindaian boleh menghentikannya.
+  ///
+  /// 🔴 PENYIMPANGAN DARI BAB 8.3.2 — disetujui Product Owner 13 Agustus 2026.
+  ///
+  /// Bab 8.3.2 menetapkan perekaman berhenti saat resi **BERBEDA** terbaca.
+  /// Aturan itu janggal di lapangan: untuk menghentikan rekaman paket
+  /// terakhir, packer harus mencari label paket lain — padahal tidak ada lagi
+  /// paket berikutnya.
+  ///
+  /// Aturan yang dipakai:
+  ///   1. Pindai pertama  → mulai merekam
+  ///   2. 5 detik pertama → pemindaian tidak dapat menghentikan
+  ///   3. Setelah 5 detik → pindai resi yang SAMA menghentikan
+  ///   4. Resi BERBEDA    → perekaman lanjut, disertai pesan di layar
+  ///
+  /// Jendela 5 detik sekaligus menutup masalah kamera yang masih menghadap
+  /// label sesaat setelah perekaman dimulai.
+  ///
+  /// ⚠️ Batas ini **tidak berlaku untuk tombol Berhenti**. Bab 8.3.1 menyebut
+  /// tombol itu satu-satunya cara berhenti yang pasti berfungsi; mematikannya
+  /// selama 5 detik akan menjebak packer yang menyadari salah pindai.
+  static const Duration minRecordingBeforeScanStop = Duration(seconds: 5);
+
   // ---------- Antrian upload ----------
   static const int maxUploadAttempts = 5;
   static const Duration uploadRetryBaseDelay = Duration(seconds: 30);

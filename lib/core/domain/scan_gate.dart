@@ -14,6 +14,7 @@
 /// memegang label di depan HP, dan itu tidak akan pernah dilakukan berulang.
 library;
 
+import '../config/app_constants.dart';
 import '../models/enums.dart';
 import '../services/trigger_strategy.dart';
 
@@ -29,11 +30,19 @@ enum ScanDecision {
   /// Diterima. Perekaman boleh dimulai.
   accepted,
 
-  /// Kode yang sama terbaca lagi selagi merekam — diabaikan (Bab 8.3.2).
-  duplicateIgnored,
-
-  /// Kode BERBEDA terbaca selagi merekam — sinyal untuk berhenti.
+  /// Resi yang sama dipindai lagi setelah 5 detik — sinyal untuk berhenti.
   stopRequested,
+
+  /// Resi yang sama dipindai, tetapi perekaman belum mencapai 5 detik.
+  /// Layar menampilkan sisa detiknya, bukan diam saja.
+  stopTooEarly,
+
+  /// Resi **berbeda** dipindai selagi merekam.
+  ///
+  /// ⚠️ Wajib ditampilkan ke layar. Bila diabaikan diam-diam, packer mengira
+  /// ia sedang merekam paket yang baru dipindai, padahal masih merekam paket
+  /// sebelumnya — dan videonya akan ber-watermark resi yang salah.
+  otherResiIgnored,
 }
 
 /// Hasil lengkap satu pembacaan.
@@ -79,6 +88,26 @@ class ScanGate {
   String? get pendingResi => _pending;
   bool get isRecording => _active != null;
 
+  /// Sisa detik sebelum pemindaian boleh menghentikan perekaman.
+  ///
+  /// Dipakai layar untuk menampilkan *"Tunggu 3 detik lagi"* alih-alih diam
+  /// saat packer memindai terlalu cepat.
+  int get secondsUntilScanStop {
+    final since = _lastAcceptedAt;
+    if (since == null || _active == null) return 0;
+    final left = AppConstants.minRecordingBeforeScanStop -
+        _clock().difference(since);
+    if (left <= Duration.zero) return 0;
+    // Dibulatkan ke ATAS: sisa 4,2 detik ditampilkan "5", bukan "4" — angka
+    // yang menghitung mundur ke nol lebih dulu daripada tombolnya aktif akan
+    // terlihat seperti aplikasi macet.
+    return (left.inMilliseconds / 1000).ceil();
+  }
+
+  /// Apakah pemindaian sudah boleh menghentikan perekaman.
+  bool get canStopByScan =>
+      _active != null && strategy.canStopByScan && secondsUntilScanStop == 0;
+
   /// Proses satu pembacaan mentah dari pemindai.
   ScanResult read(String rawValue) {
     final resi = strategy.accept(rawValue);
@@ -87,22 +116,28 @@ class ScanGate {
     final now = _clock();
 
     // ---------- Sedang merekam ----------
+    //
+    // Aturan yang berlaku (penyimpangan dari Bab 8.3.2, disetujui Product
+    // Owner 13 Agustus 2026 — lihat AppConstants.minRecordingBeforeScanStop):
+    // resi yang SAMA menghentikan, resi BERBEDA tidak.
     if (_active != null) {
-      if (resi == _active) {
-        // Bab 8.3.2: kode yang sama terbaca ulang diabaikan. Tanpa ini,
-        // kamera yang masih menghadap label akan langsung menghentikan
-        // rekaman yang baru saja dimulai.
-        return const ScanResult(ScanDecision.duplicateIgnored);
+      if (resi != _active) {
+        // Bukan sekadar diabaikan: pemanggil WAJIB menampilkan pesan, agar
+        // packer tahu ia masih merekam paket sebelumnya.
+        return ScanResult(ScanDecision.otherResiIgnored, resiCode: _active);
       }
+
       if (!strategy.canStopByScan) {
-        return const ScanResult(ScanDecision.duplicateIgnored);
+        // Mode manual: pemindaian tidak pernah menghentikan (Bab 8.3.4).
+        return ScanResult(ScanDecision.otherResiIgnored, resiCode: _active);
       }
-      // Debounce tetap berlaku: label sebelah yang terbaca sekejap setelah
-      // mulai bukan niat pengguna untuk berhenti.
+
       final since = _lastAcceptedAt;
-      if (since != null && now.difference(since) < strategy.debounce) {
-        return const ScanResult(ScanDecision.duplicateIgnored);
+      if (since != null &&
+          now.difference(since) < AppConstants.minRecordingBeforeScanStop) {
+        return ScanResult(ScanDecision.stopTooEarly, resiCode: _active);
       }
+
       return ScanResult(ScanDecision.stopRequested, resiCode: resi);
     }
 
