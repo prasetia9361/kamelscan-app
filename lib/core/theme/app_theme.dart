@@ -3,204 +3,208 @@ import 'package:flutter/material.dart';
 import 'app_colors.dart';
 import 'app_text_styles.dart';
 
-/// Tema terang & gelap (Bab 9.10 — Material 3, sentuh minimal 48 dp).
+/// Tema terang & gelap. Sumber: `palet_warna_dan_tipografi.md` §4.3.
+///
+/// Warna tidak diturunkan dari `ColorScheme.fromSeed` — setiap nilai ditetapkan
+/// eksplisit karena rasio kontrasnya sudah dihitung satu per satu (§1, §2).
+/// Membiarkan Material menghasilkan turunannya sendiri akan merusak jaminan itu.
 class AppTheme {
   const AppTheme._();
 
-  static ThemeData get light => _build(Brightness.light);
-  static ThemeData get dark => _build(Brightness.dark);
+  static ThemeData get light => _build(
+        scheme: const ColorScheme.light(
+          primary: Color(0xFF0D5EA6),
+          onPrimary: Color(0xFFFFFFFF),
+          primaryContainer: Color(0xFFD6E6F7),
+          onPrimaryContainer: Color(0xFF06304F),
+          secondary: Color(0xFF9A5B00),
+          onSecondary: Color(0xFFFFFFFF),
+          secondaryContainer: Color(0xFFFBEBD2),
+          onSecondaryContainer: Color(0xFF4A2B00),
+          error: Color(0xFFC62828),
+          onError: Color(0xFFFFFFFF),
+          surface: Color(0xFFFFFFFF),
+          onSurface: Color(0xFF101828),
+          surfaceContainer: Color(0xFFF2F5F9),
+          surfaceContainerHigh: Color(0xFFE7ECF3),
+          onSurfaceVariant: Color(0xFF4A5567),
+          outline: Color(0xFFC7CFDA),
+          outlineVariant: Color(0xFFE3E8EF),
+        ),
+        appColors: AppColors.light,
+      );
 
-  static ThemeData _build(Brightness brightness) {
-    final scheme = ColorScheme.fromSeed(
-      seedColor: AppColors.seed,
-      brightness: brightness,
-    );
-    final isDark = brightness == Brightness.dark;
+  static ThemeData get dark => _build(
+        scheme: const ColorScheme.dark(
+          primary: Color(0xFF8FC3F0),
+          onPrimary: Color(0xFF06304F),
+          primaryContainer: Color(0xFF123E63),
+          onPrimaryContainer: Color(0xFFD6E6F7),
+          secondary: Color(0xFFF0B454),
+          onSecondary: Color(0xFF3A2200),
+          secondaryContainer: Color(0xFF4A3208),
+          onSecondaryContainer: Color(0xFFFBEBD2),
+          error: Color(0xFFFF8A8A),
+          onError: Color(0xFF4E1717),
+          // ⚠️ Sengaja bukan hitam murni: pada layar OLED, #000000
+          // menimbulkan smearing saat menggulir dan terlalu keras dipandang
+          // lama (§2).
+          surface: Color(0xFF0F141A),
+          onSurface: Color(0xFFE6EDF5),
+          surfaceContainer: Color(0xFF1A222C),
+          surfaceContainerHigh: Color(0xFF232D39),
+          onSurfaceVariant: Color(0xFFA5B3C4),
+          outline: Color(0xFF3A4757),
+          outlineVariant: Color(0xFF2A3542),
+        ),
+        appColors: AppColors.dark,
+      );
+
+  static ThemeData _build({
+    required ColorScheme scheme,
+    required AppColors appColors,
+  }) {
+    final text = AppTextStyles.textTheme(scheme.onSurface);
 
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
-      brightness: brightness,
-      fontFamily: AppTextStyles.fontFamily,
-      textTheme: AppTextStyles.textTheme.apply(
-        bodyColor: scheme.onSurface,
-        displayColor: scheme.onSurface,
-      ),
-      scaffoldBackgroundColor: scheme.surface,
-
-      // Target sentuh 48 dp — gudang sering dioperasikan dengan sarung tangan.
+      scaffoldBackgroundColor: scheme.surfaceContainer,
+      fontFamily: AppFonts.sans,
+      textTheme: text,
+      extensions: [appColors],
       materialTapTargetSize: MaterialTapTargetSize.padded,
-      visualDensity: VisualDensity.standard,
 
       appBarTheme: AppBarTheme(
-        centerTitle: false,
-        elevation: 0,
-        scrolledUnderElevation: 2,
         backgroundColor: scheme.surface,
         foregroundColor: scheme.onSurface,
-        titleTextStyle: AppTextStyles.textTheme.titleLarge
-            ?.copyWith(color: scheme.onSurface),
-      ),
-
-      cardTheme: CardThemeData(
         elevation: 0,
-        margin: EdgeInsets.zero,
-        clipBehavior: Clip.antiAlias,
-        color: scheme.surfaceContainerLow,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        scrolledUnderElevation: 1,
+        centerTitle: false,
+        titleTextStyle: text.titleLarge,
       ),
 
+      // Tinggi 52 dp, di atas minimum 48 dp. Gudang, sarung tangan (§5).
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          minimumSize: const Size(64, 48),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          textStyle: AppTextStyles.textTheme.labelLarge,
+          minimumSize: const Size.fromHeight(AppSizes.touchComfort),
+          textStyle: text.labelLarge,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+          ),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          minimumSize: const Size(64, 48),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          textStyle: AppTextStyles.textTheme.labelLarge,
+          minimumSize: const Size.fromHeight(AppSizes.touchComfort),
+          textStyle: text.labelLarge,
+          side: BorderSide(color: scheme.outline),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+          ),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          minimumSize: const Size(48, 48),
-          textStyle: AppTextStyles.textTheme.labelLarge,
+          minimumSize: const Size(AppSizes.touchMin, AppSizes.touchMin),
+          textStyle: text.labelLarge,
         ),
       ),
       iconButtonTheme: IconButtonThemeData(
-        style: IconButton.styleFrom(minimumSize: const Size(48, 48)),
+        style: IconButton.styleFrom(
+          minimumSize: const Size(AppSizes.touchMin, AppSizes.touchMin),
+        ),
+      ),
+
+      cardTheme: CardThemeData(
+        color: scheme.surface,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSizes.radiusLarge),
+          side: BorderSide(color: scheme.outlineVariant),
+        ),
+        margin: EdgeInsets.zero,
+        clipBehavior: Clip.antiAlias,
       ),
 
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.4),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        fillColor: scheme.surface,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
+          borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+          borderSide: BorderSide(color: scheme.outline),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: scheme.outlineVariant),
+          borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+          borderSide: BorderSide(color: scheme.outline),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
           borderSide: BorderSide(color: scheme.primary, width: 2),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
           borderSide: BorderSide(color: scheme.error),
         ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+          borderSide: BorderSide(color: scheme.error, width: 2),
+        ),
+        labelStyle: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
       ),
 
       navigationBarTheme: NavigationBarThemeData(
-        height: 68,
-        elevation: 2,
-        backgroundColor: scheme.surfaceContainer,
+        height: 64,
+        backgroundColor: scheme.surface,
+        indicatorColor: scheme.primaryContainer,
+        elevation: 0,
+        labelTextStyle: WidgetStatePropertyAll(text.labelSmall),
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
       ),
       navigationRailTheme: NavigationRailThemeData(
-        backgroundColor: scheme.surfaceContainer,
+        backgroundColor: scheme.surface,
+        indicatorColor: scheme.primaryContainer,
         labelType: NavigationRailLabelType.all,
       ),
 
+      chipTheme: ChipThemeData(
+        labelStyle: text.labelMedium,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSizes.radiusSmall),
+        ),
+      ),
+
       dialogTheme: DialogThemeData(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSizes.radiusLarge),
+        ),
       ),
       bottomSheetTheme: const BottomSheetThemeData(
         showDragHandle: true,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(AppSizes.radiusLarge),
+          ),
         ),
       ),
-      snackBarTheme: SnackBarThemeData(
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-      chipTheme: ChipThemeData(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
+
       dividerTheme: DividerThemeData(
         color: scheme.outlineVariant,
-        space: 1,
         thickness: 1,
+        space: 1,
       ),
       listTileTheme: const ListTileThemeData(
         minVerticalPadding: 12,
-        contentPadding: EdgeInsets.symmetric(horizontal: 16),
+        contentPadding: EdgeInsets.symmetric(horizontal: AppSizes.spaceMd),
       ),
-
-      extensions: [
-        AppSemanticColors(
-          success: AppColors.success,
-          warning: AppColors.warning,
-          danger: AppColors.danger,
-          info: AppColors.info,
-          shimmerBase: isDark
-              ? AppColors.shimmerBaseDark
-              : AppColors.shimmerBaseLight,
-          shimmerHighlight: isDark
-              ? AppColors.shimmerHighlightDark
-              : AppColors.shimmerHighlightLight,
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
         ),
-      ],
-    );
-  }
-}
-
-/// Warna semantik yang tidak ada di `ColorScheme` Material.
-/// Akses lewat `Theme.of(context).extension<AppSemanticColors>()!`.
-@immutable
-class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
-  const AppSemanticColors({
-    required this.success,
-    required this.warning,
-    required this.danger,
-    required this.info,
-    required this.shimmerBase,
-    required this.shimmerHighlight,
-  });
-
-  final Color success;
-  final Color warning;
-  final Color danger;
-  final Color info;
-  final Color shimmerBase;
-  final Color shimmerHighlight;
-
-  @override
-  AppSemanticColors copyWith({
-    Color? success,
-    Color? warning,
-    Color? danger,
-    Color? info,
-    Color? shimmerBase,
-    Color? shimmerHighlight,
-  }) =>
-      AppSemanticColors(
-        success: success ?? this.success,
-        warning: warning ?? this.warning,
-        danger: danger ?? this.danger,
-        info: info ?? this.info,
-        shimmerBase: shimmerBase ?? this.shimmerBase,
-        shimmerHighlight: shimmerHighlight ?? this.shimmerHighlight,
-      );
-
-  @override
-  AppSemanticColors lerp(ThemeExtension<AppSemanticColors>? other, double t) {
-    if (other is! AppSemanticColors) return this;
-    return AppSemanticColors(
-      success: Color.lerp(success, other.success, t)!,
-      warning: Color.lerp(warning, other.warning, t)!,
-      danger: Color.lerp(danger, other.danger, t)!,
-      info: Color.lerp(info, other.info, t)!,
-      shimmerBase: Color.lerp(shimmerBase, other.shimmerBase, t)!,
-      shimmerHighlight: Color.lerp(shimmerHighlight, other.shimmerHighlight, t)!,
+        contentTextStyle: text.bodyMedium?.copyWith(color: Colors.white),
+      ),
     );
   }
 }

@@ -120,3 +120,24 @@ flutter:
   assets:
     - assets/images/
     - assets/icons/
+
+  # Dibundel sebagai aset, BUKAN google_fonts runtime.
+  # palet_warna_dan_tipografi.md §3.1: di gudang bersinyal buruk, huruf yang
+  # diunduh saat aplikasi dibuka akan gagal muat dan teks tampil dengan huruf
+  # cadangan atau kosong. Hanya 4 berat Inter + 1 mono — tiap berat tambahan
+  # menambah ± 300 KB tanpa manfaat nyata (§3.1).
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Inter-Bold.ttf
+          weight: 700
+    - family: JetBrainsMono
+      fonts:
+        - asset: assets/fonts/JetBrainsMono-Bold.ttf
+          weight: 700

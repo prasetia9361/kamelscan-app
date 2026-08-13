@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 
-import '../theme/app_theme.dart';
+import '../theme/app_colors.dart';
 import '../utils/app_failure.dart';
 import 'failure_messages.dart';
 
@@ -19,7 +19,7 @@ class AppListSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<AppSemanticColors>()!;
+    final colors = Theme.of(context).extension<AppColors>()!;
     return Shimmer.fromColors(
       baseColor: colors.shimmerBase,
       highlightColor: colors.shimmerHighlight,
