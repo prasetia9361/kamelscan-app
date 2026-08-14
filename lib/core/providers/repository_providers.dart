@@ -9,11 +9,14 @@ import '../repositories/token_repository.dart';
 import '../repositories/user_repository.dart';
 import '../repositories/video_repository.dart';
 import '../services/auth_service.dart';
+import '../services/barcode_frame_reader.dart';
 import '../services/camera_service.dart';
 import '../services/connectivity_service.dart';
 import '../services/local_db_service.dart';
 import '../services/location_service.dart';
 import '../services/notification_service.dart';
+import '../services/permission_service.dart';
+import '../services/scan_feedback.dart';
 import '../services/supabase_service.dart';
 import '../services/tts_service.dart';
 import '../services/video_processor.dart';
@@ -50,12 +53,27 @@ TtsService ttsService(Ref ref) {
   return service;
 }
 
+@Riverpod(keepAlive: true)
+PermissionService permissionService(Ref ref) => const PermissionService();
+
+@Riverpod(keepAlive: true)
+ScanFeedback scanFeedback(Ref ref) => const ScanFeedback();
+
 /// Kamera bersifat berat dan eksklusif — dibuang begitu layar rekam ditutup.
 @riverpod
 CameraService cameraService(Ref ref) {
   final service = CameraService();
   ref.onDispose(service.dispose);
   return service;
+}
+
+/// Pemindai ML Kit. Sama seperti kamera: berat, dan sesi ML Kit yang tidak
+/// ditutup menahan memori native meski layarnya sudah ditinggalkan.
+@riverpod
+BarcodeFrameReader barcodeFrameReader(Ref ref) {
+  final reader = createBarcodeFrameReader();
+  ref.onDispose(reader.close);
+  return reader;
 }
 
 @Riverpod(keepAlive: true)

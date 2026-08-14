@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../core/config/env.dart';
+import '../core/models/enums.dart';
 import '../pages/account/account_page.dart';
 import '../pages/account/packers/packers_page.dart';
 import '../pages/admin/dashboard/admin_dashboard_page.dart';
@@ -102,7 +103,14 @@ GoRouter appRouter(Ref ref) {
             GoRoute(
               path: 'camera',
               parentNavigatorKey: _rootNavigatorKey,
-              builder: (_, _) => const RecordingCameraPage(),
+              builder: (_, state) {
+                final q = state.uri.queryParameters;
+                return RecordingCameraPage(
+                  cameraName: q['camera'] ?? '',
+                  triggerWire: q['mode'] ?? TriggerMode.qrCode.wire,
+                  shopId: q['shop'] ?? '',
+                );
+              },
             ),
             GoRoute(
               path: 'result',

@@ -55,6 +55,25 @@ class Routes {
 
   // ---------- Pembentuk path berparameter ----------
 
+  /// Layar kamera membawa ketiga pilihan Bab 8.2 di **query**, bukan `extra`.
+  ///
+  /// Alasannya bukan gaya: `extra` hilang begitu aplikasi di-restart atau rute
+  /// dipulihkan, dan layar kamera akan terbuka tanpa tahu kamera, mode, maupun
+  /// toko mana yang dipilih — lalu gagal dengan cara yang membingungkan.
+  static String recordCameraOf({
+    required String cameraName,
+    required String triggerWire,
+    required String shopId,
+  }) =>
+      Uri(
+        path: recordCamera,
+        queryParameters: {
+          'camera': cameraName,
+          'mode': triggerWire,
+          'shop': shopId,
+        },
+      ).toString();
+
   static String videoDetailOf(String id) => '/history/$id';
   static String shopEditOf(String id) => '/shops/form/$id';
   static String publicVideoOf(String token) => '/v/$token';

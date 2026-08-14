@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/domain/recording_machine.dart';
 import '../../../core/models/enums.dart';
 import '../../../core/models/shop.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -40,7 +41,11 @@ class RecordingSetupPage extends ConsumerWidget {
               onPressed: () async {
                 final messenger = ScaffoldMessenger.of(context);
                 messenger.showSnackBar(const SnackBar(
-                  content: Text('Menguji kamera 6 detik... lihat log'),
+                  duration: Duration(seconds: 30),
+                  content: Text(
+                    'ARAHKAN KAMERA KE QR/BARCODE dan tahan ± 30 detik. '
+                    'Layar tidak berubah — hasilnya masuk ke log.',
+                  ),
                 ));
                 await reportCameraCapabilities();
                 messenger.showSnackBar(const SnackBar(
@@ -327,13 +332,13 @@ class _ShopPicker extends StatelessWidget {
 class _StartBar extends StatelessWidget {
   const _StartBar({required this.setup});
 
-  final dynamic setup;
+  final RecordingSetup setup;
 
   @override
   Widget build(BuildContext context) {
     final t = context.l10n;
-    final reason = setup.blockedReasonKey as String?;
-    final canStart = setup.canStart as bool;
+    final reason = setup.blockedReasonKey;
+    final canStart = setup.canStart;
 
     return SafeArea(
       child: Padding(
@@ -362,7 +367,15 @@ class _StartBar extends StatelessWidget {
               height: AppSizes.touchComfort,
               child: FilledButton.icon(
                 onPressed: canStart
-                    ? () => context.push(Routes.recordCamera)
+                    ? () => context.push(
+                          Routes.recordCameraOf(
+                            // Ketiganya sudah dipastikan terisi oleh
+                            // `RecordingSetup.canStart`.
+                            cameraName: setup.cameraId!,
+                            triggerWire: setup.triggerMode!.wire,
+                            shopId: setup.shopId!,
+                          ),
+                        )
                     : null,
                 icon: const Icon(Icons.videocam),
                 label: Text(t.recordStart),

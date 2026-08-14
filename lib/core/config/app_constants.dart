@@ -93,6 +93,11 @@ class AppConstants {
   static const String prefVoiceOverEnabled = 'pref_voice_over_enabled';
   static const String prefLastShopId = 'pref_last_shop_id';
   static const String prefTriggerMode = 'pref_trigger_mode';
+
+  /// Bab 8.3.4 — mode Input Manual menyimpan 5 resi terakhir sebagai saran,
+  /// membantu saat merekam ulang setelah kegagalan.
+  static const String prefRecentResi = 'pref_recent_resi';
+  static const int recentResiCount = 5;
   static const String prefOnboardingSeen = 'pref_onboarding_seen';
   static const String secureSessionKey = 'secure_supabase_session';
 
