@@ -41,6 +41,15 @@ dependencies:
 
   # ---------- Kamera & scanner ----------
   camera: ^0.12.0
+  # DEVIASI: tidak ada di Bab 4.2. Keduanya sebenarnya bawaan `camera`, tetapi
+  # harus disebut terang-terangan karena kita mengimpornya langsung.
+  #
+  # Alasannya satu: `camera_android_camerax` tidak menyediakan cara menanyakan
+  # ukuran pratinjau yang sedang berjalan, padahal CameraX mengubahnya sendiri
+  # saat perekaman mulai (StreamSharing) dan membuat pratinjau miring 90°.
+  # Lihat `CameraService.readPreviewRotationCorrection`.
+  camera_android_camerax: ^0.7.4
+  camera_platform_interface: ^2.13.0
   mobile_scanner: ^7.4.0            # DEVIASI: doc ^5.1.1
   # DEVIASI: tidak ada di Bab 4.2. Disetujui Product Owner 14 Agustus 2026.
   #
