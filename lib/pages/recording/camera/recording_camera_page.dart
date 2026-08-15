@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/models/enums.dart';
 import '../../../core/providers/repository_providers.dart';
+import '../../../core/services/camera_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/formatters.dart';
@@ -101,7 +102,23 @@ class _RecordingCameraPageState extends ConsumerState<RecordingCameraPage> {
             : Stack(
                 fit: StackFit.expand,
                 children: [
-                  _Preview(ready: state.cameraReady),
+                  _Preview(
+                    ready: state.cameraReady,
+                    geometry: state.previewGeometry,
+                  ),
+                  // Penutup peralihan (lihat `previewSettling` di ViewModel):
+                  // muncul seketika agar kedipan putaran tidak sempat
+                  // terlihat, lalu memudar supaya terbaca sebagai "sedang
+                  // menyiapkan" — bukan sebagai layar rusak.
+                  IgnorePointer(
+                    child: AnimatedOpacity(
+                      opacity: state.previewSettling ? 1 : 0,
+                      duration: state.previewSettling
+                          ? Duration.zero
+                          : const Duration(milliseconds: 220),
+                      child: const ColoredBox(color: Colors.black),
+                    ),
+                  ),
                   if (state.cameraReady && state.mode != TriggerMode.manual)
                     ScanFrameOverlay(
                       wide: state.mode == TriggerMode.barcode1d,
@@ -239,9 +256,12 @@ class _RecordingCameraPageState extends ConsumerState<RecordingCameraPage> {
 // ---------------------------------------------------------------------------
 
 class _Preview extends ConsumerWidget {
-  const _Preview({required this.ready});
+  const _Preview({required this.ready, required this.geometry});
 
   final bool ready;
+
+  /// Bentuk & koreksi pratinjau — lihat `CameraService.readPreviewGeometry`.
+  final PreviewGeometry geometry;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -269,17 +289,58 @@ class _Preview extends ConsumerWidget {
       return const SizedBox.shrink();
     }
 
+    // 🔴 `CameraPreview` sengaja TIDAK dipakai. Widget itu mengunci bentuk
+    // kotaknya pada `AspectRatio(1/previewSize)`, dan `previewSize` hanya diisi
+    // sekali saat kamera dibuka. Selama merekam CameraX mengganti bingkainya
+    // (720x480 → 480x720), sehingga `Texture` diberi kotak yang bentuknya salah
+    // dan gambarnya melar 2,25 kali. Bentuk itu tidak dapat ditimpa dari luar,
+    // jadi kotaknya dihitung sendiri di sini dari ukuran yang sedang berjalan.
+    final value = controller.value;
+    final correction = geometry.quarterTurnCorrection;
+
+    // Putaran yang biasanya disumbang `CameraPreview`. Wajib direplikasi:
+    // delegasi plugin menguranginya lagi dari putarannya sendiri, jadi kalau
+    // dihilangkan pratinjau ikut miring saat perangkat dimiringkan.
+    final turns = _preAppliedQuarterTurns(value) + correction;
+
+    // Berapa kali kotak terbalik sebelum sampai ke `Texture`: putaran plugin
+    // dan putaran kita sama-sama menukar lebar dengan tinggi.
+    final base = (controller.description.sensorOrientation ~/ 90) % 4;
+    final swapped = (base + correction).isOdd;
+
+    final buffer =
+        geometry.liveSize ?? value.previewSize ?? const Size(720, 480);
+    final box = swapped ? Size(buffer.height, buffer.width) : buffer;
+
     // Pratinjau 480p diregangkan menutupi layar. Memotong sisi lebih baik
     // daripada menyisakan pita hitam: bagian yang dipindai selalu ada di
     // tengah, di dalam bingkai bantu.
     return FittedBox(
       fit: BoxFit.cover,
       child: SizedBox(
-        width: controller.value.previewSize?.height ?? 480,
-        height: controller.value.previewSize?.width ?? 640,
-        child: CameraPreview(controller),
+        width: box.width,
+        height: box.height,
+        child: RotatedBox(
+          quarterTurns: turns,
+          child: controller.buildPreview(),
+        ),
       ),
     );
+  }
+
+  /// Salinan setia `CameraPreview._getQuarterTurns` (paket `camera` 0.12.0).
+  static int _preAppliedQuarterTurns(CameraValue value) {
+    final orientation = value.isRecordingVideo
+        ? (value.recordingOrientation ?? value.deviceOrientation)
+        : (value.previewPauseOrientation ??
+            value.lockedCaptureOrientation ??
+            value.deviceOrientation);
+    return switch (orientation) {
+      DeviceOrientation.portraitUp => 0,
+      DeviceOrientation.landscapeRight => 1,
+      DeviceOrientation.portraitDown => 2,
+      DeviceOrientation.landscapeLeft => 3,
+    };
   }
 }
 

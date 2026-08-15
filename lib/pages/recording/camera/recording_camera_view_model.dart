@@ -166,6 +166,8 @@ class RecordingScreenState {
     this.warningKeys = const [],
     this.pendingResi,
     this.torchOn = false,
+    this.previewGeometry = PreviewGeometry.unknown,
+    this.previewSettling = false,
     this.secondsUntilScanStop = 0,
     this.notice,
     this.checkingResi = false,
@@ -192,6 +194,24 @@ class RecordingScreenState {
   final String? pendingResi;
 
   final bool torchOn;
+
+  /// Bentuk dan koreksi putaran pratinjau yang sedang berjalan. Diisi
+  /// [CameraService.readPreviewGeometry]; alasan lengkapnya ada di sana.
+  final PreviewGeometry previewGeometry;
+
+  /// Bingkai kamera sedang berganti bentuk — pratinjau ditutup sementara.
+  ///
+  /// 🔴 Bukan hiasan. CameraX melaporkan bingkai barunya lewat metadata
+  /// **lebih dulu**, baru beberapa frame kemudian benar-benar mengirim piksel
+  /// yang sudah diputar. Di sela itu hitungan layar dan isi gambar tidak
+  /// sinkron, dan pratinjau berkedip berputar — ke satu arah saat mulai
+  /// merekam, ke arah sebaliknya saat berhenti (diamati Product Owner
+  /// 15 Agustus 2026 dengan gunting sebagai objek acuan).
+  ///
+  /// Balapan ini **tidak bisa dimenangkan dengan mengatur waktu**: Flutter
+  /// tidak punya cara mengetahui frame mana yang pertama sudah berputar.
+  /// Satu-satunya jalan adalah tidak menampilkan apa pun selama peralihan.
+  final bool previewSettling;
 
   /// Sisa detik sebelum pemindaian boleh menghentikan perekaman.
   final int secondsUntilScanStop;
@@ -220,6 +240,8 @@ class RecordingScreenState {
     String? pendingResi,
     bool clearPending = false,
     bool? torchOn,
+    PreviewGeometry? previewGeometry,
+    bool? previewSettling,
     int? secondsUntilScanStop,
     RecordingNotice? notice,
     bool clearNotice = false,
@@ -239,6 +261,8 @@ class RecordingScreenState {
         warningKeys: warningKeys ?? this.warningKeys,
         pendingResi: clearPending ? null : (pendingResi ?? this.pendingResi),
         torchOn: torchOn ?? this.torchOn,
+        previewGeometry: previewGeometry ?? this.previewGeometry,
+        previewSettling: previewSettling ?? this.previewSettling,
         secondsUntilScanStop: secondsUntilScanStop ?? this.secondsUntilScanStop,
         notice: clearNotice ? null : (notice ?? this.notice),
         checkingResi: checkingResi ?? this.checkingResi,
@@ -378,12 +402,16 @@ class RecordingCameraViewModel extends _$RecordingCameraViewModel {
           AppConstants.hardMaxRecordingDuration,
     );
 
+    final recent = await _loadRecentResi();
+    if (_disposed) return;
+
     _set(state.copyWith(
       preparing: false,
       cameraReady: true,
       warningKeys: permissions.warningKeys,
       machine: RecordingMachine.ready(maxDuration: maxDuration),
-      manual: state.manual.copyWith(recent: await _loadRecentResi()),
+      previewGeometry: await _camera.readPreviewGeometry(),
+      manual: state.manual.copyWith(recent: recent),
     ));
 
     await _startScanning();
@@ -565,26 +593,97 @@ class RecordingCameraViewModel extends _$RecordingCameraViewModel {
     // mencoba memulai perekaman kedua di atas yang pertama.
     if (next == null) return;
 
-    final result = await _camera.startRecording(onFrame: _onFrame);
+    // 🔴 CameraX membalik bingkai pratinjau **di tengah** `startVideoRecording`,
+    // ± 620 ms sebelum panggilan itu kembali (diukur di Redmi Note 9,
+    // 15 Agustus 2026). Bila koreksinya baru dibaca sesudahnya, pratinjau
+    // tampak berputar selama 620 ms setiap kali perekaman dimulai. Karena itu
+    // bingkainya dipantau **berbarengan**, bukan sesudahnya.
+    _set(state.copyWith(previewSettling: true));
+
+    final starting = _camera.startRecording(onFrame: _onFrame);
+    unawaited(_followPreviewGeometry(starting));
+
+    final result = await starting;
     if (_disposed) return;
 
     if (result.isErr) {
       _gate.reset();
+      // Penutup wajib dibuka juga di jalur gagal — kalau tidak, pratinjau
+      // tinggal hitam selamanya dan layarnya tampak mati.
       _set(state.copyWith(
         machine: RecordingMachine.fail(
           state.machine,
           result.failureOrNull?.messageKey ?? 'errorUnknown',
         ),
+        previewSettling: false,
       ));
       return;
     }
 
     _startedAt = DateTime.now();
     _saidFinalCountdown = false;
-    _set(state.copyWith(machine: next, clearFinished: true));
+
+    // 🔴 Memasang perekam menambah pemakai kamera yang ketiga, dan CameraX
+    // dapat menjawabnya dengan mengganti bentuk bingkai pratinjau — yang
+    // membuat pratinjau miring seperempat putaran bila dibiarkan. Ditanyakan di
+    // sini, bukan ditebak; alasan lengkapnya di
+    // `CameraService.readPreviewRotationCorrection`.
+    final geometry = await _camera.readPreviewGeometry();
+    if (_disposed) return;
+
+    _set(state.copyWith(
+      machine: next,
+      clearFinished: true,
+      previewGeometry: geometry,
+    ));
+    unawaited(_uncoverPreview());
 
     unawaited(_speak(_voice?.start(resi)));
     _ticker = Timer.periodic(const Duration(milliseconds: 200), _onTick);
+  }
+
+  /// Mengejar perubahan bingkai pratinjau selagi [until] masih berjalan.
+  ///
+  /// Berhenti pada perubahan pertama — begitu koreksinya berbeda, tidak ada
+  /// lagi yang perlu dikejar. Batas 25 kali × 60 ms menjaga agar pemantauan
+  /// tidak menggantung bila bingkainya memang tidak pernah berubah (perangkat
+  /// `LEVEL_3` tidak menyalakan StreamSharing sama sekali).
+  Future<void> _followPreviewGeometry(Future<void> until) async {
+    var finished = false;
+    unawaited(until.whenComplete(() => finished = true));
+
+    for (var i = 0; i < 25; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+      if (_disposed || finished) return;
+
+      final geometry = await _camera.readPreviewGeometry();
+      if (_disposed) return;
+      if (geometry.quarterTurnCorrection !=
+          state.previewGeometry.quarterTurnCorrection) {
+        _set(state.copyWith(previewGeometry: geometry));
+        return;
+      }
+    }
+  }
+
+  /// Membuka kembali pratinjau setelah bingkainya benar-benar tenang.
+  ///
+  /// 🔴 **Angka ini aman kelebihan, tidak aman kekurangan.** Metadata bingkai
+  /// berubah lebih dulu; piksel yang sudah diputar baru menyusul entah berapa
+  /// frame kemudian, dan Flutter tidak punya cara mengetahui kapan. Kelebihan
+  /// jeda hanya membuat layar hitam sedikit lebih lama; kekurangan jeda
+  /// membuat kedipan putarannya terlihat lagi.
+  ///
+  /// 400 ms diuji Product Owner 15 Agustus 2026 dan **masih kebobolan** pada
+  /// kedua peralihan. Dinaikkan ke 1 detik. Bila suatu saat terasa terlalu
+  /// lama, turunkan sedikit demi sedikit sambil diuji ulang di perangkat —
+  /// jangan dipangkas berdasarkan dugaan.
+  static const Duration _previewSettleGrace = Duration(seconds: 1);
+
+  Future<void> _uncoverPreview() async {
+    await Future<void>.delayed(_previewSettleGrace);
+    if (_disposed) return;
+    _set(state.copyWith(previewSettling: false));
   }
 
   // ---------- Pencatat waktu ----------
@@ -634,8 +733,17 @@ class RecordingCameraViewModel extends _$RecordingCameraViewModel {
     final elapsed = stopping.elapsed;
     _set(state.copyWith(machine: stopping));
 
+    _set(state.copyWith(previewSettling: true));
+
     final result = await _camera.stopRecording();
     if (_disposed) return;
+
+    // Perekam dilepas — bingkai pratinjau kembali ke bentuk semula, jadi
+    // koreksinya ikut ditarik kembali.
+    final geometry = await _camera.readPreviewGeometry();
+    if (_disposed) return;
+    _set(state.copyWith(previewGeometry: geometry));
+    unawaited(_uncoverPreview());
 
     await ref.read(scanFeedbackProvider).stopped();
     unawaited(_speak(_voice?.finished));
@@ -703,6 +811,7 @@ class RecordingCameraViewModel extends _$RecordingCameraViewModel {
       cameraReady: state.cameraReady,
       warningKeys: state.warningKeys,
       torchOn: state.torchOn,
+      previewGeometry: state.previewGeometry,
       manual: const ManualEntry().copyWith(recent: state.manual.recent),
     ));
     await _startScanning();
