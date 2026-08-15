@@ -1,9 +1,13 @@
+import 'dart:ui' show Size;
+
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 import '../config/app_constants.dart';
 import '../utils/app_failure.dart';
 import '../utils/logger.dart';
 import '../utils/result.dart';
+import 'preview_rotation_probe.dart';
 
 /// Kontrol `CameraController` untuk sesi rekam.
 ///
@@ -23,6 +27,24 @@ import '../utils/result.dart';
 /// Perpindahan antara kedua jalur itu terverifikasi di Redmi Note 9
 /// (14 Agustus 2026) pada 480p — CameraX menerimanya, dan ML Kit tetap
 /// membaca isi kode di kedua jalur.
+/// Bentuk pratinjau yang **sedang** berjalan, beserta koreksi yang harus
+/// diterapkan layar.
+///
+/// Keduanya harus dibawa bersama: koreksi memperbaiki **putaran**, [liveSize]
+/// memperbaiki **bentuk kotaknya**. Dulu hanya koreksi yang dikembalikan, dan
+/// akibatnya pratinjau tegak tetapi melar 2,25 kali selama merekam.
+class PreviewGeometry {
+  const PreviewGeometry({this.quarterTurnCorrection = 0, this.liveSize});
+
+  /// `0` atau `-1` — seperempat putaran yang harus dibatalkan layar.
+  final int quarterTurnCorrection;
+
+  /// Ukuran bingkai yang sedang dikirim kamera; `null` bila tidak terbaca.
+  final Size? liveSize;
+
+  static const PreviewGeometry unknown = PreviewGeometry();
+}
+
 class CameraService {
   CameraService();
 
@@ -164,6 +186,63 @@ class CameraService {
       return Result.err(_mapCameraException(e));
     }
   }
+
+  /// Berapa seperempat putaran yang harus **dibatalkan** layar dari pratinjau.
+  /// `0` berarti tidak ada yang perlu dikoreksi, `-1` berarti gambarnya harus
+  /// diputar balik seperempat putaran berlawanan arah jarum jam.
+  ///
+  /// 🔴 **Kenapa ini ada.** Selama merekam, kamera dipakai tiga hal sekaligus:
+  /// pratinjau, pemindai frame, dan perekam video. Tiga aliran gambar terpisah
+  /// hanya dijamin pada perangkat tingkat `LEVEL_3`. Redmi Note 9 hanya `FULL`,
+  /// jadi CameraX menyalakan **StreamSharing**: pratinjau dan perekam digabung
+  /// jadi satu aliran lalu dipisah lagi lewat pemroses OpenGL.
+  ///
+  /// Pemroses itu **memutar sendiri gambarnya 90° ke dalam piksel**, lalu
+  /// melapor `rotationDegrees=0` — "sudah beres". Sialnya `camera_android_camerax`
+  /// menetapkan sekali di awal siapa yang bertugas memutar dan tidak pernah
+  /// menengok lagi, sehingga Flutter tetap memutar 90° seperti semula. Dua
+  /// putaran menumpuk dan pratinjau miring seperempat putaran selama merekam.
+  ///
+  /// **Terbukti di Redmi Note 9 (14 Agustus 2026)** lewat logcat:
+  ///
+  /// ```
+  /// sebelum : Preview resolution=720x480
+  /// merekam : SurfaceProcessorNode [StreamSharing]
+  ///           outputEdge rotationDegrees=0, rotationInTransform=90
+  ///           Preview resolution=480x720 (originalConfigured=720x480)
+  /// berhenti: Preview resolution=720x480
+  /// ```
+  ///
+  /// ⚠️ **Jangan menggantinya dengan "kalau sedang merekam, putar balik".**
+  /// StreamSharing tidak selalu menyala — perangkat `LEVEL_3` sanggup tiga
+  /// aliran sekaligus dan tidak memutar apa pun. Koreksi buta akan membuat
+  /// pratinjau di perangkat itu justru miring. Karena itu yang diperiksa adalah
+  /// **bentuk bingkainya**: bila berubah dari mendatar jadi tegak (atau
+  /// sebaliknya) dibanding saat kamera dibuka, berarti CameraX sudah memutar
+  /// sendiri.
+  Future<PreviewGeometry> readPreviewGeometry() async {
+    final baseline = _controller?.value.previewSize;
+    if (baseline == null) return PreviewGeometry.unknown;
+
+    final live = await readLivePreviewResolution();
+    if (live == null) return PreviewGeometry.unknown;
+
+    final flipped = _isWide(baseline) != _isWide(live);
+    final correction = flipped ? -1 : 0;
+    // Sengaja `debugPrint`, bukan hanya `AppLogger` — lihat catatan di
+    // `preview_rotation_probe_mobile.dart`.
+    debugPrint('KAMELSCAN_ROTASI: awal=${_fmt(baseline)} '
+        'sekarang=${_fmt(live)} koreksi=$correction merekam=$isRecording');
+    return PreviewGeometry(
+      quarterTurnCorrection: correction,
+      liveSize: live,
+    );
+  }
+
+  static bool _isWide(Size size) => size.width >= size.height;
+
+  static String _fmt(Size size) =>
+      '${size.width.toInt()}x${size.height.toInt()}';
 
   /// Senter (Bab 8.3.3 — wajib pada mode barcode; gudang sering remang).
   ///
