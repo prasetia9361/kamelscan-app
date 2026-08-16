@@ -58,11 +58,15 @@ cache sehingga `flutter build` berikutnya diam-diam memakainya. Pakai
 **⚠️ Worktree baru tidak punya `env.dev.json`** — berkas itu ter-gitignore.
 Salin dari `E:\kamelscan\env.dev.json` sebelum menjalankan apa pun.
 
-**Mode profile** (untuk mengukur kelancaran, `run.ps1` belum punya sakelarnya):
+**Mode profile** — `.\run.ps1 -Profile`
 
-```
-$env:JAVA_HOME='E:\Android\Android Studio\jbr'; E:\flutter_sdk\flutter_3.44.8\bin\flutter.bat run --profile --dart-define-from-file=env.dev.json
-```
+🔴 **Mode debug SENGAJA lambat** dan pratinjau kamera akan terasa patah-patah di
+sana. Itu **bukan cacat produk**. Jangan pernah menilai kelancaran atau mengukur
+kecepatan dari build debug. Terukur di Redmi Note 9: watermark video 30 detik
+butuh **32 detik di debug, hanya 17 detik di profile**.
+
+Bila saya melaporkan "patah-patah", tanyakan dulu **mode apa yang dipakai**
+sebelum menyelidiki apa pun.
 
 ## Supabase
 
