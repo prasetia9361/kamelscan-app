@@ -112,6 +112,36 @@ kurangi lingkup lain dengan bobot setara.
 | 2 | Verifikasi `drawtext` pada `ffmpeg_kit_flutter_new` | **Dikerjakan lebih dulu**, sebelum bab mana pun dilanjutkan. |
 | 3 | Berkas hasil generator (`*.freezed.dart`, `*.g.dart`) | Tetap di-gitignore. |
 
+### Tambahan 15 Agustus 2026 — perekaman beruntun tanpa tombol
+
+**Menyimpang dari Bab 8.3:** panel "Rekaman selesai" beserta tombol
+**"Rekam paket berikutnya"** dihapus. Setelah berkas tersimpan, pemindaian
+hidup lagi **dengan sendirinya**; ringkasannya hanya lewat sebentar (4 detik)
+dan tidak menghalangi apa pun.
+
+Alasan Product Owner: packer merekam ratusan paket berturut-turut. Satu ketukan
+per paket berarti ratusan ketukan yang tidak menghasilkan apa pun.
+
+🔴 **Pengaman yang WAJIB ikut ada.** Aturan berhenti membuat packer memindai
+label yang sama untuk mengakhiri rekaman — dan label itu masih persis di depan
+kamera sesudahnya. Tanpa pengaman, pemindaian yang langsung hidup lagi akan
+menerima resi yang sama dan merekamnya ulang seketika, berulang, memakan token
+dan kuota pelanggan.
+
+Karena itu `RecordingCameraViewModel._recordedInSession` menolak resi yang sudah
+selesai direkam **selama layar rekam terbuka**. Pengecekan resi ganda ke server
+tidak menolong di sini: videonya belum terunggah, jadi server menjawab
+"belum ada".
+
+Cakupan "seumur layar" dipilih sadar: merekam ulang resi yang sama adalah
+kejadian langka dan sudah punya jalannya lewat Riwayat, sedangkan rekaman ganda
+tak disengaja akan terjadi setiap hari.
+
+Diuji Product Owner 15 Agustus 2026 — dua-duanya lulus: (1) rekam paket A,
+hentikan, langsung pindai paket B tanpa menyentuh layar → B terekam;
+(2) tahan kamera menghadap label A sesudah rekaman berhenti → muncul pesan
+"sudah direkam", tidak merekam ulang.
+
 ---
 
 ## F. Penyesuaian konfigurasi build Android
