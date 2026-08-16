@@ -112,6 +112,34 @@ kurangi lingkup lain dengan bobot setara.
 | 2 | Verifikasi `drawtext` pada `ffmpeg_kit_flutter_new` | **Dikerjakan lebih dulu**, sebelum bab mana pun dilanjutkan. |
 | 3 | Berkas hasil generator (`*.freezed.dart`, `*.g.dart`) | Tetap di-gitignore. |
 
+### Tambahan 16 Agustus 2026 — waktu pada watermark saat offline
+
+Bab 8.5 mensyaratkan **waktu server**, sedangkan aplikasi ini offline-first.
+Keputusan Product Owner:
+
+| Keadaan | Waktu yang dipakai watermark |
+|---|---|
+| Pernah sinkron, jam HP wajar (selisih < 2 menit) | Waktu terkoreksi (praktis = jam HP) |
+| Pernah sinkron, jam HP meleset jauh | **Waktu terkoreksi**, perekaman tetap jalan |
+| Belum pernah sinkron | Jam HP apa adanya, video **ditandai "waktu belum terverifikasi"** |
+
+Waktu terkoreksi = waktu server terakhir + lama berlalu sejak sinkron.
+
+🔴 **Lama berlalu wajib dihitung dari penghitung yang tidak dapat diubah
+pengguna** (`Stopwatch` / `elapsedRealtime`), **bukan** dari selisih jam HP.
+Bila dihitung dari jam HP, orang yang mengubah jamnya di tengah sesi dapat
+menggeser waktu di watermark — dan itu merusak seluruh nilai bukti produk ini.
+
+Perekaman **tidak pernah diblokir** oleh jam yang salah: packer di gudang tidak
+boleh berhenti bekerja karena itu. Bukti dengan waktu yang mungkin meleset jauh
+lebih berharga daripada tidak ada bukti; server tetap mencatat `created_at`
+sendiri saat video diunggah, sehingga kebenarannya masih dapat ditelusuri.
+
+⚠️ Tanda "waktu belum terverifikasi" belum punya tempat tinggal — kemungkinan
+perlu kolom di `package_videos` dan ikut ke metadata berkas lewat
+`WatermarkCommand.buildMetadataComment`. Penambahan lingkup kecil, laporkan
+sesuai Bab 0.2.
+
 ### Tambahan 15 Agustus 2026 — perekaman beruntun tanpa tombol
 
 **Menyimpang dari Bab 8.3:** panel "Rekaman selesai" beserta tombol
