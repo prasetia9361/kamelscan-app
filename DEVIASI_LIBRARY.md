@@ -502,6 +502,44 @@ melaporkannya sebagai isu ke Flutter — buktinya sudah lengkap di bagian ini.
 
 Kedipan ini **tidak pernah masuk ke berkas video** — murni soal tampilan.
 
+### Pengukuran untuk Bab 8.5 — FFmpeg TIDAK boleh jalan saat merekam
+
+Diukur di Redmi Note 9, 15–16 Agustus 2026, dengan pengukur sementara yang
+menjalankan `VideoProcessor.applyWatermark()` sungguhan pada rekaman yang baru
+selesai. Pengukurnya sudah dicabut; angkanya disimpan di sini.
+
+**Penyusutan berkas — jauh lebih baik dari perkiraan Bab 8.6:**
+
+| 50 video antre saat sinyal mati | Perkiraan Bab 8.6 | Terukur |
+|---|---|---|
+| Mentah | 550 MB | **795 MB** |
+| Hasil proses | 100 MB | **55 MB** |
+
+Video 30 detik: ± 16 MB mentah → ± 1–2,5 MB hasil. Menyusut **± 14 kali**,
+bukan 5,5 kali seperti tertulis di dokumen. Menyimpan yang mentah lebih buruk
+dari dugaan, menyimpan hasil olahannya jauh lebih murah.
+
+**Kecepatan proses (mode profile):** rasio 0,58–0,87x terhadap durasi video —
+FFmpeg lebih cepat daripada perekamannya sendiri. Di mode **debug** rasionya
+melonjak sampai 1,15x; jangan pernah mengambil keputusan kinerja dari build
+debug.
+
+🔴 **Temuan yang menentukan rancangan:** menjalankan FFmpeg segera setelah tiap
+rekaman — selagi packer merekam paket berikutnya — membuat **pratinjau
+patah-patah dan HP panas**. Dibuktikan dengan memisahkan bebannya: begitu
+pengukur FFmpeg dicabut dan hanya kamera yang berjalan, pratinjaunya kembali
+mulus. Jadi penyebabnya FFmpeg, bukan jalur kameranya.
+
+Konsekuensi untuk Bab 8.5: **jangan "tembak lalu lupa" sesudah tiap rekaman.**
+Watermark harus mengantre dan dikerjakan saat tidak sedang merekam. Rasio di
+bawah 1,0x membuat antrean tetap terkuras selama ada jeda antar-paket.
+
+⚠️ Pengukur itu juga punya cacat yang jangan ditiru: dipanggil `unawaited`
+tanpa antrean, sehingga beberapa FFmpeg berjalan bersamaan saat perekaman
+beruntun dan saling berebut CPU. Dan rasio menyesatkan untuk video pendek —
+FFmpeg punya ongkos tetap di awal, sehingga video 3,8 detik terlihat "1,20x"
+padahal absolutnya hanya 4,6 detik.
+
 ### Jebakan: `adb install` ditolak MIUI saat HP tanpa internet
 
 Pesannya menyesatkan:
@@ -541,3 +579,61 @@ adb logcat -v time | findstr KAMELSCAN_ROTASI
 
 Ini akan dibutuhkan lagi saat menguji di perangkat lain: pada perangkat
 `LEVEL_3`, StreamSharing tidak menyala dan koreksinya harus tetap `0`.
+
+---
+
+## K. Jebakan kinerja: pratinjau dibangun ulang tiap detak pencatat waktu
+
+**Ditemukan & diperbaiki 16 Agustus 2026 · Xiaomi Redmi Note 9**
+
+### Gejala
+
+Pratinjau kamera patah-patah selama merekam, dan HP menjadi sangat panas.
+Terasa sejak layar rekam dipakai sungguhan, bukan hanya di build debug.
+
+### Yang BUKAN penyebabnya
+
+Diselidiki satu per satu, dan ketiganya terbukti bukan biang utamanya —
+dicatat agar tidak diselidiki ulang:
+
+1. **Build debug.** Memang memberatkan, tetapi build `--profile` pun masih
+   patah-patah.
+2. **FFmpeg.** Pengukur watermark sempat dituduh. Dicabut, dan pratinjaunya
+   **tetap** patah-patah.
+3. **Konversi frame ke ML Kit.** Sempat diduga menyalin ± 700 KB per frame di
+   Dart. Ternyata `barcode_frame_reader_mobile.dart` meneruskan
+   `image.planes.first.bytes` **langsung**, tanpa salinan.
+
+### Sebab sesungguhnya
+
+`RecordingCameraViewModel` menjalankan pencatat waktu tiap 200 ms untuk
+memperbarui angka durasi. Tiap detak mengubah state, dan `build` seluruh
+halaman ikut berjalan — **5 kali per detik**. Yang ikut dibangun ulang termasuk
+subtree terberat di layar: `Texture` kamera beserta `RotatedBox` dan
+`controller.buildPreview()`-nya, padahal isinya tidak berubah sama sekali.
+
+### Perbaikan
+
+🔴 `_preview` dan `_transitionCover` dibuat **sekali** sebagai field
+`late final` di `_RecordingCameraPageState`, lalu dipakai ulang. Karena Flutter
+melihat instance widget yang identik, subtree itu dilewati saat halaman
+dibangun ulang.
+
+Keduanya berlangganan sendiri ke kepingan state yang benar-benar dibutuhkan
+(`cameraReady`, `previewGeometry`, `previewSettling`) lewat `ref.watch(...select(...))`,
+sehingga tetap ikut berubah saat memang perlu.
+
+⚠️ **Jangan mengubahnya kembali menjadi konstruksi di dalam `build`** — mis.
+`_Preview(ready: state.cameraReady, geometry: state.previewGeometry)`. Itu
+terlihat lebih rapi dan lebih "Flutter", tetapi mengembalikan patah-patahnya.
+
+### Akibat lanjutan yang belum ditindaklanjuti
+
+Pengukuran FFmpeg pada 15 Agustus 2026 (rasio 0,58x–1,20x) diambil **sebelum**
+perbaikan ini, jadi angkanya tercemar beban gambar ulang. Bila keputusan
+"watermark segera vs ditunda" (Bab 8.5) hendak diambil berdasarkan angka,
+**ukur ulang** — kemungkinan besar hasilnya lebih baik dari yang tercatat.
+
+⚠️ Pengukur itu juga memanggil FFmpeg dengan `unawaited` tanpa antrean,
+sehingga beberapa proses berjalan bersamaan saat merekam beruntun. Bab 8.5
+yang sungguhan wajib berurutan satu per satu.

@@ -342,6 +342,9 @@ class RecordingCameraViewModel extends _$RecordingCameraViewModel {
   /// daripada ML Kit menyelesaikannya dan perangkat kehabisan memori.
   bool _analyzing = false;
 
+  /// Kapan frame terakhir diserahkan ke ML Kit — untuk penjarangan.
+  DateTime? _lastAnalyzedAt;
+
   /// Sedang berpindah jalur kamera atau memeriksa resi — frame diabaikan agar
   /// pembacaan beruntun tidak memulai perekaman kedua.
   bool _busy = false;
@@ -466,6 +469,15 @@ class RecordingCameraViewModel extends _$RecordingCameraViewModel {
 
   void _onFrame(CameraImage image) {
     if (_disposed || _analyzing || _busy) return;
+
+    // Penjarangan: kamera mengirim ± 30 frame per detik, ML Kit hanya perlu
+    // ± 8. Alasan lengkapnya di [AppConstants.scanFrameInterval].
+    final now = DateTime.now();
+    final last = _lastAnalyzedAt;
+    if (last != null && now.difference(last) < AppConstants.scanFrameInterval) {
+      return;
+    }
+    _lastAnalyzedAt = now;
     // Dialog resi ganda sedang terbuka — memindai di belakangnya hanya akan
     // menumpuk dialog kedua di atasnya.
     if (state.duplicate != null) return;
