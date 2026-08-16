@@ -316,6 +316,22 @@ class RecordingCameraViewModel extends _$RecordingCameraViewModel {
   /// pencegah pengulangan dialog.
   final Set<String> _dialogShownFor = <String>{};
 
+  /// Resi yang **sudah selesai direkam** selama layar ini terbuka.
+  ///
+  /// 🔴 Pengaman untuk perekaman beruntun tanpa tombol. Aturan berhenti membuat
+  /// packer memindai label yang sama untuk mengakhiri rekaman — dan label itu
+  /// masih persis di depan kamera sesudahnya. Tanpa catatan ini, pemindaian
+  /// yang langsung hidup lagi akan menerima resi yang sama dan merekamnya
+  /// ulang seketika, berulang kali, memakan token dan kuota.
+  ///
+  /// Pengecekan resi ganda ke server tidak menolong di sini: videonya belum
+  /// terunggah, jadi server menjawab "belum ada".
+  ///
+  /// Sengaja hanya seumur layar (diputuskan Product Owner 15 Agustus 2026).
+  /// Merekam ulang resi yang sama adalah kejadian langka dan sudah punya
+  /// jalannya lewat Riwayat; rekaman ganda tak disengaja akan terjadi tiap hari.
+  final Set<String> _recordedInSession = <String>{};
+
   Timer? _ticker;
   Timer? _manualDebounce;
   DateTime? _startedAt;
@@ -332,6 +348,7 @@ class RecordingCameraViewModel extends _$RecordingCameraViewModel {
 
   int _noticeId = 0;
   DateTime? _lastRejectNotice;
+  DateTime? _lastAlreadyNotice;
   bool _saidFinalCountdown = false;
   VoiceLines? _voice;
 
@@ -527,10 +544,33 @@ class RecordingCameraViewModel extends _$RecordingCameraViewModel {
     _notice(RecordingNoticeKind.notAResi);
   }
 
+  /// Sama seperti [_noticeRejected]: label yang sudah direkam akan terbaca
+  /// belasan kali per detik selama kamera masih menghadapnya, jadi pesannya
+  /// dibatasi sekali per 3 detik.
+  void _noticeAlreadyRecorded(String resi) {
+    final now = DateTime.now();
+    final last = _lastAlreadyNotice;
+    if (last != null && now.difference(last) < const Duration(seconds: 3)) {
+      return;
+    }
+    _lastAlreadyNotice = now;
+    _notice(RecordingNoticeKind.alreadyRecorded, resi: resi);
+    unawaited(ref.read(scanFeedbackProvider).rejected());
+  }
+
   // ---------- Mulai merekam ----------
 
   Future<void> _onAccepted(String resi) async {
     if (_busy) return;
+
+    // Label yang barusan dipakai menghentikan rekaman masih ada di depan
+    // kamera. Tanpa penolakan ini, perekamannya langsung dimulai ulang.
+    if (_recordedInSession.contains(resi)) {
+      _gate.reset();
+      _noticeAlreadyRecorded(resi);
+      return;
+    }
+
     _busy = true;
     try {
       await ref.read(scanFeedbackProvider).accepted();
@@ -789,6 +829,8 @@ class RecordingCameraViewModel extends _$RecordingCameraViewModel {
     await _rememberResi(resi);
     if (_disposed) return;
 
+    _recordedInSession.add(resi);
+
     _set(state.copyWith(
       finished: FinishedRecording(
         resiCode: resi,
@@ -798,23 +840,45 @@ class RecordingCameraViewModel extends _$RecordingCameraViewModel {
         reason: reason,
       ),
     ));
+
+    await _armForNextPackage();
   }
 
-  /// Siap untuk resi berikutnya tanpa keluar dari layar.
-  Future<void> next() async {
+  /// Berapa lama ringkasan rekaman terakhir tetap terlihat.
+  ///
+  /// Cukup untuk dibaca sambil menggeser paket, tidak cukup lama untuk
+  /// menghalangi paket berikutnya.
+  static const Duration _finishedNoticeDuration = Duration(seconds: 4);
+
+  /// Siap untuk resi berikutnya — **berjalan sendiri**, tanpa tombol.
+  ///
+  /// 🔴 Diputuskan Product Owner 15 Agustus 2026. Sebelumnya packer harus
+  /// menekan "Rekam paket berikutnya" tiap kali; pada 100 paket itu berarti
+  /// 100 ketukan yang tidak menghasilkan apa pun.
+  ///
+  /// Ringkasan rekaman tetap tampil sebentar, tetapi **tidak menghalangi** —
+  /// pemindaian sudah hidup lagi di belakangnya. Konfirmasi bahwa rekaman
+  /// berhasil tetap sampai lewat bunyi, getar, dan suara "selesai" (Bab 8.4),
+  /// jadi packer tidak dibuat buta oleh hilangnya panel.
+  Future<void> _armForNextPackage() async {
     _gate.reset();
     _startedAt = null;
-    _set(RecordingScreenState(
-      mode: _strategy.mode,
+
+    _set(state.copyWith(
       machine: RecordingMachine.next(state.machine),
-      preparing: false,
-      cameraReady: state.cameraReady,
-      warningKeys: state.warningKeys,
-      torchOn: state.torchOn,
-      previewGeometry: state.previewGeometry,
       manual: const ManualEntry().copyWith(recent: state.manual.recent),
     ));
+
     await _startScanning();
+    if (_disposed) return;
+
+    unawaited(_hideFinishedNotice());
+  }
+
+  Future<void> _hideFinishedNotice() async {
+    await Future<void>.delayed(_finishedNoticeDuration);
+    if (_disposed) return;
+    _set(state.copyWith(clearFinished: true));
   }
 
   // ---------- Mode Input Manual (Bab 8.3.4) ----------
