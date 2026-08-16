@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/models/enums.dart';
 import '../../../core/providers/repository_providers.dart';
-import '../../../core/services/camera_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/formatters.dart';
@@ -55,6 +54,21 @@ class _RecordingCameraPageState extends ConsumerState<RecordingCameraPage> {
         widget.shopId,
       );
 
+  /// 🔴 Dibuat **sekali** dan dipakai ulang — jangan diubah jadi konstruksi
+  /// di dalam `build`.
+  ///
+  /// Selama merekam, pencatat waktu berdetak tiap 200 ms dan mengubah state,
+  /// sehingga `build` halaman ini berjalan 5 kali per detik. Bila widget
+  /// pratinjau ikut dibuat ulang tiap kali, seluruh subtree terberat di layar
+  /// (Texture kamera + putarannya) ikut dibangun ulang padahal isinya tidak
+  /// berubah sama sekali — dan pratinjaunya patah-patah.
+  ///
+  /// Dengan instance yang sama, Flutter melihat widget identik dan melewati
+  /// subtree itu. Keduanya berlangganan sendiri ke bagian state yang benar-
+  /// benar mereka butuhkan lewat `select`, jadi tetap ikut berubah saat perlu.
+  late final Widget _preview = _Preview(provider: _provider);
+  late final Widget _transitionCover = _TransitionCover(provider: _provider);
+
   @override
   void dispose() {
     _manualController.dispose();
@@ -102,23 +116,8 @@ class _RecordingCameraPageState extends ConsumerState<RecordingCameraPage> {
             : Stack(
                 fit: StackFit.expand,
                 children: [
-                  _Preview(
-                    ready: state.cameraReady,
-                    geometry: state.previewGeometry,
-                  ),
-                  // Penutup peralihan (lihat `previewSettling` di ViewModel):
-                  // muncul seketika agar kedipan putaran tidak sempat
-                  // terlihat, lalu memudar supaya terbaca sebagai "sedang
-                  // menyiapkan" — bukan sebagai layar rusak.
-                  IgnorePointer(
-                    child: AnimatedOpacity(
-                      opacity: state.previewSettling ? 1 : 0,
-                      duration: state.previewSettling
-                          ? Duration.zero
-                          : const Duration(milliseconds: 220),
-                      child: const ColoredBox(color: Colors.black),
-                    ),
-                  ),
+                  _preview,
+                  _transitionCover,
                   if (state.cameraReady && state.mode != TriggerMode.manual)
                     ScanFrameOverlay(
                       wide: state.mode == TriggerMode.barcode1d,
@@ -251,16 +250,45 @@ class _RecordingCameraPageState extends ConsumerState<RecordingCameraPage> {
 
 // ---------------------------------------------------------------------------
 
-class _Preview extends ConsumerWidget {
-  const _Preview({required this.ready, required this.geometry});
+/// Penutup peralihan — berlangganan **hanya** pada `previewSettling`.
+///
+/// Dipisah dari halaman agar detak pencatat waktu tidak ikut membangunnya
+/// ulang; lihat catatan pada `_transitionCover`.
+class _TransitionCover extends ConsumerWidget {
+  const _TransitionCover({required this.provider});
 
-  final bool ready;
-
-  /// Bentuk & koreksi pratinjau — lihat `CameraService.readPreviewGeometry`.
-  final PreviewGeometry geometry;
+  final RecordingCameraViewModelProvider provider;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Muncul seketika agar kedipan putaran tidak sempat terlihat, lalu memudar
+    // supaya terbaca sebagai "sedang menyiapkan", bukan sebagai layar rusak.
+    final settling =
+        ref.watch(provider.select((s) => s.previewSettling));
+
+    return IgnorePointer(
+      child: AnimatedOpacity(
+        opacity: settling ? 1 : 0,
+        duration:
+            settling ? Duration.zero : const Duration(milliseconds: 220),
+        child: const ColoredBox(color: Colors.black),
+      ),
+    );
+  }
+}
+
+class _Preview extends ConsumerWidget {
+  const _Preview({required this.provider});
+
+  final RecordingCameraViewModelProvider provider;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Hanya dua kepingan state ini yang mempengaruhi pratinjau. Berlangganan
+    // seluruh state akan membuatnya dibangun ulang tiap detak pencatat waktu.
+    final ready = ref.watch(provider.select((s) => s.cameraReady));
+    final geometry = ref.watch(provider.select((s) => s.previewGeometry));
+
     if (!ready) {
       return Center(
         child: Column(
