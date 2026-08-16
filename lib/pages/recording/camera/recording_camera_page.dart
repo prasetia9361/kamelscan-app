@@ -129,23 +129,19 @@ class _RecordingCameraPageState extends ConsumerState<RecordingCameraPage> {
                       children: [
                         _TopBar(state: state),
                         const Spacer(),
+                        // Ringkasan rekaman terakhir. Tidak menghalangi apa
+                        // pun: pemindaian sudah hidup lagi di belakangnya, dan
+                        // ini menghilang sendiri.
                         if (state.finished != null)
-                          _FinishedPanel(
-                            finished: state.finished!,
-                            onNext: () {
-                              _manualController.clear();
-                              _vm.next();
-                            },
-                          )
-                        else ...[
-                          if (state.mode == TriggerMode.manual &&
-                              !state.isRecording)
-                            _ManualPanel(
-                              controller: _manualController,
-                              state: state,
-                            ),
-                          _BottomBar(state: state),
-                        ],
+                          _FinishedNotice(finished: state.finished!),
+                        if (state.mode == TriggerMode.manual &&
+                            !state.isRecording &&
+                            state.finished == null)
+                          _ManualPanel(
+                            controller: _manualController,
+                            state: state,
+                          ),
+                        _BottomBar(state: state),
                       ],
                     ),
                   ),
@@ -732,15 +728,23 @@ class _ManualPanel extends ConsumerWidget {
   }
 }
 
-/// Ringkasan setelah perekaman berhenti.
+/// Ringkasan rekaman terakhir — **memberi tahu, bukan menghalangi**.
+///
+/// 🔴 Sengaja tanpa tombol. Sebelum 15 Agustus 2026 di sini ada panel dengan
+/// tombol "Rekam paket berikutnya" yang wajib ditekan sebelum packer boleh
+/// merekam lagi. Pada 100 paket itu berarti 100 ketukan yang tidak
+/// menghasilkan apa pun. Sekarang pemindaian berlanjut sendiri, dan panel ini
+/// hanya lewat sebentar.
+///
+/// Melihat rincian rekaman lama adalah kebutuhan sesekali — tempatnya di tab
+/// Riwayat, bukan di jalan yang dilewati ratusan kali sehari.
 ///
 /// ⚠️ Berkas yang dilaporkan masih **mentah**. Watermark (Bab 8.5) dan antrian
-/// upload (Bab 8.6) belum tersambung; panel ini adalah titik serah terimanya.
-class _FinishedPanel extends StatelessWidget {
-  const _FinishedPanel({required this.finished, required this.onNext});
+/// upload (Bab 8.6) belum tersambung; ini titik serah terimanya.
+class _FinishedNotice extends StatelessWidget {
+  const _FinishedNotice({required this.finished});
 
   final FinishedRecording finished;
-  final VoidCallback onNext;
 
   @override
   Widget build(BuildContext context) {
@@ -748,51 +752,47 @@ class _FinishedPanel extends StatelessWidget {
     final colors = Theme.of(context).extension<AppColors>()!;
 
     return Container(
-      margin: const EdgeInsets.all(AppSizes.spaceMd),
-      padding: const EdgeInsets.all(AppSizes.spaceMd),
+      margin: const EdgeInsets.symmetric(
+        horizontal: AppSizes.spaceMd,
+        vertical: AppSizes.spaceSm,
+      ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSizes.spaceMd,
+        vertical: AppSizes.spaceSm,
+      ),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
+        color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.92),
         borderRadius: BorderRadius.circular(AppSizes.radiusLarge),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: Row(
         children: [
-          Row(
-            children: [
-              Icon(Icons.check_circle, color: colors.success),
-              const SizedBox(width: AppSizes.spaceSm),
-              Expanded(
-                child: Text(
-                  t.recordFinishedTitle,
-                  style: Theme.of(context).textTheme.titleMedium,
+          Icon(Icons.check_circle, color: colors.success),
+          const SizedBox(width: AppSizes.spaceSm),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  finished.resiCode,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: 'JetBrainsMono',
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.2,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSizes.spaceSm),
-          Text(
-            finished.resiCode,
-            style: const TextStyle(
-              fontFamily: 'JetBrainsMono',
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.2,
-            ),
-          ),
-          const SizedBox(height: AppSizes.spaceXs),
-          Text(
-            '${Formatters.duration(finished.duration)} · '
-            '${Formatters.fileSize(finished.sizeBytes)}',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(height: AppSizes.spaceMd),
-          SizedBox(
-            height: AppSizes.touchComfort,
-            child: FilledButton.icon(
-              onPressed: onNext,
-              icon: const Icon(Icons.videocam),
-              label: Text(t.recordNextPackage),
+                Text(
+                  '${t.recordFinishedTitle} · '
+                  '${Formatters.duration(finished.duration)} · '
+                  '${Formatters.fileSize(finished.sizeBytes)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
             ),
           ),
         ],
