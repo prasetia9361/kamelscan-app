@@ -930,4 +930,21 @@ layar menutupi sebagian baris tanggal. Bukan cacat — posisi watermark adalah
 pengaturan tenant (`WatermarkPosition`), jadi pelanggan yang terganggu dapat
 memindahkannya.
 
-⚠️ Yang **masih** belum diperiksa pada video ini: pemotongan token.
+**Pemotongan token — diperiksa langsung di `token_ledger`.** Dua video diunggah
+pada sesi itu, dan keduanya memotong tepat satu token:
+
+```
+100  monthly_reset                              → 100
+ -1  video_upload  c45d8a35… (resi 10952ERTY)   →  99
+ -1  video_upload  0c1abce5… (resi 8990085023648) → 98
+```
+
+`balance_after` ikut tercatat di tiap baris, jadi urutannya dapat ditelusuri
+tanpa menghitung ulang dari saldo. Trigger `after_video_uploaded` terbukti
+bereaksi sekali per video, bukan per percobaan unggah.
+
+⚠️ Jebakan saat memeriksa ini: saldo dibaca 98 padahal baru satu video yang
+diketahui terunggah, dan sempat terlihat seperti pemotongan ganda. Yang
+sebenarnya terjadi: Product Owner merekam video kedua di sela pemeriksaan.
+**Cocokkan `token_ledger.video_id` dengan `package_videos`, jangan menyimpulkan
+dari selisih saldo saja.**
