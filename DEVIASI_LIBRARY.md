@@ -112,6 +112,64 @@ kurangi lingkup lain dengan bobot setara.
 | 2 | Verifikasi `drawtext` pada `ffmpeg_kit_flutter_new` | **Dikerjakan lebih dulu**, sebelum bab mana pun dilanjutkan. |
 | 3 | Berkas hasil generator (`*.freezed.dart`, `*.g.dart`) | Tetap di-gitignore. |
 
+### Tambahan 16 Agustus 2026 — waktu pada watermark saat offline
+
+Bab 8.5 mensyaratkan **waktu server**, sedangkan aplikasi ini offline-first.
+Keputusan Product Owner:
+
+| Keadaan | Waktu yang dipakai watermark |
+|---|---|
+| Pernah sinkron, jam HP wajar (selisih < 2 menit) | Waktu terkoreksi (praktis = jam HP) |
+| Pernah sinkron, jam HP meleset jauh | **Waktu terkoreksi**, perekaman tetap jalan |
+| Belum pernah sinkron | Jam HP apa adanya, video **ditandai "waktu belum terverifikasi"** |
+
+Waktu terkoreksi = waktu server terakhir + lama berlalu sejak sinkron.
+
+🔴 **Lama berlalu wajib dihitung dari penghitung yang tidak dapat diubah
+pengguna** (`Stopwatch` / `elapsedRealtime`), **bukan** dari selisih jam HP.
+Bila dihitung dari jam HP, orang yang mengubah jamnya di tengah sesi dapat
+menggeser waktu di watermark — dan itu merusak seluruh nilai bukti produk ini.
+
+Perekaman **tidak pernah diblokir** oleh jam yang salah: packer di gudang tidak
+boleh berhenti bekerja karena itu. Bukti dengan waktu yang mungkin meleset jauh
+lebih berharga daripada tidak ada bukti; server tetap mencatat `created_at`
+sendiri saat video diunggah, sehingga kebenarannya masih dapat ditelusuri.
+
+⚠️ Tanda "waktu belum terverifikasi" belum punya tempat tinggal — kemungkinan
+perlu kolom di `package_videos` dan ikut ke metadata berkas lewat
+`WatermarkCommand.buildMetadataComment`. Penambahan lingkup kecil, laporkan
+sesuai Bab 0.2.
+
+### Tambahan 15 Agustus 2026 — perekaman beruntun tanpa tombol
+
+**Menyimpang dari Bab 8.3:** panel "Rekaman selesai" beserta tombol
+**"Rekam paket berikutnya"** dihapus. Setelah berkas tersimpan, pemindaian
+hidup lagi **dengan sendirinya**; ringkasannya hanya lewat sebentar (4 detik)
+dan tidak menghalangi apa pun.
+
+Alasan Product Owner: packer merekam ratusan paket berturut-turut. Satu ketukan
+per paket berarti ratusan ketukan yang tidak menghasilkan apa pun.
+
+🔴 **Pengaman yang WAJIB ikut ada.** Aturan berhenti membuat packer memindai
+label yang sama untuk mengakhiri rekaman — dan label itu masih persis di depan
+kamera sesudahnya. Tanpa pengaman, pemindaian yang langsung hidup lagi akan
+menerima resi yang sama dan merekamnya ulang seketika, berulang, memakan token
+dan kuota pelanggan.
+
+Karena itu `RecordingCameraViewModel._recordedInSession` menolak resi yang sudah
+selesai direkam **selama layar rekam terbuka**. Pengecekan resi ganda ke server
+tidak menolong di sini: videonya belum terunggah, jadi server menjawab
+"belum ada".
+
+Cakupan "seumur layar" dipilih sadar: merekam ulang resi yang sama adalah
+kejadian langka dan sudah punya jalannya lewat Riwayat, sedangkan rekaman ganda
+tak disengaja akan terjadi setiap hari.
+
+Diuji Product Owner 15 Agustus 2026 — dua-duanya lulus: (1) rekam paket A,
+hentikan, langsung pindai paket B tanpa menyentuh layar → B terekam;
+(2) tahan kamera menghadap label A sesudah rekaman berhenti → muncul pesan
+"sudah direkam", tidak merekam ulang.
+
 ---
 
 ## F. Penyesuaian konfigurasi build Android
@@ -270,3 +328,340 @@ Konsekuensi untuk Bab 8.6: **antrian upload harus menyimpan berkas yang sudah
 diproses, bukan yang mentah**, dan berkas mentah dihapus segera setelah FFmpeg
 selesai. Packer yang merekam 50 paket saat sinyal mati akan menahan ± 550 MB
 bila yang disimpan berkas mentah, dibanding ± 100 MB bila yang sudah diproses.
+
+---
+
+## J. Jebakan: pratinjau berputar 90° saat perekaman dimulai (StreamSharing)
+
+**Ditemukan & diperbaiki 14 Agustus 2026 · Xiaomi Redmi Note 9 (M2003J15SC)**
+
+### Gejala
+
+Begitu pindaian pertama diterima dan perekaman mulai, pratinjau kamera berputar
+seperempat putaran searah jarum jam. Barcode yang tadinya pas mendatar di dalam
+bingkai bantu jadi melintang tegak. Saat perekaman berhenti, gambarnya kembali
+normal dengan sendirinya.
+
+Auto-rotate layar dalam keadaan **mati**, jadi ini sama sekali bukan soal
+orientasi perangkat.
+
+### Sebab
+
+Selama merekam, kamera dipakai tiga hal sekaligus: **Preview** (pratinjau),
+**ImageAnalysis** (pemindai frame ML Kit), dan **VideoCapture** (perekam).
+Tiga aliran gambar terpisah hanya dijamin pada perangkat `LEVEL_3`. Redmi
+Note 9 hanya `INFO_SUPPORTED_HARDWARE_LEVEL_FULL`, jadi CameraX menyalakan
+**StreamSharing**: Preview dan VideoCapture digabung menjadi satu aliran, lalu
+dipisah lagi lewat `SurfaceProcessorNode` (OpenGL).
+
+Pemroses itu **memutar sendiri gambarnya 90° ke dalam piksel**, lalu melapor
+`rotationDegrees=0` — "tidak perlu diputar lagi". Tetapi
+`camera_android_camerax` menetapkan **sekali di awal** siapa yang bertugas
+memutar (`surfaceProducerHandlesCropAndRotation`) dan tidak pernah menengok
+lagi. Flutter tetap memutar 90° seperti semula, dua putaran menumpuk.
+
+Bukti dari logcat (`adb shell setprop log.tag.StreamSharing VERBOSE`):
+
+```
+sebelum : D/Preview  onSuggestedStreamSpecUpdated: resolution=720x480
+merekam : D/StreamSharing  onSuggestedStreamSpecUpdated: resolution=1440x1080
+          D/SurfaceProcessorNode  [StreamSharing]
+            inputEdge  rotationDegrees=90, rotationInTransform=0
+            outputEdge rotationDegrees=0,  rotationInTransform=90
+          D/Preview  resolution=480x720 (originalConfiguredResolution=720x480)
+berhenti: D/Preview  onSuggestedStreamSpecUpdated: resolution=720x480
+```
+
+Perhatikan bingkainya berbalik bentuk: `720x480` (mendatar) → `480x720`
+(tegak) → `720x480` lagi.
+
+### Kenapa tidak bisa dihindari
+
+Menghapus ImageAnalysis saat merekam memang mematikan StreamSharing, tetapi
+melanggar aturan berhenti Product Owner (pindai resi **yang sama** setelah
+5 detik harus menghentikan rekaman). Pemindaian wajib berjalan selama merekam,
+jadi tiga use case memang harus diterima.
+
+### Perbaikan
+
+`CameraService.readPreviewRotationCorrection()` menanyakan langsung ke CameraX
+ukuran bingkai pratinjau **yang sedang berjalan**, lalu membandingkan bentuknya
+dengan bentuk saat kamera dibuka. Bila berbalik dari mendatar jadi tegak,
+berarti CameraX sudah memutar sendiri, dan layar membatalkan satu seperempat
+putaran (`RotatedBox(quarterTurns: -1)`) sekaligus membalik bentuk kotak
+pratinjaunya. Dibaca ulang saat perekaman mulai dan saat berhenti.
+
+⚠️ **Jangan menggantinya dengan "kalau sedang merekam, putar balik 90°".**
+StreamSharing tidak selalu menyala — perangkat `LEVEL_3` sanggup tiga aliran
+sekaligus dan tidak memutar apa pun. Koreksi buta akan membuat pratinjau di
+perangkat itu justru miring. Yang diperiksa harus **bentuk bingkainya**, bukan
+status perekaman.
+
+### Konsekuensi: dua paket disebut terang-terangan di `pubspec.yaml`
+
+`camera_android_camerax` dan `camera_platform_interface` sebenarnya bawaan
+`camera`, tetapi kita mengimpornya langsung sehingga harus dicantumkan
+(`depend_on_referenced_packages`). Ukuran pratinjau dibaca lewat
+`AndroidCameraCameraX.preview.getResolutionInfo()`; medan `preview` ditandai
+`@visibleForTesting` oleh paketnya, jadi perlu satu baris `// ignore:`.
+Tidak ada jalan lain — paket itu tidak menyediakan cara menanyakan ukuran
+pratinjau yang sedang berjalan, dan justru di situlah letak cacatnya.
+
+⚠️ `camerax_library.g.dart` menarik `dart:io`, jadi impornya **wajib** lewat
+conditional import (`preview_rotation_probe.dart`) seperti
+`barcode_frame_reader.dart` — kalau tidak, `flutter build web` gagal (Bab 4.3).
+
+### Hasil pengujian di perangkat — 15 Agustus 2026, Redmi Note 9
+
+**Pratinjau: TERBUKTI BENAR.** Diuji lewat mode Input Manual (memicu
+StreamSharing yang sama tanpa perlu memindai barcode). Koreksi berbalik tepat
+mengikuti laporan CameraX, tiga siklus penuh, dua arah:
+
+| Keadaan | Bingkai CameraX | Koreksi |
+|---|---|---|
+| siaga | 720x480 | 0 |
+| merekam | 480x720 | −1 |
+| berhenti | 720x480 | 0 |
+
+Dibandingkan pada adegan yang sama sebelum dan saat merekam: benda uji tegak,
+tulisannya mendatar, tidak gepeng.
+
+**Berkas video: terbukti sebagian.** Header MP4 dibaca langsung — `tkhd`
+menunjukkan `480x640` dengan matriks putaran **0**, artinya tersimpan tegak dan
+pemutar tidak perlu memutarnya lagi. Isinya belum diperiksa dengan mata;
+percobaan membuka video lewat `adb` gagal karena MIUI selalu mengembalikan
+fokus ke aplikasi.
+
+### Dua cacat lanjutan — dilaporkan Product Owner & DIPERBAIKI 15 Agustus 2026
+
+**1. Pratinjau gepeng selama merekam — SELESAI.** Putarannya sudah benar,
+bentuknya belum. Penyebabnya:
+
+`CameraPreview` menetapkan bentuk kotaknya dari `AspectRatio(1/previewSize)`,
+dan `previewSize` hanya diisi **sekali** saat kamera dibuka (720x480). Plugin
+lalu membalik kotak itu lewat `RotatedBox(1)`, sehingga `Texture` selalu
+menerima kotak 720x480 — padahal selama merekam isinya 480x720. Gambar tegak
+diperas ke kotak mendatar: melar **2,25 kali**.
+
+Koreksi putaran tidak bisa menyembuhkannya, karena bentuk kotaknya ditentukan
+di dalam `CameraPreview` dan tidak dapat ditimpa dari luar.
+
+🔴 **`CameraPreview` karena itu TIDAK dipakai lagi.** Layar memakai
+`controller.buildPreview()` langsung, dengan kotaknya dihitung sendiri dari
+ukuran bingkai yang sedang berjalan (`PreviewGeometry.liveSize`).
+
+Konsekuensinya — **jangan dihapus**: putaran yang dulu disumbang `CameraPreview`
+(`portraitUp`→0, `landscapeRight`→1, `portraitDown`→2, `landscapeLeft`→3) harus
+direplikasi sendiri di `_Preview._preAppliedQuarterTurns`, karena delegasi
+plugin menguranginya lagi lewat
+`getPreAppliedQuarterTurnsRotationFromDeviceOrientation`. Tanpa salinan itu,
+pratinjau ikut miring begitu perangkat dimiringkan.
+
+Terbukti dengan gunting berpegangan lingkaran: kedua lingkarannya tetap bulat
+selama merekam. Lingkaran adalah penguji proporsi paling jujur — melar 2,25×
+akan membuatnya lonjong.
+
+**2. Kedipan putaran saat mulai merekam — SELESAI.** CameraX membalik bingkai
+**di tengah** `startVideoRecording`, ± 620 ms sebelum panggilan itu kembali;
+koreksi yang dibaca sesudahnya selalu terlambat sejauh itu. Diukur di Redmi
+Note 9:
+
+```
+01:58:48.563  CameraX membalik bingkai → 480x720
+01:58:49.183  koreksi baru masuk            (jeda 620 ms)
+```
+
+Perbaikannya: `_followPreviewGeometry()` memantau bingkai **berbarengan** dengan
+`startVideoRecording`, tiap 60 ms, berhenti pada perubahan pertama. Sesudahnya:
+
+```
+13:54:59.462  koreksi=-1 merekam=false   ← tertangkap di tengah startRecording
+13:55:00.080  koreksi=-1 merekam=true    ← saat panggilan akhirnya kembali
+```
+
+Koreksi masuk **618 ms lebih awal**; sisa kedipnya paling lama satu putaran
+pemantauan (60 ms). `merekam=false` pada baris pertama adalah buktinya.
+
+**3. Kedipan sisa pada kedua peralihan — ditutup, bukan dikejar.**
+
+Memangkas jeda saja ternyata tidak cukup. Product Owner menguji ulang dengan HP
+diam dan gunting sebagai objek acuan, lalu menemukan kuncinya: saat **mulai**
+merekam gunting berputar dari selatan ke **timur**, saat **berhenti** dari
+selatan ke **barat** — dua arah **berlawanan**.
+
+Arah berlawanan itulah buktinya: CameraX mengumumkan bingkai barunya lewat
+**metadata lebih dulu**, dan baru beberapa frame kemudian benar-benar mengirim
+piksel yang sudah diputar. Koreksi yang masuk terlalu cepat memiringkan ke satu
+arah; yang terlalu lambat ke arah sebaliknya.
+
+🔴 **Balapan ini tidak bisa dimenangkan dengan mengatur waktu.** Flutter tidak
+punya cara mengetahui frame mana yang pertama sudah berputar. Karena itu
+pratinjau **ditutup** selama peralihan — `RecordingScreenState.previewSettling`,
+hitam seketika lalu memudar 220 ms. Berlaku untuk mulai **dan** berhenti.
+
+**Jedanya (`_previewSettleGrace`) aman kelebihan, tidak aman kekurangan.**
+Kelebihan hanya membuat layar hitam sedikit lebih lama; kekurangan membuat
+kedipan putarannya terlihat lagi. Diuji Product Owner di Redmi Note 9:
+
+| Jeda | Hasil |
+|---|---|
+| 400 ms | **kebobolan** — hitam, lalu putaran masih sempat terlihat |
+| **1 detik** | **bersih** — hitam lalu langsung normal, kedua peralihan |
+
+⚠️ Jangan memangkasnya berdasarkan dugaan; turunkan sedikit demi sedikit sambil
+diuji ulang di perangkat. Dan jangan menaikkannya tanpa batas bila suatu saat
+kebobolan lagi — menambah terus sampai "kebetulan pas" hanya menutupi masalah,
+dan akan meleset di perangkat lain. Bila 1 detik tidak lagi cukup, itu tanda
+menutupi bukan jalannya.
+
+### Perbaikan sejati ada di paket, bukan di aplikasi ini
+
+Akar kedipan ini adalah cacat `camera_android_camerax`: paket itu menetapkan
+**sekali di awal** siapa yang bertugas memutar
+(`surfaceProducerHandlesCropAndRotation`) dan tidak pernah menengok lagi, serta
+tidak menyediakan cara apa pun mengetahui kapan piksel yang sudah diputar mulai
+berdatangan.
+
+Menambalnya berarti memelihara fork paket resmi Flutter pada bagian paling
+rawan di aplikasi ini. **Ditunda 15 Agustus 2026** dengan alasan: berkas
+videonya tidak terpengaruh sama sekali, penyangga jadwal sudah minus ± 5 jam,
+dan Bab 8.5–8.6 belum dikerjakan. Yang layak dilakukan lebih dulu adalah
+melaporkannya sebagai isu ke Flutter — buktinya sudah lengkap di bagian ini.
+
+Kedipan ini **tidak pernah masuk ke berkas video** — murni soal tampilan.
+
+### Pengukuran untuk Bab 8.5 — FFmpeg TIDAK boleh jalan saat merekam
+
+Diukur di Redmi Note 9, 15–16 Agustus 2026, dengan pengukur sementara yang
+menjalankan `VideoProcessor.applyWatermark()` sungguhan pada rekaman yang baru
+selesai. Pengukurnya sudah dicabut; angkanya disimpan di sini.
+
+**Penyusutan berkas — jauh lebih baik dari perkiraan Bab 8.6:**
+
+| 50 video antre saat sinyal mati | Perkiraan Bab 8.6 | Terukur |
+|---|---|---|
+| Mentah | 550 MB | **795 MB** |
+| Hasil proses | 100 MB | **55 MB** |
+
+Video 30 detik: ± 16 MB mentah → ± 1–2,5 MB hasil. Menyusut **± 14 kali**,
+bukan 5,5 kali seperti tertulis di dokumen. Menyimpan yang mentah lebih buruk
+dari dugaan, menyimpan hasil olahannya jauh lebih murah.
+
+**Kecepatan proses (mode profile):** rasio 0,58–0,87x terhadap durasi video —
+FFmpeg lebih cepat daripada perekamannya sendiri. Di mode **debug** rasionya
+melonjak sampai 1,15x; jangan pernah mengambil keputusan kinerja dari build
+debug.
+
+🔴 **Temuan yang menentukan rancangan:** menjalankan FFmpeg segera setelah tiap
+rekaman — selagi packer merekam paket berikutnya — membuat **pratinjau
+patah-patah dan HP panas**. Dibuktikan dengan memisahkan bebannya: begitu
+pengukur FFmpeg dicabut dan hanya kamera yang berjalan, pratinjaunya kembali
+mulus. Jadi penyebabnya FFmpeg, bukan jalur kameranya.
+
+Konsekuensi untuk Bab 8.5: **jangan "tembak lalu lupa" sesudah tiap rekaman.**
+Watermark harus mengantre dan dikerjakan saat tidak sedang merekam. Rasio di
+bawah 1,0x membuat antrean tetap terkuras selama ada jeda antar-paket.
+
+⚠️ Pengukur itu juga punya cacat yang jangan ditiru: dipanggil `unawaited`
+tanpa antrean, sehingga beberapa FFmpeg berjalan bersamaan saat perekaman
+beruntun dan saling berebut CPU. Dan rasio menyesatkan untuk video pendek —
+FFmpeg punya ongkos tetap di awal, sehingga video 3,8 detik terlihat "1,20x"
+padahal absolutnya hanya 4,6 detik.
+
+### Jebakan: `adb install` ditolak MIUI saat HP tanpa internet
+
+Pesannya menyesatkan:
+
+```
+Failure [INSTALL_FAILED_USER_RESTRICTED: Install canceled by user]
+```
+
+Terdengar seolah ada yang menekan Batal, padahal dialog izinnya **tidak pernah
+sempat muncul**. MIUI memverifikasi pemasangan via USB ke server Xiaomi lebih
+dulu; tanpa koneksi, permintaannya ditolak otomatis. Ini melengkapi jebakan
+nomor 6 di `PROMPT_SESI_BARU.md`, yang baru menyebut sakelar "Instal via USB".
+
+Periksa koneksinya dulu sebelum menuduh sakelarnya:
+
+```
+adb shell ping -c 2 8.8.8.8
+```
+
+⚠️ `adb install` juga mengembalikan **exit code 0 walaupun gagal** — jangan
+percaya status "selesai", baca keluarannya.
+
+### Jejak `KAMELSCAN_ROTASI` — jangan dihapus tanpa penggantinya
+
+🔴 `AppLogger` memakai `dart:developer`, yang **tidak pernah sampai ke logcat** —
+hanya ke terminal `flutter run`. Begitu terminal itu ditutup, seluruh
+kemampuan mendiagnosis rotasi dari perangkat ikut hilang. Buta itu sempat
+membuang satu putaran build penuh pada 15 Agustus 2026.
+
+Karena itu `preview_rotation_probe_mobile.dart` dan
+`CameraService.readPreviewRotationCorrection()` mencetak lewat `debugPrint`
+(yang tembus logcat sebagai `I/flutter`), bukan hanya `AppLogger`. Membacanya:
+
+```
+adb logcat -v time | findstr KAMELSCAN_ROTASI
+```
+
+Ini akan dibutuhkan lagi saat menguji di perangkat lain: pada perangkat
+`LEVEL_3`, StreamSharing tidak menyala dan koreksinya harus tetap `0`.
+
+---
+
+## K. Jebakan kinerja: pratinjau dibangun ulang tiap detak pencatat waktu
+
+**Ditemukan & diperbaiki 16 Agustus 2026 · Xiaomi Redmi Note 9**
+
+### Gejala
+
+Pratinjau kamera patah-patah selama merekam, dan HP menjadi sangat panas.
+Terasa sejak layar rekam dipakai sungguhan, bukan hanya di build debug.
+
+### Yang BUKAN penyebabnya
+
+Diselidiki satu per satu, dan ketiganya terbukti bukan biang utamanya —
+dicatat agar tidak diselidiki ulang:
+
+1. **Build debug.** Memang memberatkan, tetapi build `--profile` pun masih
+   patah-patah.
+2. **FFmpeg.** Pengukur watermark sempat dituduh. Dicabut, dan pratinjaunya
+   **tetap** patah-patah.
+3. **Konversi frame ke ML Kit.** Sempat diduga menyalin ± 700 KB per frame di
+   Dart. Ternyata `barcode_frame_reader_mobile.dart` meneruskan
+   `image.planes.first.bytes` **langsung**, tanpa salinan.
+
+### Sebab sesungguhnya
+
+`RecordingCameraViewModel` menjalankan pencatat waktu tiap 200 ms untuk
+memperbarui angka durasi. Tiap detak mengubah state, dan `build` seluruh
+halaman ikut berjalan — **5 kali per detik**. Yang ikut dibangun ulang termasuk
+subtree terberat di layar: `Texture` kamera beserta `RotatedBox` dan
+`controller.buildPreview()`-nya, padahal isinya tidak berubah sama sekali.
+
+### Perbaikan
+
+🔴 `_preview` dan `_transitionCover` dibuat **sekali** sebagai field
+`late final` di `_RecordingCameraPageState`, lalu dipakai ulang. Karena Flutter
+melihat instance widget yang identik, subtree itu dilewati saat halaman
+dibangun ulang.
+
+Keduanya berlangganan sendiri ke kepingan state yang benar-benar dibutuhkan
+(`cameraReady`, `previewGeometry`, `previewSettling`) lewat `ref.watch(...select(...))`,
+sehingga tetap ikut berubah saat memang perlu.
+
+⚠️ **Jangan mengubahnya kembali menjadi konstruksi di dalam `build`** — mis.
+`_Preview(ready: state.cameraReady, geometry: state.previewGeometry)`. Itu
+terlihat lebih rapi dan lebih "Flutter", tetapi mengembalikan patah-patahnya.
+
+### Akibat lanjutan yang belum ditindaklanjuti
+
+Pengukuran FFmpeg pada 15 Agustus 2026 (rasio 0,58x–1,20x) diambil **sebelum**
+perbaikan ini, jadi angkanya tercemar beban gambar ulang. Bila keputusan
+"watermark segera vs ditunda" (Bab 8.5) hendak diambil berdasarkan angka,
+**ukur ulang** — kemungkinan besar hasilnya lebih baik dari yang tercatat.
+
+⚠️ Pengukur itu juga memanggil FFmpeg dengan `unawaited` tanpa antrean,
+sehingga beberapa proses berjalan bersamaan saat merekam beruntun. Bab 8.5
+yang sungguhan wajib berurutan satu per satu.
