@@ -306,5 +306,12 @@
   "recordRemainingLabel": "sisa {seconds} detik",
   "@recordRemainingLabel": {"placeholders": {"seconds": {"type": "int"}}},
   "recordPreparing": "Menyiapkan kamera…",
-  "recordProcessing": "Memproses video…"
+  "recordProcessing": "Memproses video…",
+  "accountLogout": "Keluar",
+  "accountLogoutConfirmTitle": "Keluar dari akun?",
+  "accountLogoutConfirmBody": "Anda perlu masuk kembali untuk merekam dan membuka riwayat.",
+  "accountLogoutPendingWarning": "{count, plural, other{Ada {count} video belum terunggah. Tetap keluar?}}",
+  "@accountLogoutPendingWarning": {"placeholders": {"count": {"type": "int"}}},
+  "accountLogoutPendingBody": "Video yang belum terkirim tetap tersimpan di perangkat ini dan dilanjutkan saat Anda masuk lagi dengan akun yang sama.",
+  "accountLogoutBusy": "Sedang keluar…"
 }

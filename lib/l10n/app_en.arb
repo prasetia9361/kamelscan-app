@@ -303,5 +303,12 @@
   "recordRemainingLabel": "{seconds} seconds left",
   "@recordRemainingLabel": {"placeholders": {"seconds": {"type": "int"}}},
   "recordPreparing": "Preparing the camera…",
-  "recordProcessing": "Processing video…"
+  "recordProcessing": "Processing video…",
+  "accountLogout": "Log out",
+  "accountLogoutConfirmTitle": "Log out of this account?",
+  "accountLogoutConfirmBody": "You will need to sign in again to record or open your history.",
+  "accountLogoutPendingWarning": "{count, plural, other{{count} videos have not been uploaded yet. Log out anyway?}}",
+  "@accountLogoutPendingWarning": {"placeholders": {"count": {"type": "int"}}},
+  "accountLogoutPendingBody": "Unsent videos stay on this device and resume when you sign in again with the same account.",
+  "accountLogoutBusy": "Logging out…"
 }
