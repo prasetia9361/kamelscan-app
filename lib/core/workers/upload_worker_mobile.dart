@@ -40,6 +40,13 @@ void uploadCallbackDispatcher() {
   Workmanager().executeTask((taskName, inputData) async {
     const log = AppLogger('UploadWorker');
     log.i('Tugas latar dijalankan: $taskName');
+    // 🔴 `debugPrint`, bukan hanya `AppLogger`. Isolate ini berjalan saat
+    // aplikasi di latar belakang — tidak ada layar, tidak ada terminal
+    // `flutter run`. Satu-satunya cara mengetahui ia pernah berjalan adalah
+    // logcat, dan `AppLogger` tidak pernah sampai ke sana (jebakan 11).
+    // Tanpa baris-baris ini, "gagal" dan "tidak pernah dipanggil" terlihat
+    // persis sama: tidak ada apa-apa. Lihat L.9 di `DEVIASI_LIBRARY.md`.
+    debugPrint('KAMELSCAN_LATAR Tugas latar dijalankan: $taskName');
 
     // Plugin (drift, path_provider, shared_preferences) memerlukan binding
     // yang sudah siap — isolate ini tidak melewati `main()`.
@@ -48,6 +55,23 @@ void uploadCallbackDispatcher() {
     LocalDbService? db;
     try {
       await SupabaseService.init();
+
+      // Risiko nomor satu isolate ini: sesi Supabase tidak ikut pulih.
+      //
+      // Bila itu terjadi, menjalankan antrian justru **merusak**: setiap
+      // permintaan ditolak 401, tiap penolakan menghabiskan satu jatah
+      // percobaan, dan setelah lima putaran video yang sebenarnya baik-baik
+      // saja ditandai `failed`. Lebih baik tidak berbuat apa-apa dan meminta
+      // WorkManager menjadwalkan ulang — persis alasan yang sama dengan kuota
+      // habis di `UploadQueueRunner._handleFailure`.
+      final user = SupabaseService.currentUser;
+      if (user == null) {
+        log.w('Sesi tidak pulih di isolate latar — antrian tidak dijalankan');
+        debugPrint('KAMELSCAN_LATAR sesi TIDAK pulih · antrian dilewati, '
+            'dijadwalkan ulang');
+        return false;
+      }
+      debugPrint('KAMELSCAN_LATAR sesi pulih · uid=${user.id}');
 
       db = createLocalDbService();
       await db.init();
@@ -65,9 +89,11 @@ void uploadCallbackDispatcher() {
       );
 
       await runner.run();
+      debugPrint('KAMELSCAN_LATAR selesai');
       return true;
     } on Object catch (e, s) {
       log.e('Tugas latar gagal', e, s);
+      debugPrint('KAMELSCAN_LATAR GAGAL · $e');
       // `false` membuat WorkManager menjadwalkan ulang dengan backoff. Antrian
       // tetap utuh di SQLite, jadi tidak ada yang hilang karena kegagalan ini.
       return false;
