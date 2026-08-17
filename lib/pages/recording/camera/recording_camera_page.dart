@@ -78,6 +78,7 @@ class _RecordingCameraPageState extends ConsumerState<RecordingCameraPage> {
   late final Widget _transitionCover = _TransitionCover(provider: _provider);
   late final Widget _watermarkPreview =
       WatermarkPreviewOverlay(provider: _provider);
+  late final Widget _stopButton = _StopButtonOverlay(provider: _provider);
 
   @override
   void dispose() {
@@ -159,6 +160,11 @@ class _RecordingCameraPageState extends ConsumerState<RecordingCameraPage> {
                       ],
                     ),
                   ),
+                  // Paling akhir di Stack: tombol Berhenti wajib berada di atas
+                  // segalanya **dan** dapat ditekan. Lapisan yang menutupinya
+                  // sekalipun sepersekian detik berarti packer menekan dan
+                  // tidak terjadi apa-apa.
+                  _stopButton,
                 ],
               ),
         ),
@@ -590,7 +596,6 @@ class _BottomBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = context.l10n;
-    final colors = Theme.of(context).extension<AppColors>()!;
     final vm = _RecordingScope.of(context).notifier(ref);
 
     return Padding(
@@ -613,34 +618,88 @@ class _BottomBar extends ConsumerWidget {
           else
             const SizedBox(width: AppSizes.touchComfort),
           const Spacer(),
-          if (state.showStopButton)
-            SizedBox(
-              height: AppSizes.touchComfort + 8,
-              child: FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: colors.danger,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 28),
-                ),
-                onPressed: () => _onStop(context, vm),
-                icon: const Icon(Icons.stop_circle_outlined),
-                label: Text(t.recordStopButton),
-              ),
-            ),
-          const Spacer(),
-          const SizedBox(width: AppSizes.touchComfort),
+          // 🔴 Tombol Berhenti **tidak lagi di sini** — lihat
+          // `_StopButtonOverlay`. Jangan mengembalikannya ke baris ini.
         ],
       ),
     );
   }
+}
 
-  /// 🔴 Tombol Berhenti **tidak pernah dimatikan** (Bab 8.3.1). Video di bawah
-  /// 5 detik hanya memunculkan konfirmasi — mematikan tombolnya akan menjebak
-  /// packer yang baru menyadari kamera menghadap arah keliru.
-  Future<void> _onStop(BuildContext context, RecordingCameraViewModel vm) async {
+/// Tombol **Berhenti** (Bab 8.3.1, keputusan Product Owner nomor 1).
+///
+/// 🔴 Dipisahkan menjadi lapisan sendiri pada 17 Agustus 2026 setelah Product
+/// Owner melaporkan tombolnya **tidak tergambar sama sekali** saat merekam di
+/// Redmi Note 9 — padahal titik merah, penghitung durasi, dan hitung mundur
+/// yang dihidupkan oleh syarat yang **sama persis** (`isRecording`) semuanya
+/// tampil, dan tombol senter di baris yang sama juga tampil.
+///
+/// Sebabnya tidak dapat dijelaskan dari membaca kode. Karena itu tombolnya
+/// dikeluarkan dari `Row` berisi dua `Spacer` di `_BottomBar` dan ditempatkan
+/// langsung di `Stack` dengan posisi yang dihitung sendiri: apa pun yang
+/// dulu terjadi di dalam baris itu tidak lagi dapat mempengaruhinya.
+///
+/// Aturan yang tidak boleh hilang bersama pemindahan ini:
+///
+/// - Tombolnya **tidak pernah dimatikan**. Video di bawah 5 detik hanya
+///   memunculkan konfirmasi. Mematikannya menjebak packer yang baru menyadari
+///   kameranya menghadap arah keliru.
+/// - Berlangganan **hanya** pada `showStopButton`, bukan seluruh keadaan layar
+///   (jebakan 14).
+class _StopButtonOverlay extends ConsumerWidget {
+  const _StopButtonOverlay({required this.provider});
+
+  final RecordingCameraViewModelProvider provider;
+
+  /// Nilai terakhir yang sempat tercetak. Diagnosis sekali per perubahan,
+  /// bukan lima kali per detik.
+  static bool? _lastLogged;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     final t = context.l10n;
+    final colors = Theme.of(context).extension<AppColors>()!;
+    final visible = ref.watch(provider.select((s) => s.showStopButton));
 
-    if (state.machine.needsShortVideoConfirm) {
+    // 🔴 Jejak diagnosis, bukan sisa lupa dibersihkan. Bila tombolnya kelak
+    // hilang lagi, baris ini yang membedakan "layar tidak menganggap dirinya
+    // sedang merekam" dari "sedang merekam tetapi tombolnya tidak tergambar" —
+    // dua sebab yang sangat berbeda dan tidak dapat dibedakan dengan mata.
+    if (_lastLogged != visible) {
+      _lastLogged = visible;
+      debugPrint('KAMELSCAN_UI tombol Berhenti tampil=$visible');
+    }
+
+    if (!visible) return const SizedBox.shrink();
+
+    return SafeArea(
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: AppSizes.spaceLg),
+          child: SizedBox(
+            height: AppSizes.touchComfort + 8,
+            child: FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: colors.danger,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 28),
+              ),
+              onPressed: () => _onStop(context, ref),
+              icon: const Icon(Icons.stop_circle_outlined),
+              label: Text(t.recordStopButton),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _onStop(BuildContext context, WidgetRef ref) async {
+    final t = context.l10n;
+    final vm = ref.read(provider.notifier);
+
+    if (ref.read(provider).machine.needsShortVideoConfirm) {
       final stop = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(

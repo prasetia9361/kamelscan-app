@@ -908,6 +908,44 @@ bertuliskan *"Lokasi tidak tersedia"* padahal videonya nanti membawa koordinat.
 dibakar FFmpeg sesudah rekaman ditutup. Bila keduanya berbeda, yang salah
 adalah tata letak widget-nya — isinya sama-sama dari `buildLines`.
 
+### L.12 Tombol Berhenti tidak pernah tergambar
+
+**Dilaporkan Product Owner 17 Agustus 2026, terlihat di perangkat.**
+
+Selama merekam, tombol Berhenti **tidak muncul sama sekali** — di mode barcode
+maupun manual. Perekaman selama ini berhenti dengan cara lain: batas 30 detik
+di mode manual, pemindaian ulang di mode pindai. Karena keduanya bekerja,
+hilangnya tombol ini tidak pernah tertangkap.
+
+Yang membuatnya membingungkan: syaratnya `showStopButton => isRecording`, dan
+**tiga hal lain yang dihidupkan syarat yang sama persis tetap tampil** — titik
+merah, penghitung durasi, dan hitung mundur. Di mode barcode, tombol senter
+yang berada di `Row` yang **sama** juga tampil. Jadi baris bawahnya jelas
+tergambar; hanya tombolnya yang tidak.
+
+Bukti paling terang datang dari mode manual: di sana senternya memang tidak
+ada, sehingga seluruh baris bawah kosong melompong.
+
+🔴 **Sebabnya tidak pernah ditemukan dari membaca kode**, dan tidak layak
+menghabiskan putaran build untuk menebaknya. Tombolnya dikeluarkan dari `Row`
+berisi dua `Spacer` di `_BottomBar` dan dijadikan lapisan sendiri
+(`_StopButtonOverlay`) langsung di `Stack`, paling akhir supaya berada di atas
+segalanya dan tetap dapat ditekan.
+
+Ikut ditanam satu jejak diagnosis yang **jangan dihapus**:
+
+```
+KAMELSCAN_UI tombol Berhenti tampil=<true|false>
+```
+
+Dicetak hanya saat nilainya berubah, bukan lima kali per detik. Bila tombolnya
+kelak hilang lagi, baris itulah yang membedakan *"layar tidak menganggap
+dirinya sedang merekam"* dari *"sedang merekam tetapi tombolnya tidak
+tergambar"* — dua sebab yang sangat berbeda dan tidak dapat dibedakan dengan
+mata.
+
+⚠️ Jangan mengembalikan tombolnya ke dalam `_BottomBar`.
+
 ### L.9 Sinkronisasi waktu berjalan sebelum sesi login pulih
 
 **Ditemukan di perangkat 17 Agustus 2026. Satu sesi uji penuh terbuang.**
