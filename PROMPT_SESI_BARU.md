@@ -161,10 +161,9 @@ Sudah dibuktikan tanpa perlu memasang aplikasi:
 2. ✅ **Rasio watermark diukur di profile:** 0,42x sendirian; **0,61–0,81x saat
    beruntun**. Pakai angka yang beruntun untuk merencanakan. Penyusutan berkas
    16,5 MB → 1,0 MB.
-3. ✅ **Satu video sampai di R2 lewat aplikasi.** Diperiksa di database:
-   `status = uploaded`, `time_verified = true`, 1.034.380 byte, 30 detik.
-   ⚠️ **Pemotongan tokennya belum diperiksa** — tinggal itu saja yang kurang
-   dari butir ini.
+3. ✅ **Video sampai di R2 lewat aplikasi, token terpotong.** Dua video
+   diunggah; keduanya `status = uploaded`, `time_verified = true`. Di
+   `token_ledger` masing-masing memotong tepat satu token (100 → 99 → 98).
 4. ⛔ **Unggah di latar belakang** (`uploadCallbackDispatcher`) — belum pernah
    dijalankan. Sesi Supabase harus pulih di isolate itu.
 
