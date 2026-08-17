@@ -214,6 +214,16 @@ yang sama berkali-kali dan membakar token pelanggan.
 pemilik kamera. `mobile_scanner` tidak dapat berbagi kamera, dan
 `startImageStream` melempar error bila perekaman sudah berjalan.
 
+**7. Layar rekam, diputuskan 17 Agustus 2026 sesudah uji perangkat:**
+
+- **Blok gelap di luar bingkai pindai dicabut.** Packer memindai *sambil
+  mengemas*; yang digelapkan justru barang yang sedang ia kerjakan. Sudut
+  bingkai kini bertepi hitam agar tetap terbaca tanpa latar gelap.
+- **Isi watermark ditampilkan selama merekam**, di posisi yang sama seperti
+  yang akan terbakar. Rinciannya di `DEVIASI_LIBRARY.md` bagian **L.11**.
+
+🔴 Jangan mengembalikan blok gelapnya tanpa bertanya lebih dulu.
+
 **4–6. Diputuskan 17 Agustus 2026** (pipeline Bab 8.5–8.7):
 
 | # | Perkara | Keputusan |

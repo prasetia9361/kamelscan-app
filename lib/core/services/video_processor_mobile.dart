@@ -181,18 +181,17 @@ class MobileVideoProcessor implements VideoProcessor {
     required TenantSettings settings,
     required String fontFile,
   }) {
-    final lines = <String>[
-      'RESI: ${data.resiCode}',
-      WatermarkCommand.formatStamp(
-        data.serverTime,
-        timeVerified: data.timeVerified,
-      ),
-      data.shopName,
-      if (settings.showGpsOnWatermark)
-        data.coordinates == null
-            ? 'Lokasi tidak tersedia'
-            : 'GPS: ${data.coordinates}',
-    ];
+    // Isinya disusun di `WatermarkCommand` — tempat yang sama yang dipakai
+    // layar rekam untuk menampilkan pratinjau kepada packer. Jangan menyusun
+    // ulang daftarnya di sini.
+    final lines = WatermarkCommand.buildLines(
+      resiCode: data.resiCode,
+      serverTime: data.serverTime,
+      shopName: data.shopName,
+      coordinates: data.coordinates,
+      timeVerified: data.timeVerified,
+      showGps: settings.showGpsOnWatermark,
+    );
 
     // TODO(Bab 8.5): tier Pro menempelkan logo toko lewat `-i logo` + filter
     // `overlay`. `data.logoPath` sengaja belum dipakai agar tidak ada jalur

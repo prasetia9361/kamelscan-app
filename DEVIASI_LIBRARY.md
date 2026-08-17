@@ -860,6 +860,54 @@ menit akan menemukan antrian yang sudah boleh jalan. Ini juga persis keadaan
 sungguhannya: packer berjalan kembali ke jangkauan Wi-Fi dengan aplikasi
 tertutup.
 
+### L.11 Layar rekam: blok gelap dicabut, watermark ditampilkan
+
+**Dua keputusan Product Owner 17 Agustus 2026, sesudah melihat hasil uji.**
+
+**1. Blok gelap di luar bingkai pindai — DICABUT.**
+
+`ScanFrameOverlay` semula menutup seluruh layar di luar kotak dengan hitam 60%,
+"supaya mata packer langsung tertuju ke dalamnya". Alasan itu benar untuk layar
+yang **hanya** dipakai memindai, dan salah untuk layar ini: packer memindai
+**sambil mengemas**, jadi yang digelapkan justru barang dan meja yang sedang ia
+kerjakan.
+
+Sudut bingkainya kini digambar dua kali — garis hitam tipis lebih dulu sebagai
+tepian, lalu warnanya di atas. Tanpa latar gelap, sudut putih dapat lenyap di
+atas kardus terang.
+
+🔴 Jangan mengembalikan blok gelapnya tanpa bertanya lebih dulu. Ini keputusan
+Product Owner, bukan kelalaian.
+
+**2. Isi watermark ditampilkan selama merekam.**
+
+Sebelumnya packer baru dapat melihat isi watermark setelah videonya jadi **dan
+terunggah** — terlambat untuk menyadari nama toko yang salah, GPS yang tidak
+terbaca, atau waktu yang belum terverifikasi. Sekarang ia melihatnya saat masih
+bisa berbuat sesuatu.
+
+Tiga hal yang membuatnya tidak berubah jadi utang:
+
+- **Satu penyusun isi.** Daftar barisnya dipindahkan dari
+  `video_processor_mobile.dart` (hanya jalan di perangkat) ke
+  `WatermarkCommand.buildLines` — yang sama dipakai FFmpeg **dan** layar. Dua
+  penyusun terpisah berarti layar perlahan menjanjikan sesuatu yang tidak ada
+  di videonya, dan packer akan mempercayai yang salah.
+- **Waktunya tidak berdetak.** Yang terbakar adalah satu tanda waktu, yaitu
+  saat rekaman dimulai. Jam berjalan di layar justru akan berbohong.
+- **Berlangganan hanya pada `watermarkPreview`**, seperti `_TransitionCover`.
+  Membangunnya dari seluruh keadaan layar berarti ia ikut dibangun ulang tiap
+  detak pencatat waktu — jebakan 14, yang dulu membuat pratinjau patah-patah
+  dan gejalanya tampak seperti masalah kamera.
+
+Koordinat GPS tiba beberapa detik setelah rekaman mulai, jadi pratinjaunya
+diperbarui sekali saat `_captureLocation` selesai. Tanpa itu layar akan tetap
+bertuliskan *"Lokasi tidak tersedia"* padahal videonya nanti membawa koordinat.
+
+⚠️ Ini **pratinjau**, bukan yang direkam. Yang tergambar di berkas tetap
+dibakar FFmpeg sesudah rekaman ditutup. Bila keduanya berbeda, yang salah
+adalah tata letak widget-nya — isinya sama-sama dari `buildLines`.
+
 ### L.9 Sinkronisasi waktu berjalan sebelum sesi login pulih
 
 **Ditemukan di perangkat 17 Agustus 2026. Satu sesi uji penuh terbuang.**
