@@ -54,9 +54,11 @@ class WatermarkPreviewOverlay extends ConsumerWidget {
             WatermarkPosition.bottomRight => Alignment.bottomRight,
           },
           child: Padding(
-            // Jarak bawah 96 dp menghindari tombol Berhenti dan panel resi;
+            // Jarak bawah 116 dp menghindari tombol Berhenti yang bulat
+            // (76 dp + 24 dp dari dasar layar) beserta sisa ruang bernapas;
             // jarak atas 88 dp menghindari palang judul beserta nomor resinya.
-            padding: EdgeInsets.fromLTRB(12, isTop ? 88 : 12, 12, isTop ? 12 : 96),
+            padding:
+                EdgeInsets.fromLTRB(12, isTop ? 88 : 12, 12, isTop ? 12 : 116),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment:
