@@ -191,4 +191,59 @@ void main() {
       expect(cmd(), startsWith('-y '));
     });
   });
+
+  group('buildLines — satu sumber isi watermark (Bab 8.5)', () {
+    final waktu = DateTime.utc(2026, 8, 17, 12, 59);
+
+    List<String> lines({
+      String? coordinates,
+      bool timeVerified = true,
+      bool showGps = true,
+    }) =>
+        WatermarkCommand.buildLines(
+          resiCode: '10952ERTY',
+          serverTime: waktu,
+          shopName: 'Shopee · Toko Uji',
+          coordinates: coordinates,
+          timeVerified: timeVerified,
+          showGps: showGps,
+        );
+
+    test('nomor resi selalu pertama — ia digambar paling dekat tepi layar', () {
+      // Bukan selera tata letak: indeks 0 adalah baris yang dicari petugas
+      // resolusi marketplace, dan `buildFilterChain` memberinya huruf terbesar.
+      expect(lines().first, 'RESI: 10952ERTY');
+    });
+
+    test('urutannya resi, waktu, toko, lalu GPS', () {
+      expect(lines(coordinates: '-6.972683, 109.711146'), [
+        'RESI: 10952ERTY',
+        WatermarkCommand.formatStamp(waktu),
+        'Shopee · Toko Uji',
+        'GPS: -6.972683, 109.711146',
+      ]);
+    });
+
+    test('izin lokasi ditolak tetap menyisakan barisnya, bukan menghilang', () {
+      // Baris yang hilang membuat pembacanya tidak dapat membedakan "lokasi
+      // tidak ada" dari "versi aplikasi ini belum menulis lokasi".
+      expect(lines(), contains('Lokasi tidak tersedia'));
+    });
+
+    test('GPS dimatikan tenant menghapus barisnya sama sekali', () {
+      final hasil = lines(coordinates: '1, 2', showGps: false);
+      expect(hasil, hasLength(3));
+      expect(hasil.any((l) => l.contains('GPS')), isFalse);
+      expect(hasil.any((l) => l.contains('Lokasi')), isFalse);
+    });
+
+    test('waktu belum terverifikasi ikut terbaca di gambar', () {
+      // Aturan 4 Product Owner: videonya tetap dibuat, tetapi tidak boleh
+      // tampil seolah waktunya terjamin.
+      expect(
+        lines(timeVerified: false)[1],
+        contains('(waktu belum terverifikasi)'),
+      );
+    });
+  });
 }

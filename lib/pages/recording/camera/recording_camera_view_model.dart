@@ -10,6 +10,7 @@ import '../../../core/config/app_constants.dart';
 import '../../../core/domain/recording_machine.dart';
 import '../../../core/domain/scan_gate.dart';
 import '../../../core/domain/time_sync.dart';
+import '../../../core/domain/watermark_command.dart';
 import '../../../core/models/enums.dart';
 import '../../../core/models/upload_task.dart';
 import '../../../core/providers/pipeline_providers.dart';
@@ -165,6 +166,33 @@ class ManualEntry {
       );
 }
 
+/// Isi watermark yang akan terbakar, untuk ditampilkan di layar saat merekam.
+///
+/// 🔴 Diminta Product Owner 17 Agustus 2026. Sebelumnya packer baru tahu isi
+/// watermark setelah videonya jadi dan terunggah — terlambat untuk menyadari
+/// nama toko yang salah, GPS yang tidak terbaca, atau waktu yang belum
+/// terverifikasi.
+///
+/// [lines] datang dari `WatermarkCommand.buildLines`, penyusun yang **sama**
+/// dengan yang dipakai FFmpeg. Jangan menyusunnya ulang di lapisan tampilan.
+class WatermarkPreview {
+  const WatermarkPreview({
+    required this.lines,
+    required this.position,
+    required this.opacity,
+    required this.timeVerified,
+  });
+
+  /// Indeks 0 paling dekat tepi layar dan hurufnya paling besar — nomor resi.
+  final List<String> lines;
+  final WatermarkPosition position;
+  final double opacity;
+
+  /// Waktunya belum pernah diadu dengan waktu server (aturan 4 [TimeSync]).
+  /// Keterangannya sudah ikut di dalam [lines]; ini untuk menandainya di layar.
+  final bool timeVerified;
+}
+
 class RecordingScreenState {
   const RecordingScreenState({
     required this.mode,
@@ -183,6 +211,7 @@ class RecordingScreenState {
     this.duplicate,
     this.finished,
     this.manual = const ManualEntry(),
+    this.watermarkPreview,
   });
 
   final TriggerMode mode;
@@ -234,6 +263,9 @@ class RecordingScreenState {
   final FinishedRecording? finished;
   final ManualEntry manual;
 
+  /// Isi watermark selama merekam. `null` bila tidak sedang merekam.
+  final WatermarkPreview? watermarkPreview;
+
   bool get isRecording => machine.phase == RecordingPhase.recording;
 
   /// Bab 8.3.1 — tombol Berhenti wajib tersedia di semua mode. Ia hanya
@@ -260,6 +292,8 @@ class RecordingScreenState {
     FinishedRecording? finished,
     bool clearFinished = false,
     ManualEntry? manual,
+    WatermarkPreview? watermarkPreview,
+    bool clearWatermarkPreview = false,
   }) =>
       RecordingScreenState(
         mode: mode,
@@ -278,6 +312,9 @@ class RecordingScreenState {
         duplicate: clearDuplicate ? null : (duplicate ?? this.duplicate),
         finished: clearFinished ? null : (finished ?? this.finished),
         manual: manual ?? this.manual,
+        watermarkPreview: clearWatermarkPreview
+            ? null
+            : (watermarkPreview ?? this.watermarkPreview),
       );
 }
 
@@ -728,6 +765,7 @@ class RecordingCameraViewModel extends _$RecordingCameraViewModel {
       machine: next,
       clearFinished: true,
       previewGeometry: geometry,
+      watermarkPreview: await _buildWatermarkPreview(resi),
     ));
     unawaited(_uncoverPreview());
 
@@ -976,6 +1014,49 @@ class RecordingCameraViewModel extends _$RecordingCameraViewModel {
     final point = await ref.read(locationServiceProvider).currentPosition();
     if (_disposed) return;
     _location = point;
+
+    // Koordinat datang beberapa detik setelah rekaman mulai, jadi pratinjau
+    // watermark yang sudah tampil masih bertuliskan "Lokasi tidak tersedia".
+    // Diperbarui agar packer melihat keadaan yang sebenarnya akan terbakar,
+    // bukan potret sesaat dari detik pertama.
+    if (!state.isRecording) return;
+    final resi = state.machine.resiCode;
+    if (resi == null) return;
+    _set(state.copyWith(watermarkPreview: await _buildWatermarkPreview(resi)));
+  }
+
+  /// Susun isi watermark untuk ditampilkan di layar selama merekam.
+  ///
+  /// 🔴 Barisnya diambil dari `WatermarkCommand.buildLines` — penyusun yang
+  /// sama persis dengan yang dipakai FFmpeg. Menyalin aturannya ke sini berarti
+  /// suatu saat layar menjanjikan sesuatu yang tidak ada di videonya.
+  ///
+  /// Waktunya **tidak berdetak**: yang terbakar adalah satu tanda waktu, yaitu
+  /// saat rekaman dimulai. Pratinjau berjalan justru akan berbohong.
+  Future<WatermarkPreview?> _buildWatermarkPreview(String resi) async {
+    if (_disposed) return null;
+    final settings = await ref.read(tenantSettingsProvider.future);
+    if (_disposed) return null;
+
+    final scanTime = _scanTime;
+    final point = _location;
+
+    return WatermarkPreview(
+      lines: WatermarkCommand.buildLines(
+        resiCode: resi,
+        serverTime: scanTime?.utc ?? DateTime.now().toUtc(),
+        shopName: shopName,
+        coordinates: point == null
+            ? null
+            : '${point.latitude.toStringAsFixed(6)}, '
+                '${point.longitude.toStringAsFixed(6)}',
+        timeVerified: scanTime?.verified ?? false,
+        showGps: settings.showGpsOnWatermark,
+      ),
+      position: settings.watermarkPosition,
+      opacity: settings.watermarkOpacity.clamp(0.0, 1.0),
+      timeVerified: scanTime?.verified ?? false,
+    );
   }
 
   /// Berapa lama ringkasan rekaman terakhir tetap terlihat.
@@ -1006,6 +1087,9 @@ class RecordingCameraViewModel extends _$RecordingCameraViewModel {
     _set(state.copyWith(
       machine: RecordingMachine.next(state.machine),
       manual: const ManualEntry().copyWith(recent: state.manual.recent),
+      // Rekaman sudah tertutup — watermark yang ditampilkan sesudah ini tidak
+      // lagi menggambarkan apa pun yang sedang direkam.
+      clearWatermarkPreview: true,
     ));
 
     await _startScanning();

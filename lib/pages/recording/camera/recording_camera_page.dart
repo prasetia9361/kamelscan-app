@@ -14,6 +14,7 @@ import '../../../core/widgets/failure_messages.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import 'recording_camera_view_model.dart';
 import 'widgets/scan_frame_overlay.dart';
+import 'widgets/watermark_preview_overlay.dart';
 
 /// Layar kamera perekaman (Bab 8.1 & 8.3).
 ///
@@ -75,6 +76,8 @@ class _RecordingCameraPageState extends ConsumerState<RecordingCameraPage> {
   /// benar mereka butuhkan lewat `select`, jadi tetap ikut berubah saat perlu.
   late final Widget _preview = _Preview(provider: _provider);
   late final Widget _transitionCover = _TransitionCover(provider: _provider);
+  late final Widget _watermarkPreview =
+      WatermarkPreviewOverlay(provider: _provider);
 
   @override
   void dispose() {
@@ -131,6 +134,10 @@ class _RecordingCameraPageState extends ConsumerState<RecordingCameraPage> {
                       wide: state.mode == TriggerMode.barcode1d,
                       color: _frameColor(context, state),
                     ),
+                  // Di bawah palang atas dan tombol Berhenti, di atas bingkai
+                  // bantu: yang ditiru adalah tulisan pada video, dan pada
+                  // video ia memang berada paling depan.
+                  _watermarkPreview,
                   SafeArea(
                     child: Column(
                       children: [

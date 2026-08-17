@@ -53,6 +53,37 @@ class WatermarkCommand {
       ':fontcolor=white'
       ':box=1:boxcolor=black@$boxOpacity';
 
+  /// Baris-baris yang tertulis di watermark, **berurutan dari tepi ke dalam**.
+  ///
+  /// 🔴 Satu-satunya tempat isi watermark ditentukan. Sebelumnya daftar ini
+  /// disusun di dalam `video_processor_mobile.dart`, yang hanya dapat berjalan
+  /// di perangkat — sementara layar rekam perlu menampilkan **isi yang sama
+  /// persis** kepada packer sebelum videonya jadi (permintaan Product Owner
+  /// 17 Agustus 2026). Dua penyusun terpisah berarti pratinjau di layar
+  /// perlahan berbeda dari yang terbakar di video, dan packer akan mempercayai
+  /// yang salah.
+  ///
+  /// Urutannya bukan selera: indeks 0 digambar paling dekat tepi layar dan
+  /// dengan huruf terbesar, jadi **nomor resi harus pertama**. Itu satu-satunya
+  /// baris yang dicari petugas resolusi marketplace.
+  static List<String> buildLines({
+    required String resiCode,
+    required DateTime serverTime,
+    required String shopName,
+    String? coordinates,
+    bool timeVerified = true,
+    bool showGps = true,
+  }) =>
+      <String>[
+        'RESI: $resiCode',
+        formatStamp(serverTime, timeVerified: timeVerified),
+        shopName,
+        if (showGps)
+          coordinates == null
+              ? 'Lokasi tidak tersedia'
+              : 'GPS: $coordinates',
+      ];
+
   /// Susun seluruh rantai filter: skala 480p + baris-baris watermark.
   static String buildFilterChain({
     required List<String> lines,
