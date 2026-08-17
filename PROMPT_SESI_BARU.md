@@ -172,11 +172,12 @@ Dua cacat ditemukan dan diperbaiki dalam pengujian ini; keduanya di
 `DEVIASI_LIBRARY.md` **bagian L.9** dan wajib dibaca sebelum menyentuh
 `ServerClock` atau `uploadPipeline`.
 
-🔴 **Isi watermark-nya sendiri belum pernah dilihat siapa pun.** Log membuktikan
-FFmpeg berjalan dan berkasnya jadi, bukan bahwa nama toko, jam, dan nomor resi
-terbaca di gambar. Berkasnya ada di R2 —
-`kamelscan-videos/tenant/…/2026/08/….mp4` — dan paling mudah dibuka lewat
-dasbor Cloudflare. **Jangan menyebut Bab 8.5 selesai sebelum ini dilihat.**
+5. ✅ **Isi watermark dilihat langsung** pada berkas di R2: GPS, nama toko
+   (`Shopee · Toko Uji Bab 8`), waktu, dan nomor resi keempatnya tergambar dan
+   terbaca. Waktunya **19.59 WIB**, cocok tepat dengan log unggah `12:59` UTC,
+   dan tanpa keterangan *"waktu belum terverifikasi"* — rantai dari
+   `server_now()` sampai ke piksel terbukti utuh. Rinciannya di
+   `DEVIASI_LIBRARY.md` bagian L.10.
 
 ⚠️ Pemasangan lewat `adb install` **ditolak MIUI** pada 17 Agustus 2026
 (`INSTALL_FAILED_USER_RESTRICTED`) padahal HP punya internet — tidak ada yang

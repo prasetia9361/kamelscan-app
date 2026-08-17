@@ -908,5 +908,26 @@ KAMELSCAN_PIPA Terunggah · resi=10952ERTY · tenant/…/2026/08/….mp4
 Barisnya diperiksa langsung di database: `status = uploaded`,
 `time_verified = true`, `file_size_bytes = 1034380`, `duration_seconds = 30`.
 
-⚠️ Yang **belum** diperiksa pada video ini: pemotongan token, dan isi
-watermark-nya sendiri — belum ada yang membuka berkasnya.
+**Isi watermark — dilihat langsung oleh Product Owner pada berkas di R2.**
+Keempat unsur Bab 8.5 tergambar, urutannya sesuai `buildFilterChain`: nomor
+resi paling dekat tepi dan hurufnya paling besar, sisanya naik ke atas.
+
+```
+GPS: -6.972683, 109.711146
+Shopee · Toko Uji Bab 8
+17/08/2026 19.59.00
+RESI: 10952ERTY
+```
+
+🔴 **Inilah bukti terkuat bahwa L.9 benar-benar tuntas.** Log unggah bertanda
+`12:59` UTC; WIB = UTC+7 = **19:59**, persis seperti yang tergambar. Dan tidak
+ada keterangan *"(waktu belum terverifikasi)"* — angka itu datang dari titik
+acuan waktu server, bukan dari jam HP. Rantai lengkapnya terbukti dari
+`server_now()` sampai ke piksel.
+
+Pengamatan Product Owner: pada pemutar video biasa, palang kontrol di dasar
+layar menutupi sebagian baris tanggal. Bukan cacat — posisi watermark adalah
+pengaturan tenant (`WatermarkPosition`), jadi pelanggan yang terganggu dapat
+memindahkannya.
+
+⚠️ Yang **masih** belum diperiksa pada video ini: pemotongan token.
