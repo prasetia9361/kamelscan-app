@@ -818,7 +818,7 @@ Pindahkan ke Pengaturan begitu Bab 9.7 dikerjakan. Nilainya sendiri ada di
 `SharedPreferences`, jadi kepindahan itu tidak menghilangkan pilihan pengguna.
 Tambahan lingkup ± 1 jam, dilaporkan sesuai Bab 0.2.
 
-### L.8 Unggah di latar belakang belum diuji di perangkat
+### L.8 Unggah di latar belakang — isolate terbukti hidup 17 Agustus 2026
 
 `uploadCallbackDispatcher` kini benar-benar berisi alur unggah, bukan lagi
 `return true` kosong. Dua hal yang wajib diperiksa saat mengujinya:
@@ -834,6 +834,31 @@ Token tidak akan terpotong dua kali walau keduanya berjalan bersamaan: trigger
 
 Jalur utama tetap aplikasi yang sedang terbuka — dipicu saat dibuka, saat sesi
 pengguna siap, dan tiap kali jaringan kembali (`uploadPipelineProvider`).
+
+**Hasil uji 17 Agustus 2026 (Redmi Note 9, profile):**
+
+```
+KAMELSCAN_LATAR Tugas latar dijalankan: kamelscan.uploadQueue
+supabase.supabase_flutter: INFO: ***** Supabase init completed *****
+KAMELSCAN_LATAR sesi pulih · uid=f999c837-…
+KAMELSCAN_LATAR selesai
+```
+
+Kedua risiko di atas terjawab: sesi Supabase **pulih** di isolate, dan drift
+terbuka berdampingan dengan aplikasi tanpa "database is locked".
+
+🔴 **Yang belum terbukti: satu video sungguhan terkirim dari isolate ini.**
+`selesai` hanya berarti putarannya bersih — antriannya memang kosong, karena
+jalur aplikasi-terbuka sudah mengambil semuanya lebih dulu. Itu memang
+rancangannya, dan justru membuat jalur latar sulit diuji tersendiri.
+
+Cara mengujinya tanpa mengakali kode, bila suatu saat diperlukan: rekam video
+dengan sakelar data seluler **mati** sehingga ia mengantre, tutup aplikasi
+(jangan *force-stop* — Android tidak menjalankan WorkManager untuk aplikasi
+yang dihentikan paksa), lalu sambungkan HP ke **Wi-Fi**. Tugas periodik 15
+menit akan menemukan antrian yang sudah boleh jalan. Ini juga persis keadaan
+sungguhannya: packer berjalan kembali ke jangkauan Wi-Fi dengan aplikasi
+tertutup.
 
 ### L.9 Sinkronisasi waktu berjalan sebelum sesi login pulih
 

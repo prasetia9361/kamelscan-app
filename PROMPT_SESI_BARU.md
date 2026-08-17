@@ -164,8 +164,13 @@ Sudah dibuktikan tanpa perlu memasang aplikasi:
 3. ✅ **Video sampai di R2 lewat aplikasi, token terpotong.** Dua video
    diunggah; keduanya `status = uploaded`, `time_verified = true`. Di
    `token_ledger` masing-masing memotong tepat satu token (100 → 99 → 98).
-4. ⛔ **Unggah di latar belakang** (`uploadCallbackDispatcher`) — belum pernah
-   dijalankan. Sesi Supabase harus pulih di isolate itu.
+4. ✅ **Unggah di latar belakang** (`uploadCallbackDispatcher`) — isolate hidup,
+   Supabase terinisialisasi sendiri, **sesi pulih** (`uid=f999c837-…`), drift
+   terbuka berdampingan dengan aplikasi tanpa saling mengunci, putaran selesai
+   bersih. Kedua risiko yang diperkirakan di L.8 terjawab.
+   ⚠️ Yang belum: **satu video sungguhan terkirim lewat jalur ini** — antriannya
+   kosong karena jalur aplikasi-terbuka selalu lebih dulu. Cara mengujinya ada
+   di `DEVIASI_LIBRARY.md` L.8.
 
 Dua cacat ditemukan dan diperbaiki dalam pengujian ini; keduanya di
 `DEVIASI_LIBRARY.md` **bagian L.9** dan wajib dibaca sebelum menyentuh
