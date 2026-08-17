@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/app_constants.dart';
 import '../models/enums.dart';
 import '../models/package_video.dart';
+import '../models/upload_task.dart';
 import '../services/supabase_service.dart';
 import '../utils/result.dart';
 
@@ -109,6 +110,109 @@ class VideoRepository {
         params: {'p_resi': resiCode, 'p_type': type.wire},
       );
       return Result.ok(result);
+    } on Object catch (e, s) {
+      return Result.err(SupabaseService.mapError(e, s));
+    }
+  }
+
+  /// Pastikan baris `package_videos` untuk satu tugas antrian sudah ada
+  /// (Bab 8.7 langkah 3 — Edge Function `get-upload-url` menolak video yang
+  /// barisnya belum ada).
+  ///
+  /// 🔴 Barisnya sengaja **baru dibuat saat mengunggah**, bukan saat merekam.
+  /// Aplikasi ini offline-first: packer di gudang tanpa sinyal tidak dapat
+  /// menyisipkan apa pun ke server, dan menunda perekaman sampai ada sinyal
+  /// berarti menghapus alasan produk ini ada.
+  ///
+  /// Yang **tidak** dikirim dari sini: `tenant_id`, `scan_date`, dan
+  /// `expires_at`. Ketiganya diisi trigger `before_video_insert` dengan waktu
+  /// server, dan di situlah tempatnya — nilai dari perangkat dapat dipalsukan.
+  Future<Result<PackageVideo>> ensureVideoRow(UploadTask task) async {
+    try {
+      final row = await _client
+          .from(AppConstants.tblPackageVideos)
+          .insert({
+            'id': task.videoId,
+            'shop_id': task.shopId,
+            'user_id': task.userId,
+            'resi_code': task.resiCode,
+            'type': task.type.wire,
+            'device_started_at': task.deviceStartedAt?.toUtc().toIso8601String(),
+            'duration_seconds': task.durationSeconds > 0
+                ? task.durationSeconds
+                : null,
+            'file_size_bytes': task.bytesTotal,
+            'location_lat': task.lat,
+            'location_lng': task.lng,
+            'location_accuracy_m': task.locationAccuracyM,
+            'storage_key': task.storageKey.isEmpty ? null : task.storageKey,
+            'time_verified': task.timeVerified,
+          })
+          .select()
+          .single();
+      return Result.ok(PackageVideo.fromJson(row));
+    } on Object catch (e, s) {
+      final failure = SupabaseService.mapError(e, s);
+
+      // `23505` bisa berarti dua hal yang sangat berbeda, dan membedakannya
+      // menentukan apakah video pelanggan terkirim atau dibuang:
+      //
+      //  a. barisnya memang sudah kita buat pada percobaan unggah sebelumnya
+      //     yang putus di tengah — lanjutkan saja;
+      //  b. resi yang sama sudah pernah direkam (Bab 7.7) — ini yang harus
+      //     ditandai `duplicate` dan menunggu keputusan pengguna.
+      if (failure.code == '23505') {
+        final existing = await fetchVideo(task.videoId);
+        if (existing.isOk) return existing;
+      }
+      return Result.err(failure);
+    }
+  }
+
+  /// Tandai video sudah terunggah — inilah yang memotong 1 token lewat trigger
+  /// `after_video_uploaded` (Bab 7.2: token dipotong saat **unggah berhasil**,
+  /// bukan saat merekam).
+  Future<Result<void>> markUploaded({
+    required String videoId,
+    required String storageKey,
+    required int fileSizeBytes,
+    required int durationSeconds,
+  }) async {
+    try {
+      await _client
+          .from(AppConstants.tblPackageVideos)
+          .update({
+            'status': VideoStatus.uploaded.wire,
+            'uploaded_at': DateTime.now().toUtc().toIso8601String(),
+            'storage_key': storageKey,
+            'file_size_bytes': fileSizeBytes,
+            if (durationSeconds > 0) 'duration_seconds': durationSeconds,
+          })
+          .eq('id', videoId);
+      return okVoid;
+    } on Object catch (e, s) {
+      return Result.err(SupabaseService.mapError(e, s));
+    }
+  }
+
+  /// Catat kegagalan unggah pada barisnya, agar Riwayat dapat menjelaskan
+  /// mengapa sebuah video belum ada isinya (Bab 8.7 langkah 6).
+  Future<Result<void>> recordUploadFailure({
+    required String videoId,
+    required int attempts,
+    required String message,
+  }) async {
+    try {
+      await _client
+          .from(AppConstants.tblPackageVideos)
+          .update({
+            'upload_attempts': attempts,
+            'last_error': message,
+            if (attempts >= AppConstants.maxUploadAttempts)
+              'status': VideoStatus.failed.wire,
+          })
+          .eq('id', videoId);
+      return okVoid;
     } on Object catch (e, s) {
       return Result.err(SupabaseService.mapError(e, s));
     }

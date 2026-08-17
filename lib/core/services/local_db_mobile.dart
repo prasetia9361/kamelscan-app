@@ -33,6 +33,22 @@ class UploadQueue extends Table {
   DateTimeColumn get nextAttemptAt => dateTime().nullable()();
   DateTimeColumn get createdAt => dateTime()();
 
+  // ---- versi 2 (Bab 8.5) — keterangan bukti yang ikut ke watermark ----
+  //
+  // Semuanya disimpan **saat merekam**, bukan diambil ulang saat memproses
+  // atau saat mengunggah. Gudang sering tanpa sinyal, dan nilai yang benar
+  // adalah nilai yang berlaku pada hari kejadian — bukan yang berlaku saat
+  // videonya kebetulan berhasil terkirim.
+  TextColumn get shopName => text().withDefault(const Constant(''))();
+  DateTimeColumn get scanTime => dateTime().nullable()();
+  BoolColumn get timeVerified =>
+      boolean().withDefault(const Constant(true))();
+  DateTimeColumn get deviceStartedAt => dateTime().nullable()();
+  IntColumn get durationSeconds => integer().withDefault(const Constant(0))();
+  RealColumn get lat => real().nullable()();
+  RealColumn get lng => real().nullable()();
+  RealColumn get locationAccuracyM => real().nullable()();
+
   @override
   Set<Column> get primaryKey => {videoId};
 }
@@ -43,7 +59,30 @@ class UploadQueueDatabase extends _$UploadQueueDatabase {
       : super(executor ?? driftDatabase(name: 'kamelscan_queue'));
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  /// 🔴 Tabel ini **tidak boleh dibuat ulang** saat versinya naik.
+  ///
+  /// Isinya adalah satu-satunya jejak video bukti yang belum terkirim. Packer
+  /// yang memperbarui aplikasi sementara 20 video masih mengantre akan
+  /// kehilangan bukti pelanggannya secara permanen bila tabelnya dihapus dan
+  /// dibuat ulang — dan itu tepat keadaan yang paling tidak boleh terjadi.
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (m) => m.createAll(),
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            await m.addColumn(uploadQueue, uploadQueue.shopName);
+            await m.addColumn(uploadQueue, uploadQueue.scanTime);
+            await m.addColumn(uploadQueue, uploadQueue.timeVerified);
+            await m.addColumn(uploadQueue, uploadQueue.deviceStartedAt);
+            await m.addColumn(uploadQueue, uploadQueue.durationSeconds);
+            await m.addColumn(uploadQueue, uploadQueue.lat);
+            await m.addColumn(uploadQueue, uploadQueue.lng);
+            await m.addColumn(uploadQueue, uploadQueue.locationAccuracyM);
+          }
+        },
+      );
 }
 
 /// Implementasi Android/iOS di atas drift.
@@ -96,6 +135,52 @@ class MobileLocalDbService implements LocalDbService {
           ..limit(limit);
         final rows = await query.get();
         return rows.map(_toModel).toList();
+      });
+
+  @override
+  Future<Result<List<UploadTask>>> tasksToProcess({int limit = 5}) =>
+      _guard(() async {
+        final now = DateTime.now();
+        final query = _database.select(_database.uploadQueue)
+          ..where(
+            (t) =>
+                t.status.equals(UploadTaskStatus.pendingProcess.wire) &
+                (t.nextAttemptAt.isNull() |
+                    t.nextAttemptAt.isSmallerOrEqualValue(now)),
+          )
+          // Yang paling lama menunggu dikerjakan lebih dulu: berkas mentahnya
+          // yang paling lama menempati penyimpanan HP.
+          ..orderBy([(t) => OrderingTerm.asc(t.createdAt)])
+          ..limit(limit);
+        final rows = await query.get();
+        return rows.map(_toModel).toList();
+      });
+
+  @override
+  Future<Result<void>> markProcessed(
+    String videoId, {
+    required String localPath,
+    required int bytesTotal,
+    required int durationSeconds,
+    String? thumbnailPath,
+  }) =>
+      _guard(() async {
+        await (_database.update(_database.uploadQueue)
+              ..where((t) => t.videoId.equals(videoId)))
+            .write(
+          UploadQueueCompanion(
+            localPath: Value(localPath),
+            bytesTotal: Value(bytesTotal),
+            durationSeconds: Value(durationSeconds),
+            thumbnailPath: Value(thumbnailPath),
+            status: Value(UploadTaskStatus.queued.wire),
+            // Percobaan watermark yang gagal tidak boleh ikut terhitung
+            // sebagai percobaan unggah — keduanya punya jatah sendiri.
+            attempts: const Value(0),
+            lastError: const Value(null),
+            nextAttemptAt: const Value(null),
+          ),
+        );
       });
 
   @override
@@ -202,6 +287,14 @@ class MobileLocalDbService implements LocalDbService {
         lastError: Value(t.lastError),
         nextAttemptAt: Value(t.nextAttemptAt),
         createdAt: Value(t.createdAt),
+        shopName: Value(t.shopName),
+        scanTime: Value(t.scanTime),
+        timeVerified: Value(t.timeVerified),
+        deviceStartedAt: Value(t.deviceStartedAt),
+        durationSeconds: Value(t.durationSeconds),
+        lat: Value(t.lat),
+        lng: Value(t.lng),
+        locationAccuracyM: Value(t.locationAccuracyM),
       );
 
   UploadTask _toModel(UploadQueueData row) => UploadTask(
@@ -221,6 +314,14 @@ class MobileLocalDbService implements LocalDbService {
         thumbnailPath: row.thumbnailPath,
         lastError: row.lastError,
         nextAttemptAt: row.nextAttemptAt,
+        shopName: row.shopName,
+        scanTime: row.scanTime,
+        timeVerified: row.timeVerified,
+        deviceStartedAt: row.deviceStartedAt,
+        durationSeconds: row.durationSeconds,
+        lat: row.lat,
+        lng: row.lng,
+        locationAccuracyM: row.locationAccuracyM,
       );
 }
 

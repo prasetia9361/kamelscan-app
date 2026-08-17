@@ -127,7 +127,7 @@ class _SetupBody extends ConsumerWidget {
             ],
           ),
         ),
-        _StartBar(setup: setup),
+        _StartBar(setup: setup, shops: data.shops),
       ],
     );
   }
@@ -330,9 +330,14 @@ class _ShopPicker extends StatelessWidget {
 /// Bab 9.10 melarang tombol abu-abu tanpa penjelasan — pengguna harus tahu apa
 /// yang kurang, bukan menebak.
 class _StartBar extends StatelessWidget {
-  const _StartBar({required this.setup});
+  const _StartBar({required this.setup, required this.shops});
 
   final RecordingSetup setup;
+
+  /// Dibawa hanya untuk mengambil **nama** toko yang dipilih: watermark
+  /// memerlukannya, dan di gudang tanpa sinyal nama itu tidak dapat ditanyakan
+  /// lagi ke server saat videonya diproses (Bab 8.5).
+  final List<Shop> shops;
 
   @override
   Widget build(BuildContext context) {
@@ -374,6 +379,13 @@ class _StartBar extends StatelessWidget {
                             cameraName: setup.cameraId!,
                             triggerWire: setup.triggerMode!.wire,
                             shopId: setup.shopId!,
+                            // "Shopee · Toko Kamel" — Bab 8.5 menampilkan
+                            // marketplace beserta nama tokonya di watermark.
+                            shopName: shops
+                                    .where((s) => s.id == setup.shopId)
+                                    .map((s) => s.displayName)
+                                    .firstOrNull ??
+                                '',
                           ),
                         )
                     : null,

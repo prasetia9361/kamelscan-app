@@ -306,6 +306,8 @@
   "recordRemainingLabel": "sisa {seconds} detik",
   "@recordRemainingLabel": {"placeholders": {"seconds": {"type": "int"}}},
   "recordPreparing": "Menyiapkan kamera…",
+  "recordQueueBadge": "{count} di antrean",
+  "@recordQueueBadge": {"placeholders": {"count": {"type": "int"}}},
   "recordProcessing": "Memproses video…",
   "accountLogout": "Keluar",
   "accountLogoutConfirmTitle": "Keluar dari akun?",
@@ -313,5 +315,9 @@
   "accountLogoutPendingWarning": "{count, plural, other{Ada {count} video belum terunggah. Tetap keluar?}}",
   "@accountLogoutPendingWarning": {"placeholders": {"count": {"type": "int"}}},
   "accountLogoutPendingBody": "Video yang belum terkirim tetap tersimpan di perangkat ini dan dilanjutkan saat Anda masuk lagi dengan akun yang sama.",
-  "accountLogoutBusy": "Sedang keluar…"
+  "accountLogoutBusy": "Sedang keluar…",
+  "accountUploadCellularTitle": "Unggah lewat data seluler",
+  "accountUploadCellularBody": "Saat mati, video hanya dikirim ketika ada Wi-Fi. Menyalakannya memakai kuota data HP ini.",
+  "accountUploadCellularWaiting": "{count, plural, other{{count} video menunggu Wi-Fi}}",
+  "@accountUploadCellularWaiting": {"placeholders": {"count": {"type": "int"}}}
 }

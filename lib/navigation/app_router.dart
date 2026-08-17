@@ -109,6 +109,7 @@ GoRouter appRouter(Ref ref) {
                   cameraName: q['camera'] ?? '',
                   triggerWire: q['mode'] ?? TriggerMode.qrCode.wire,
                   shopId: q['shop'] ?? '',
+                  shopName: q['shop_name'] ?? '',
                 );
               },
             ),

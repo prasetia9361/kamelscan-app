@@ -98,7 +98,7 @@ ofggpithmvgnhsshglwx`, dengan `$env:SUPABASE_ACCESS_TOKEN` dari `dataapp.md`.
 
 **Bab 0–4** — arsitektur MVVM, 130 tes lulus, `analyze` bersih.
 
-**Bab 5** — 18 migrasi terpasang. RLS diuji dua tenant lewat JWT asli:
+**Bab 5** — 20 migrasi terpasang. RLS diuji dua tenant lewat JWT asli:
 kebocoran nol, kenaikan role ditolak `42501`.
 
 **Bab 6** — registrasi, verifikasi email (Resend), login email + Google,
@@ -121,6 +121,67 @@ terbukti di database: 100 → 99.
 
 **Sebagian Bab 8.7** — Edge Function `get-upload-url`, upload R2 terbukti
 HTTP 200.
+
+## Bab 8.5–8.7 — ditulis 17 Agustus 2026, BELUM diuji di perangkat
+
+🔴 **Bacalah kalimat di atas apa adanya.** Kodenya lengkap, `analyze` bersih,
+dan 168 tes lulus — tetapi belum satu pun video sungguhan melewati jalur ini di
+HP. HP tidak tersambung saat pekerjaan ini dikerjakan.
+
+Yang sudah ada:
+
+- **Waktu server** (`core/domain/time_sync.dart` + `core/services/server_clock.dart`)
+  — waktu watermark dihitung dari penghitung sejak-HP-menyala, tidak pernah
+  dengan mengurangi jam HP. Migrasi `19_server_time.sql` menambah `server_now()`
+  dan kolom `package_videos.time_verified`; keduanya sudah terpasang dan
+  terverifikasi di database sungguhan.
+- **Antrean watermark** (`core/workers/video_processing_queue.dart`) — satu
+  FFmpeg pada satu waktu, dijeda selama merekam, berkas mentah dihapus hanya
+  setelah hasil olahannya aman.
+- **Antrian upload** — tabel drift naik ke versi 2 (nama toko, waktu, GPS,
+  `time_verified`) dengan migrasi, bukan dibuat ulang.
+- **Unggah R2** (`core/services/r2_storage_service.dart` +
+  `core/workers/upload_queue_runner.dart`) — sisip baris, presigned URL, PUT,
+  tandai `uploaded`, hapus berkas lokal, backoff, resi ganda jadi `duplicate`.
+
+Sudah dibuktikan tanpa perlu memasang aplikasi:
+
+- **Migrasi 19 terpasang** — kolom `time_verified` ada, `server_now()` menjawab.
+- **`server_now()` lewat JWT pengguna sungguhan** → `2026-08-17T09:18:27+00:00`,
+  tepat sama dengan jam sebenarnya; dipanggil sebagai anon ditolak `42501`.
+- **`/proc/uptime` TIDAK dapat dibaca aplikasi di Redmi Note 9.** MIUI memasang
+  `/proc` dengan `hidepid=2`. Rencana tanpa-native gugur, dan penghitungnya
+  diganti `SystemClock.elapsedRealtime()` lewat `MethodChannel` di
+  `MainActivity.kt`. Rinciannya di `DEVIASI_LIBRARY.md` bagian L.1.
+
+### Diuji di perangkat 17 Agustus 2026 (Redmi Note 9, profile)
+
+1. ✅ **Saluran `elapsedRealtime` menjawab.** Logcat berbunyi *"sejak HP menyala
+   (elapsedRealtime, boot_id=…)"*, bukan *"Stopwatch"*.
+2. ✅ **Rasio watermark diukur di profile:** 0,42x sendirian; **0,61–0,81x saat
+   beruntun**. Pakai angka yang beruntun untuk merencanakan. Penyusutan berkas
+   16,5 MB → 1,0 MB.
+3. ✅ **Satu video sampai di R2 lewat aplikasi.** Diperiksa di database:
+   `status = uploaded`, `time_verified = true`, 1.034.380 byte, 30 detik.
+   ⚠️ **Pemotongan tokennya belum diperiksa** — tinggal itu saja yang kurang
+   dari butir ini.
+4. ⛔ **Unggah di latar belakang** (`uploadCallbackDispatcher`) — belum pernah
+   dijalankan. Sesi Supabase harus pulih di isolate itu.
+
+Dua cacat ditemukan dan diperbaiki dalam pengujian ini; keduanya di
+`DEVIASI_LIBRARY.md` **bagian L.9** dan wajib dibaca sebelum menyentuh
+`ServerClock` atau `uploadPipeline`.
+
+🔴 **Isi watermark-nya sendiri belum pernah dilihat siapa pun.** Log membuktikan
+FFmpeg berjalan dan berkasnya jadi, bukan bahwa nama toko, jam, dan nomor resi
+terbaca di gambar. Berkasnya ada di R2 —
+`kamelscan-videos/tenant/…/2026/08/….mp4` — dan paling mudah dibuka lewat
+dasbor Cloudflare. **Jangan menyebut Bab 8.5 selesai sebelum ini dilihat.**
+
+⚠️ Pemasangan lewat `adb install` **ditolak MIUI** pada 17 Agustus 2026
+(`INSTALL_FAILED_USER_RESTRICTED`) padahal HP punya internet — tidak ada yang
+menekan *Izinkan* di layar HP. Pengujian di perangkat menunggu Product Owner
+memegang HP-nya, atau menjalankan `.\run.ps1 -Profile` sendiri.
 
 ## Keputusan Product Owner yang WAJIB dipatuhi
 
@@ -147,6 +208,20 @@ yang sama berkali-kali dan membakar token pelanggan.
 **3. Arsitektur kamera:** `camera` + `google_mlkit_barcode_scanning` satu-satunya
 pemilik kamera. `mobile_scanner` tidak dapat berbagi kamera, dan
 `startImageStream` melempar error bila perekaman sudah berjalan.
+
+**4–6. Diputuskan 17 Agustus 2026** (pipeline Bab 8.5–8.7):
+
+| # | Perkara | Keputusan |
+|---|---|---|
+| 4 | Tanda *waktu belum terverifikasi* | Kolom `package_videos.time_verified` **dan** metadata berkas. Tambahan lingkup ± 1 jam, disetujui. Ikut terbakar ke gambar sebagai *"(waktu belum terverifikasi)"*. |
+| 5 | Sakelar "unggah lewat data seluler" | Disimpan di HP (`SharedPreferences`), bukan di server — preferensi milik satu perangkat. |
+| 6 | Kapan FFmpeg berjalan | **Di sela antar-paket**, satu per satu, dijeda saat merekam. Bukan setelah keluar layar rekam (50 paket = ± 795 MB rekaman mentah menumpuk). |
+
+**Keputusan 5 sudah tuntas 17 Agustus 2026:** sakelarnya dipasang lebih awal di
+halaman **Akun** (`CellularUploadSwitch`), tepat di atas tombol Keluar, karena
+tanpa layar untuk menyalakannya antrian unggah tidak dapat diuji sama sekali di
+perangkat yang hanya punya sinyal seluler. Pindahkan ke Pengaturan begitu
+Bab 9.7 dikerjakan.
 
 ## Tugas worktree ini: Bab 8.5, 8.6, 8.7
 
@@ -293,8 +368,11 @@ Penyebab sebenarnya: widget dibangun ulang tiap detak pencatat waktu (jebakan
 ## Penyangga jadwal
 
 Bab 0.2 mewajibkan tiap penambahan lingkup disertai pengurangan setara atau
-geser tanggal. Penyangga **minus ± 5 jam**. Beri tahu saya setiap kali ada
-tambahan baru; jangan diam-diam menyerapnya.
+geser tanggal. Penyangga **minus ± 7 jam** — bertambah 1 jam pada 17 Agustus
+2026 dari kolom `time_verified` beserta migrasinya (keputusan 4 di atas), lalu
+1 jam lagi pada hari yang sama dari sakelar data seluler yang dipasang awal
+(keputusan 5). Beri tahu saya setiap kali ada tambahan baru; jangan diam-diam
+menyerapnya.
 
 Satu utang teknis tercatat dan **sengaja ditunda**: menambal
 `camera_android_camerax` (akar kedipan peralihan). Alasannya di

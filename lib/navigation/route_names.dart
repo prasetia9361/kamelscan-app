@@ -60,10 +60,14 @@ class Routes {
   /// Alasannya bukan gaya: `extra` hilang begitu aplikasi di-restart atau rute
   /// dipulihkan, dan layar kamera akan terbuka tanpa tahu kamera, mode, maupun
   /// toko mana yang dipilih — lalu gagal dengan cara yang membingungkan.
+  /// [shopName] ikut dibawa karena watermark memerlukannya (Bab 8.5) dan
+  /// gudang sering tanpa sinyal — menanyakannya ulang ke server saat memproses
+  /// video akan gagal justru di tempat aplikasi ini dipakai.
   static String recordCameraOf({
     required String cameraName,
     required String triggerWire,
     required String shopId,
+    String shopName = '',
   }) =>
       Uri(
         path: recordCamera,
@@ -71,6 +75,7 @@ class Routes {
           'camera': cameraName,
           'mode': triggerWire,
           'shop': shopId,
+          if (shopName.isNotEmpty) 'shop_name': shopName,
         },
       ).toString();
 

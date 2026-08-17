@@ -303,6 +303,8 @@
   "recordRemainingLabel": "{seconds} seconds left",
   "@recordRemainingLabel": {"placeholders": {"seconds": {"type": "int"}}},
   "recordPreparing": "Preparing the camera…",
+  "recordQueueBadge": "{count} in queue",
+  "@recordQueueBadge": {"placeholders": {"count": {"type": "int"}}},
   "recordProcessing": "Processing video…",
   "accountLogout": "Log out",
   "accountLogoutConfirmTitle": "Log out of this account?",
@@ -310,5 +312,9 @@
   "accountLogoutPendingWarning": "{count, plural, other{{count} videos have not been uploaded yet. Log out anyway?}}",
   "@accountLogoutPendingWarning": {"placeholders": {"count": {"type": "int"}}},
   "accountLogoutPendingBody": "Unsent videos stay on this device and resume when you sign in again with the same account.",
-  "accountLogoutBusy": "Logging out…"
+  "accountLogoutBusy": "Logging out…",
+  "accountUploadCellularTitle": "Upload over mobile data",
+  "accountUploadCellularBody": "While off, videos are sent only on Wi-Fi. Turning it on uses the data allowance of this phone.",
+  "accountUploadCellularWaiting": "{count, plural, other{{count} videos waiting for Wi-Fi}}",
+  "@accountUploadCellularWaiting": {"placeholders": {"count": {"type": "int"}}}
 }

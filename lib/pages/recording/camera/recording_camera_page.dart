@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/models/enums.dart';
 import '../../../core/providers/repository_providers.dart';
+import '../../../core/providers/upload_queue_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/formatters.dart';
@@ -29,11 +30,16 @@ class RecordingCameraPage extends ConsumerStatefulWidget {
     required this.cameraName,
     required this.triggerWire,
     required this.shopId,
+    this.shopName = '',
   });
 
   final String cameraName;
   final String triggerWire;
   final String shopId;
+
+  /// Nama toko untuk watermark (Bab 8.5). Dibawa dari layar setup karena
+  /// gudang sering tanpa sinyal.
+  final String shopName;
 
   @override
   ConsumerState<RecordingCameraPage> createState() =>
@@ -52,6 +58,7 @@ class _RecordingCameraPageState extends ConsumerState<RecordingCameraPage> {
         widget.cameraName,
         widget.triggerWire,
         widget.shopId,
+        widget.shopName,
       );
 
   /// 🔴 Dibuat **sekali** dan dipakai ulang — jangan diubah jadi konstruksi
@@ -111,6 +118,7 @@ class _RecordingCameraPageState extends ConsumerState<RecordingCameraPage> {
           cameraName: widget.cameraName,
           triggerWire: widget.triggerWire,
           shopId: widget.shopId,
+          shopName: widget.shopName,
           child: state.fatalKey != null
             ? _FatalView(messageKey: state.fatalKey!)
             : Stack(
@@ -369,6 +377,49 @@ class _Preview extends ConsumerWidget {
 }
 
 /// Nomor resi besar, penghitung durasi, dan peringatan izin.
+/// Berapa video yang masih menunggu watermark atau unggahan.
+///
+/// Bab 8.5 meminta indikator *"Memproses video…"* selama FFmpeg berjalan agar
+/// layar tidak membeku tanpa penjelasan. Di sini layarnya memang tidak pernah
+/// membeku — watermark dikerjakan di sela antar-paket — sehingga yang
+/// dibutuhkan bukan panel penghalang, melainkan angka kecil yang menjawab
+/// pertanyaan yang benar-benar dimiliki packer: *"video saya sudah terkirim
+/// belum?"*
+///
+/// Hilang dengan sendirinya begitu antreannya habis.
+class _QueueBadge extends ConsumerWidget {
+  const _QueueBadge();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final count = ref.watch(pendingUploadCountProvider).value ?? 0;
+    if (count == 0) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSizes.spaceSm,
+        vertical: 4,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white24,
+        borderRadius: BorderRadius.circular(AppSizes.radiusFull),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.cloud_upload_outlined,
+              size: 14, color: Colors.white),
+          const SizedBox(width: 4),
+          Text(
+            context.l10n.recordQueueBadge(count),
+            style: const TextStyle(color: Colors.white, fontSize: 12),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _TopBar extends StatelessWidget {
   const _TopBar({required this.state});
 
@@ -425,8 +476,11 @@ class _TopBar extends StatelessWidget {
                 const SizedBox(width: AppSizes.spaceSm),
               ],
               const Spacer(),
-              if (state.isRecording)
+              const _QueueBadge(),
+              if (state.isRecording) ...[
+                const SizedBox(width: AppSizes.spaceSm),
                 _Countdown(state: state, warning: colors.warning),
+              ],
             ],
           ),
           if (headline.isNotEmpty)
@@ -875,24 +929,31 @@ class _RecordingScope extends InheritedWidget {
     required this.cameraName,
     required this.triggerWire,
     required this.shopId,
+    required this.shopName,
     required super.child,
   });
 
   final String cameraName;
   final String triggerWire;
   final String shopId;
+  final String shopName;
 
   static _RecordingScope of(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<_RecordingScope>()!;
 
   RecordingCameraViewModel notifier(WidgetRef ref) => ref.read(
-        recordingCameraViewModelProvider(cameraName, triggerWire, shopId)
-            .notifier,
+        recordingCameraViewModelProvider(
+          cameraName,
+          triggerWire,
+          shopId,
+          shopName,
+        ).notifier,
       );
 
   @override
   bool updateShouldNotify(_RecordingScope old) =>
       old.cameraName != cameraName ||
       old.triggerWire != triggerWire ||
-      old.shopId != shopId;
+      old.shopId != shopId ||
+      old.shopName != shopName;
 }

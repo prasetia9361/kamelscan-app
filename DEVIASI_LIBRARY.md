@@ -665,3 +665,248 @@ perbaikan ini, jadi angkanya tercemar beban gambar ulang. Bila keputusan
 ⚠️ Pengukur itu juga memanggil FFmpeg dengan `unawaited` tanpa antrean,
 sehingga beberapa proses berjalan bersamaan saat merekam beruntun. Bab 8.5
 yang sungguhan wajib berurutan satu per satu.
+
+---
+
+## L. Pipeline Bab 8.5–8.7: watermark, antrian, unggah
+
+**Dikerjakan 17 Agustus 2026.** Bagian ini mencatat keputusan yang tidak
+terbaca dari kodenya sendiri.
+
+### L.1 Waktu watermark saat perangkat offline
+
+Bab 8.5 mensyaratkan **waktu server**, sedangkan produk ini offline-first.
+Aturan yang diputuskan Product Owner 16 Agustus 2026 diterapkan di
+`core/domain/time_sync.dart` (murni, teruji tanpa perangkat) dan dijalankan
+`core/services/server_clock.dart`.
+
+Intinya satu kalimat: **waktu watermark = waktu server terakhir + berapa lama
+berlalu menurut penghitung yang tidak dapat diubah pengguna.** Tidak ada satu
+baris pun yang mengurangi jam HP; kalau ada, memundurkan jam perangkat akan
+menggeser waktu di seluruh video sesudahnya.
+
+Penghitungnya dicari berjenjang di `monotonic_source_mobile.dart`:
+
+| Tingkat | Sumber | Bertahan setelah |
+|---|---|---|
+| 1 | `SystemClock.elapsedRealtime()` (native) + `boot_id` | aplikasi ditutup |
+| 2 | `Stopwatch` (jam monotonic Dart) | — hanya seumur aplikasi |
+
+🔴 **Keduanya dipakai bersama, dan itu bukan kelebihan.** Penghitung sejak-boot
+sendirian kembali ke nol setiap HP dinyalakan ulang. Bila kebetulan HP sudah
+menyala lebih lama daripada bacaan yang tersimpan, titik acuan lama akan tampak
+masih sah dan waktunya meleset berjam-jam **tanpa satu pun gejala**. `boot_id`
+berganti tiap boot, sehingga kekeliruan itu mustahil.
+
+Bila keduanya tidak terbaca, aplikasi turun ke `Stopwatch` dan — setelah
+ditutup lalu dibuka lagi tanpa sinyal — **menandai videonya
+`time_verified = false`** alih-alih diam-diam memakai jam HP. Videonya tetap
+direkam (aturan 4 Product Owner).
+
+#### Kenapa ada kode Kotlin di `MainActivity` — rencana pertama gagal di perangkat
+
+Rancangan semula sengaja menghindari kode native dengan membaca `/proc/uptime`,
+berkas biasa yang di Linux dapat dibaca siapa pun. **Diuji lebih dulu sebelum
+kode besar ditulis di atasnya, dan ternyata tidak bisa** (Redmi Note 9, MIUI,
+17 Agustus 2026):
+
+```
+$ adb shell cat /proc/mounts | grep -w proc
+proc /proc proc rw,relatime,gid=3009,hidepid=2 0 0
+
+$ adb shell run-as id.kamelscan.app cat /proc/uptime
+cat: /proc/uptime: Permission denied
+$ adb shell run-as id.kamelscan.app cat /proc/stat
+cat: /proc/stat: Permission denied
+$ adb shell run-as id.kamelscan.app cat /proc/sys/kernel/random/boot_id
+e1dfb6e7-a33b-412c-861a-6c88dfeea1c1
+```
+
+MIUI memasang `/proc` dengan `hidepid=2`; dari seluruh berkas yang dicoba,
+hanya `boot_id` yang lolos. Karena itu angka waktunya kini datang dari
+`SystemClock.elapsedRealtime()` lewat `MethodChannel`
+(`id.kamelscan.app/monotonic`) — API Android yang memang dirancang untuk ini:
+menghitung sejak HP menyala termasuk saat tidur, tanpa izin apa pun, dan tidak
+terpengaruh perubahan jam.
+
+⚠️ **iOS belum punya sisi nativenya** dan akan turun ke `Stopwatch`. Untuk MVP
+Android hal itu tidak menghalangi; saat iOS digarap, tambahkan
+`ProcessInfo.processInfo.systemUptime` pada saluran yang sama.
+
+⚠️ **Yang mana yang berlaku di perangkat wajib dibaca, bukan diasumsikan:**
+
+```
+adb logcat -v time | findstr KAMELSCAN_WAKTU
+```
+
+### L.2 Tanda `time_verified` — penambahan lingkup yang disetujui
+
+Disetujui Product Owner 17 Agustus 2026, ± 1 jam. Tiga tempat:
+
+1. kolom `package_videos.time_verified` (migrasi `19_server_time.sql`),
+2. metadata berkas video (`time_verified=0|1`, selalu ditulis),
+3. **terbakar ke gambar** sebagai *"(waktu belum terverifikasi)"* di baris jam.
+
+Nomor 3 sengaja: berkas video beredar lepas dari aplikasi, dan orang yang
+membacanya saat sengketa harus tahu seberapa jauh jam itu boleh dipercaya
+tanpa perlu membuka database siapa pun.
+
+### L.3 FFmpeg dijadwalkan di sela antar-paket
+
+Diputuskan Product Owner 17 Agustus 2026. `VideoProcessingQueue` mengerjakan
+**satu** video pada satu waktu dan dijeda seluruhnya selama merekam; pekerjaan
+yang sedang berjalan **dibatalkan** saat perekaman dimulai, lalu diulang dari
+berkas mentahnya yang masih utuh.
+
+Pembatalan itu sengaja **tidak** menghabiskan jatah percobaan. Tanpa aturan
+tersebut, packer yang memindai paket berikutnya dengan cepat akan membuat video
+sebelumnya dianggap gagal lima kali dan berhenti diproses.
+
+Alternatif "kerjakan semua setelah keluar layar rekam" ditolak: 50 paket berarti
+± 795 MB rekaman mentah menumpuk selama sesi.
+
+⚠️ Angka rasio lama (0,58x–1,20x) diambil sebelum perbaikan bagian K dan
+**tercemar**. Pengukuran ulang di perangkat masih menjadi pekerjaan terbuka.
+
+### L.4 Satu kolom `localPath`, bukan dua
+
+Selama status `pending_process` isinya rekaman mentah; setelah watermark
+ditempelkan ia berganti menjadi hasil prosesnya, dan yang mentah dihapus. Satu
+kolom dipilih agar tidak pernah ada keraguan berkas mana yang akan diunggah.
+
+🔴 Urutannya tidak boleh dibalik: berkas mentah **baru** dihapus setelah hasil
+olahannya ada di disk **dan** sudah tercatat di antrian. Bila pencatatannya
+gagal, yang dihapus justru hasil prosesnya — yang mentah masih dapat diolah
+ulang, sedangkan rekaman yang hilang tidak dapat dibuat ulang.
+
+Hasil proses disimpan di `getApplicationSupportDirectory()/videos`, **bukan**
+cache: cache boleh dibuang sistem operasi kapan saja, dan isinya di sini adalah
+bukti pelanggan yang belum terkirim.
+
+### L.5 Baris `package_videos` dibuat saat mengunggah, bukan saat merekam
+
+Edge Function `get-upload-url` menolak video yang barisnya belum ada, sedangkan
+perekaman terjadi di gudang tanpa sinyal. Karena itu barisnya disisipkan pada
+langkah pertama proses unggah (`VideoRepository.ensureVideoRow`).
+
+⚠️ `23505` di titik itu berarti **dua hal yang berbeda**: barisnya sudah kita
+buat pada percobaan sebelumnya yang putus, atau resinya memang sudah pernah
+direkam (Bab 7.7). Yang pertama dilanjutkan, yang kedua ditandai `duplicate`.
+Menyamakan keduanya berarti membuang video pelanggan.
+
+### L.6 Kuota habis bukan kegagalan unggah
+
+Kuota token habis dan langganan berakhir adalah keadaan **milik tenant**.
+Menghabiskan jatah 5 percobaan karenanya akan membuang video yang sebenarnya
+baik-baik saja begitu Owner mengisi token. Keduanya menjadwalkan ulang
+1 jam kemudian tanpa menambah hitungan percobaan.
+
+### L.7 Sakelar "unggah lewat data seluler" disimpan di perangkat
+
+Diputuskan Product Owner 17 Agustus 2026: `SharedPreferences`, bukan kolom di
+`user_settings`. Alasannya bukan penghematan migrasi — ini preferensi milik
+**satu HP**, dan packer berkuota terbatas tidak seharusnya terikat pilihan
+packer yang memakai HP kantor.
+
+**Sakelarnya dipasang lebih awal di halaman Akun** — diputuskan Product Owner
+17 Agustus 2026, setelah keadaan tanpa-layar terbukti memblokir pengujian:
+perangkat uji hanya punya sinyal seluler (HP-nya dipakai sebagai hotspot untuk
+laptop), enam video menumpuk di antrian, dan tidak ada satu pun cara
+mengeluarkannya. `CellularUploadSwitch` berada tepat di atas tombol Keluar.
+
+Pindahkan ke Pengaturan begitu Bab 9.7 dikerjakan. Nilainya sendiri ada di
+`SharedPreferences`, jadi kepindahan itu tidak menghilangkan pilihan pengguna.
+Tambahan lingkup ± 1 jam, dilaporkan sesuai Bab 0.2.
+
+### L.8 Unggah di latar belakang belum diuji di perangkat
+
+`uploadCallbackDispatcher` kini benar-benar berisi alur unggah, bukan lagi
+`return true` kosong. Dua hal yang wajib diperiksa saat mengujinya:
+
+1. sesi Supabase harus pulih di isolate itu — bila tidak, seluruh permintaan
+   ditolak 401 dan antrian menghabiskan jatah percobaannya tanpa sebab yang
+   terlihat pengguna;
+2. dua koneksi drift ke berkas SQLite yang sama (aplikasi + isolate) dapat
+   saling mengunci.
+
+Token tidak akan terpotong dua kali walau keduanya berjalan bersamaan: trigger
+`after_video_uploaded` hanya bereaksi pada **perubahan** status ke `uploaded`.
+
+Jalur utama tetap aplikasi yang sedang terbuka — dipicu saat dibuka, saat sesi
+pengguna siap, dan tiap kali jaringan kembali (`uploadPipelineProvider`).
+
+### L.9 Sinkronisasi waktu berjalan sebelum sesi login pulih
+
+**Ditemukan di perangkat 17 Agustus 2026. Satu sesi uji penuh terbuang.**
+
+Gejalanya: enam video keluar dari pipeline dengan `time_verified = false`, dan
+`adb logcat` tidak memuat satu pun baris yang menjelaskan sebabnya.
+
+Dua cacat yang bertumpuk, dan yang kedua menyembunyikan yang pertama:
+
+**1. `sync()` dipanggil terlalu dini.** `uploadPipelineProvider` dihidupkan di
+build pertama `KamelScanApp` ([`app.dart`](lib/app.dart)), saat sesi Supabase
+belum pulih dari penyimpanan. `server_now()` pun terpanggil sebagai anon dan
+ditolak — persis perilaku yang sudah tercatat benar di L.1:
+
+```
+PostgrestException(message: permission denied for function server_now,
+                   code: 42501, details: Unauthorized)
+```
+
+Sesudah itu satu-satunya pemicu coba-lagi adalah **pergantian jaringan**. HP
+yang menyala di satu jaringan yang sama sepanjang sesi tidak pernah memicunya,
+sehingga titik acuan waktu tidak pernah terisi dan **seluruh** video sesi itu
+ditandai belum terverifikasi.
+
+Perbaikannya: `ref.listen(sessionProvider, …)` di `uploadPipeline` —
+sinkronisasi diulang begitu sesi pengguna siap.
+
+**2. Kegagalannya senyap.** Seluruh jalur gagal di `ServerClock.sync()` hanya
+memakai `AppLogger`, yang memakai `dart:developer` dan **tidak pernah sampai ke
+logcat** (jebakan 11 di `PROMPT_SESI_BARU.md`). Yang tercetak lewat `debugPrint`
+hanya jalur **berhasil**.
+
+🔴 Ini kebalikan dari yang dibutuhkan. Keberhasilan tidak perlu didiagnosis;
+kegagalanlah yang perlu. Aturan untuk seluruh jejak `KAMELSCAN_*` yang
+ditambahkan sesudah ini: **bila jalur berhasilnya dicetak dengan `debugPrint`,
+jalur gagalnya wajib ikut.**
+
+Sesudah keduanya diperbaiki, terbaca di Redmi Note 9 (profile):
+
+```
+KAMELSCAN_WAKTU sinkron GAGAL · PostgrestException(… 42501 …)   12:53:32
+KAMELSCAN_WAKTU sinkron · selisih jam HP 0 detik · sejak HP menyala   12:54:36
+```
+
+Baris pertama adalah percobaan pra-login yang memang gagal, baris kedua
+percobaan ulang sesudah sesi siap. Selisih jam HP **0 detik** — jam perangkat
+uji ini memang tepat, jadi toleransi ±2 menit (aturan 3) belum pernah teruji
+pada jam yang benar-benar meleset.
+
+### L.10 Hasil uji perangkat 17 Agustus 2026 — Redmi Note 9, mode profile
+
+Pipeline berjalan utuh dari rekam sampai R2 untuk pertama kalinya.
+
+**Watermark.** Rasio proses/durasi terbaca **0,42x** (12 detik untuk video 30
+detik), lebih cepat daripada rentang 0,58–0,73x yang tercatat sebelumnya di
+bagian J. Penyusutan berkas 16,5 MB → 1,0 MB.
+
+Pada sesi yang sama, saat enam video antre beruntun, rasionya **0,61x dan
+0,81x**. Ketiganya di bawah 1,0x, jadi antrean tetap terkuras — tetapi selisih
+0,42 ke 0,81 menunjukkan angka satu-video-sendirian **bukan** angka yang layak
+dipakai merencanakan. Pakai yang beruntun.
+
+**Unggah.** Terbukti dari ujung ke ujung:
+
+```
+KAMELSCAN_PIPA Watermark selesai · 12 dtk untuk video 30 dtk (rasio 0.42)
+KAMELSCAN_PIPA Mengunggah 1 video
+KAMELSCAN_PIPA Terunggah · resi=10952ERTY · tenant/…/2026/08/….mp4
+```
+
+Barisnya diperiksa langsung di database: `status = uploaded`,
+`time_verified = true`, `file_size_bytes = 1034380`, `duration_seconds = 30`.
+
+⚠️ Yang **belum** diperiksa pada video ini: pemotongan token, dan isi
+watermark-nya sendiri — belum ada yang membuka berkasnya.

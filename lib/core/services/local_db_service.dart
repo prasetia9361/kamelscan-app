@@ -19,8 +19,24 @@ abstract interface class LocalDbService {
 
   Future<Result<void>> enqueue(UploadTask task);
 
-  /// Tugas yang siap dikerjakan sekarang, terurut dari yang tertua.
+  /// Tugas yang siap **diunggah** sekarang, terurut dari yang tertua.
+  ///
+  /// Rekaman yang watermark-nya belum ditempelkan tidak pernah ikut di sini
+  /// (lihat [UploadTask.needsProcessing]).
   Future<Result<List<UploadTask>>> pendingTasks({int limit = 10});
+
+  /// Rekaman mentah yang menunggu watermark (Bab 8.5), tertua lebih dulu.
+  Future<Result<List<UploadTask>>> tasksToProcess({int limit = 5});
+
+  /// Watermark selesai: berkas mentah berganti menjadi hasil prosesnya dan
+  /// barisnya naik ke antrian unggah.
+  Future<Result<void>> markProcessed(
+    String videoId, {
+    required String localPath,
+    required int bytesTotal,
+    required int durationSeconds,
+    String? thumbnailPath,
+  });
 
   Future<Result<List<UploadTask>>> allTasks();
 
