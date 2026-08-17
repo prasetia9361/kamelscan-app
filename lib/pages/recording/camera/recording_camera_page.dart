@@ -672,28 +672,50 @@ class _StopButtonOverlay extends ConsumerWidget {
 
     if (!visible) return const SizedBox.shrink();
 
+    // Bulat seperti tombol rana kamera — diminta Product Owner 17 Agustus 2026.
+    // Bentuk melebar dengan tulisan "Berhenti" memakan hampir seluruh lebar
+    // layar dan menutupi pandangan ke meja packing, padahal yang dibutuhkan
+    // hanya satu sasaran yang mudah dikenali dan mudah ditekan.
+    //
+    // §0 palet — warna tidak boleh menjadi satu-satunya pembeda makna. Karena
+    // tulisannya dilepas, bentuk kotak berhenti di dalam lingkaran dan cincin
+    // putih di tepinya yang membawa artinya, bukan sekadar warna merahnya.
     return SafeArea(
       child: Align(
         alignment: Alignment.bottomCenter,
         child: Padding(
           padding: const EdgeInsets.only(bottom: AppSizes.spaceLg),
-          child: SizedBox(
-            height: AppSizes.touchComfort + 8,
-            child: FilledButton.icon(
-              style: FilledButton.styleFrom(
-                backgroundColor: colors.danger,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 28),
+          child: Tooltip(
+            message: t.recordStopButton,
+            child: Semantics(
+              button: true,
+              label: t.recordStopButton,
+              child: Material(
+                color: colors.danger,
+                shape: const CircleBorder(
+                  side: BorderSide(color: Colors.white, width: 3),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: () => _onStop(context, ref),
+                  child: const SizedBox(
+                    // 76 dp, jauh di atas ambang Bab 9.10: layar ini dipakai
+                    // sambil memegang paket, kadang dengan sarung tangan.
+                    width: _diameter,
+                    height: _diameter,
+                    child: Icon(Icons.stop_rounded, color: Colors.white, size: 34),
+                  ),
+                ),
               ),
-              onPressed: () => _onStop(context, ref),
-              icon: const Icon(Icons.stop_circle_outlined),
-              label: Text(t.recordStopButton),
             ),
           ),
         ),
       ),
     );
   }
+
+  static const double _diameter = 76;
 
   Future<void> _onStop(BuildContext context, WidgetRef ref) async {
     final t = context.l10n;

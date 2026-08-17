@@ -946,6 +946,15 @@ mata.
 
 ⚠️ Jangan mengembalikan tombolnya ke dalam `_BottomBar`.
 
+**Terbukti muncul** setelah dipindahkan (Redmi Note 9, 17 Agustus 2026). Bentuk
+pertamanya melebar dengan tulisan *"Berhenti"* dan memakan hampir seluruh lebar
+layar — menutupi pandangan ke meja packing. Atas permintaan Product Owner
+diganti **bulat seperti tombol rana kamera**, diameter 76 dp, ikon kotak
+berhenti di tengah dan cincin putih di tepinya.
+
+Cincin dan ikonnya bukan hiasan: tulisannya sudah dilepas, jadi §0 palet
+menuntut ada pembeda selain warna merah.
+
 ### L.9 Sinkronisasi waktu berjalan sebelum sesi login pulih
 
 **Ditemukan di perangkat 17 Agustus 2026. Satu sesi uji penuh terbuang.**
