@@ -28,6 +28,9 @@ pada yang sebelumnya.
 | 15 | `migrations/14_rls.sql` | **Seluruh policy RLS** |
 | 16 | `migrations/15_triggers.sql` | Trigger registrasi, kuota, batas packer |
 | 17 | `migrations/16_cron.sql` | Penjadwalan harian |
+| 18 | `migrations/17_username_check.sql` | RPC ketersediaan username (Bab 6.2) |
+| 19 | `migrations/18_terms_consent.sql` | Catatan persetujuan S&K (Bab 6.2) |
+| 20 | `migrations/19_server_time.sql` | `server_now()` + `package_videos.time_verified` (Bab 8.5) |
 
 Cara termudah: buka **Dashboard → SQL Editor**, tempel isi tiap berkas satu per
 satu, jalankan, pastikan sukses sebelum lanjut ke berikutnya.
@@ -444,3 +447,32 @@ Dijalankan lewat API dengan JWT sungguhan, memakai berkas 200 KB.
 
 Ini pembuktian pertama bahwa seluruh ekonomi token Bab 7 benar-benar berjalan —
 sebelumnya hanya tertulis di trigger tanpa pernah dijalankan.
+
+---
+
+## Waktu server & `time_verified` (migrasi 19, Bab 8.5)
+
+Diterapkan 17 Agustus 2026, terverifikasi langsung di database:
+
+```
+kolom       |  time_verified boolean default true
+server_now  |  2026-08-17 08:13:22.345851+00
+```
+
+**`public.server_now()`** — sumber waktu untuk watermark. `stable`, bukan
+`immutable`: menandainya `immutable` memberi PostgreSQL hak menyimpan hasil
+lamanya, dan sumber waktu yang di-cache adalah sumber waktu yang salah.
+Hak eksekusi hanya untuk `authenticated`.
+
+**`package_videos.time_verified`** — `false` berarti jam pada watermark berasal
+dari jam HP yang belum pernah disinkronkan ke waktu server. Videonya tetap sah
+sebagai bukti; yang tidak dapat dijamin hanyalah jamnya. Bawaannya `true`
+sehingga seluruh baris lama tidak berubah artinya.
+
+⚠️ Jangan bandingkan `time_verified` dengan `scan_date`. `scan_date` **selalu**
+waktu server — diisi trigger `before_video_insert`, bukan oleh perangkat. Yang
+ditandai `time_verified` adalah waktu yang terbakar **ke dalam gambar video**,
+dan itu ditentukan saat merekam, kadang berjam-jam sebelum barisnya ada.
+
+Partial index `idx_videos_time_unverified` membuat video bertanda itu dapat
+disaring tanpa membebani tabel yang isinya hampir seluruhnya `true`.

@@ -4,19 +4,26 @@ import 'dart:io';
 import 'package:camera/camera.dart' show CameraImage;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../core/config/app_constants.dart';
 import '../../../core/domain/recording_machine.dart';
 import '../../../core/domain/scan_gate.dart';
+import '../../../core/domain/time_sync.dart';
 import '../../../core/models/enums.dart';
+import '../../../core/models/upload_task.dart';
+import '../../../core/providers/pipeline_providers.dart';
 import '../../../core/providers/repository_providers.dart';
 import '../../../core/providers/session_provider.dart';
 import '../../../core/providers/theme_provider.dart';
 import '../../../core/services/barcode_frame_reader.dart';
 import '../../../core/services/camera_service.dart';
+import '../../../core/services/location_service.dart';
+import '../../../core/services/storage_service.dart';
 import '../../../core/services/trigger_strategy.dart';
 import '../../../core/utils/logger.dart';
 import '../../../core/utils/validators.dart';
+import '../../../core/workers/video_processing_queue.dart';
 
 part 'recording_camera_view_model.g.dart';
 
@@ -72,9 +79,11 @@ class DuplicateResi {
 
 /// Hasil satu sesi rekam yang sudah selesai.
 ///
-/// ⚠️ [path] masih berkas **mentah** dari kamera. Watermark (Bab 8.5) dan
-/// antrian upload (Bab 8.6) belum dikerjakan; lihat catatan pada
-/// [RecordingCameraViewModel._finish].
+/// ⚠️ [path] dan [sizeBytes] menggambarkan berkas **mentah** apa adanya —
+/// itulah yang baru saja terjadi, dan itulah yang jujur ditampilkan ke packer
+/// saat rekamannya selesai. Watermark menyusul di sela antar-paket dan
+/// menyusutkannya ± 14 kali (Bab 8.5), sehingga angka di layar ini bukan
+/// ukuran berkas yang akhirnya terkirim.
 class FinishedRecording {
   const FinishedRecording({
     required this.resiCode,
@@ -308,6 +317,11 @@ class RecordingCameraViewModel extends _$RecordingCameraViewModel {
   late CameraService _camera;
   late BarcodeFrameReader _reader;
 
+  /// Antrean watermark. Disimpan sebagai medan, bukan dibaca lewat `ref` saat
+  /// dibutuhkan, karena ia juga dipakai di `onDispose` — saat itu provider ini
+  /// sudah dibuang dan `ref` tidak boleh dipakai lagi.
+  late VideoProcessingQueue _processing;
+
   /// Resi yang dialog "sudah pernah direkam"-nya sudah ditutup sekali.
   ///
   /// Label yang sama masih ada di depan kamera setelah dialog ditutup, dan
@@ -355,21 +369,35 @@ class RecordingCameraViewModel extends _$RecordingCameraViewModel {
   bool _saidFinalCountdown = false;
   VoiceLines? _voice;
 
+  /// Waktu mulai rekam menurut [ServerClock] — bukan jam HP. Diambil sekali
+  /// saat perekaman dimulai dan dipakai untuk watermark serta kunci objek R2.
+  TrustedTime? _scanTime;
+
+  /// Koordinat saat perekaman berjalan. `null` bila izin lokasi ditolak;
+  /// video tetap sah (Bab 1.3 poin 6).
+  GeoPoint? _location;
+
   @override
   RecordingScreenState build(
     String cameraName,
     String triggerWire,
     String shopId,
+    String shopName,
   ) {
     _strategy = TriggerStrategy.of(TriggerMode.fromWire(triggerWire));
     _gate = ScanGate(strategy: _strategy);
     _camera = ref.watch(cameraServiceProvider);
     _reader = ref.watch(barcodeFrameReaderProvider);
+    _processing = ref.watch(videoProcessingQueueProvider);
 
     ref.onDispose(() {
       _disposed = true;
       _ticker?.cancel();
       _manualDebounce?.cancel();
+      // Layar rekam ditutup — tidak ada lagi alasan menahan FFmpeg. Tanpa baris
+      // ini, keluar dari layar tepat saat sedang merekam akan membekukan
+      // antrean watermark sampai aplikasi dijalankan ulang.
+      _processing.resume();
     });
 
     unawaited(_bootstrap());
@@ -675,6 +703,19 @@ class RecordingCameraViewModel extends _$RecordingCameraViewModel {
     _startedAt = DateTime.now();
     _saidFinalCountdown = false;
 
+    // 🔴 FFmpeg minggir selama merekam. Pengukuran 15–16 Agustus 2026
+    // membuktikan watermark yang berjalan bersamaan membuat pratinjau
+    // patah-patah dan HP panas (`DEVIASI_LIBRARY.md` bagian J). Pekerjaan yang
+    // sedang berjalan dibatalkan; berkas mentahnya masih utuh dan akan
+    // dikerjakan lagi di sela berikutnya.
+    unawaited(_processing.pause());
+
+    // Waktu dan koordinat diambil di **awal** rekaman, bukan di akhir: itulah
+    // saat paketnya benar-benar ada di depan kamera.
+    _scanTime = await ref.read(serverClockProvider).now();
+    if (_disposed) return;
+    unawaited(_captureLocation());
+
     // 🔴 Memasang perekam menambah pemakai kamera yang ketiga, dan CameraX
     // dapat menjawabnya dengan mengganti bentuk bingkai pratinjau — yang
     // membuat pratinjau miring seperempat putaran bila dibiarkan. Ditanyakan di
@@ -813,17 +854,17 @@ class RecordingCameraViewModel extends _$RecordingCameraViewModel {
     _busy = false;
   }
 
-  /// Berkas mentah sudah tertutup.
+  /// Berkas mentah sudah tertutup — serahkan ke pipeline Bab 8.5–8.7.
   ///
-  /// 🔴 **Di sinilah Bab 8.5 (watermark FFmpeg) dan Bab 8.6 (antrian upload)
-  /// akan disambungkan.** Keduanya belum dikerjakan, jadi untuk sekarang
-  /// berkasnya hanya dilaporkan ke layar apa adanya.
+  /// Yang terjadi setelah baris ini: rekaman masuk antrian lokal dengan status
+  /// `pending_process`, antrean watermark mengerjakannya di sela antar-paket,
+  /// lalu hasilnya diunggah begitu ada Wi-Fi. Berkas mentahnya dihapus segera
+  /// setelah hasil olahannya aman — ± 370–500 KB per detik yang dulu menumpuk
+  /// tanpa pernah hilang.
   ///
-  /// ⚠️ Konsekuensi yang sudah diketahui dan **belum tertangani**: rekaman
-  /// mentah ± 370–500 KB per detik. Selama tahap ini belum ada, berkas mentah
-  /// menumpuk di penyimpanan sementara aplikasi dan tidak pernah dihapus.
-  /// Antrian upload nanti wajib menyimpan berkas **hasil proses**, bukan
-  /// mentah, dan menghapus yang mentah begitu FFmpeg selesai.
+  /// 🔴 Barisnya dicatat di SQLite, bukan hanya di memori. Aplikasi yang
+  /// tertutup di tengah sesi tidak boleh membuat rekaman yang sudah terlanjur
+  /// diambil menjadi berkas yatim yang tidak diketahui siapa pun.
   Future<void> _finish(
     String path,
     String resi,
@@ -836,6 +877,14 @@ class RecordingCameraViewModel extends _$RecordingCameraViewModel {
     } on Object catch (e) {
       _log.w('Ukuran berkas tidak terbaca', e);
     }
+    if (_disposed) return;
+
+    await _enqueueForProcessing(
+      rawPath: path,
+      resi: resi,
+      elapsed: elapsed,
+      sizeBytes: size,
+    );
     if (_disposed) return;
 
     await _rememberResi(resi);
@@ -854,6 +903,79 @@ class RecordingCameraViewModel extends _$RecordingCameraViewModel {
     ));
 
     await _armForNextPackage();
+  }
+
+  /// Masukkan rekaman ke antrian lokal (Bab 8.6).
+  Future<void> _enqueueForProcessing({
+    required String rawPath,
+    required String resi,
+    required Duration elapsed,
+    required int sizeBytes,
+  }) async {
+    final session = ref.read(sessionProvider).value;
+    if (session == null) {
+      // Tidak seharusnya terjadi — layar ini terlindungi route guard. Bila
+      // toh terjadi, berkasnya sengaja **tidak** dihapus: lebih baik ada
+      // rekaman yatim yang dapat diselamatkan manual daripada bukti yang
+      // hilang tanpa jejak.
+      _log.e('Sesi tidak ada saat menyimpan rekaman — berkas dibiarkan '
+          'di $rawPath');
+      return;
+    }
+
+    final scanTime = _scanTime;
+    final videoId = const Uuid().v4();
+    final when = scanTime?.utc ?? DateTime.now().toUtc();
+
+    final task = UploadTask(
+      videoId: videoId,
+      tenantId: session.tenantId,
+      shopId: shopId,
+      userId: session.user.id,
+      resiCode: resi,
+      type: VideoType.packing,
+      localPath: rawPath,
+      storageKey: buildStorageKey(
+        tenantId: session.tenantId,
+        videoId: videoId,
+        scanDate: when,
+      ),
+      createdAt: DateTime.now(),
+      // 🔴 Belum boleh diunggah: yang tersimpan di cloud wajib berkas hasil
+      // proses, bukan rekaman mentah tanpa satu pun keterangan bukti.
+      status: UploadTaskStatus.pendingProcess,
+      shopName: shopName,
+      scanTime: when,
+      timeVerified: scanTime?.verified ?? false,
+      deviceStartedAt: _startedAt,
+      durationSeconds: elapsed.inSeconds,
+      bytesTotal: sizeBytes,
+      lat: _location?.latitude,
+      lng: _location?.longitude,
+      locationAccuracyM: _location?.accuracyMeters,
+    );
+
+    final result = await ref.read(localDbServiceProvider).enqueue(task);
+    if (result.isErr) {
+      _log.e('Rekaman gagal masuk antrian — berkas dibiarkan di $rawPath',
+          result.failureOrNull);
+      return;
+    }
+    _log.i('Rekaman masuk antrian · resi=$resi · '
+        'waktu ${scanTime?.verified ?? false ? 'terverifikasi' : 'BELUM '
+            'terverifikasi'}');
+  }
+
+  /// Koordinat untuk watermark (Bab 8.5).
+  ///
+  /// Dijalankan **berbarengan** dengan perekaman, tidak ditunggu: pembacaan GPS
+  /// bisa memakan sampai 8 detik, dan menunda mulai rekam selama itu berarti
+  /// kehilangan detik-detik pertama yang justru paling penting untuk bukti.
+  Future<void> _captureLocation() async {
+    _location = null;
+    final point = await ref.read(locationServiceProvider).currentPosition();
+    if (_disposed) return;
+    _location = point;
   }
 
   /// Berapa lama ringkasan rekaman terakhir tetap terlihat.
@@ -875,6 +997,11 @@ class RecordingCameraViewModel extends _$RecordingCameraViewModel {
   Future<void> _armForNextPackage() async {
     _gate.reset();
     _startedAt = null;
+
+    // Jeda antar-paket adalah satu-satunya waktu FFmpeg boleh bekerja
+    // (keputusan Product Owner 17 Agustus 2026). Begitu paket berikutnya
+    // dipindai, ia minggir lagi dengan sendirinya.
+    _processing.resume();
 
     _set(state.copyWith(
       machine: RecordingMachine.next(state.machine),

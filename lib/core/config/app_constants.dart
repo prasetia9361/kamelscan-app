@@ -113,6 +113,17 @@ class AppConstants {
 
   /// Bab 8.3.4 — mode Input Manual menyimpan 5 resi terakhir sebagai saran,
   /// membantu saat merekam ulang setelah kegagalan.
+  /// Bab 8.7 langkah 1 — "Unggah juga lewat data seluler".
+  ///
+  /// Disimpan di perangkat, bukan di server: ini preferensi milik satu HP.
+  /// Packer dengan kuota data terbatas tidak seharusnya terikat pilihan packer
+  /// lain yang memakai HP kantor.
+  static const String prefUploadOnCellular = 'pref_upload_on_cellular';
+
+  /// Salinan lokal `tenant_settings` agar watermark tetap sesuai pengaturan
+  /// pelanggan walaupun videonya diproses saat perangkat tanpa sinyal.
+  static const String prefTenantSettings = 'pref_tenant_settings';
+
   static const String prefRecentResi = 'pref_recent_resi';
   static const int recentResiCount = 5;
   static const String prefOnboardingSeen = 'pref_onboarding_seen';

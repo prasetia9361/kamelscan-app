@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'core/providers/pipeline_providers.dart';
 import 'core/providers/theme_provider.dart';
 import 'core/theme/app_theme.dart';
 import 'l10n/generated/app_localizations.dart';
@@ -16,6 +17,17 @@ class KamelScanApp extends ConsumerWidget {
     final router = ref.watch(appRouterProvider);
     final themeMode = ref.watch(themeModeProvider);
     final language = ref.watch(languageCodeProvider);
+
+    // 🔴 Pipeline Bab 8.5–8.7 dihidupkan di sini, dan hanya di sini.
+    //
+    // Tanpa satu pun yang berlangganan, provider-nya tidak pernah dibuat:
+    // waktu server tidak pernah tersinkron, watermark tidak pernah berjalan,
+    // dan video tidak pernah terunggah — semuanya tanpa satu pun pesan error,
+    // karena memang tidak ada yang gagal; tidak ada yang pernah dimulai.
+    //
+    // `listen`, bukan `watch`: yang dibutuhkan hanya langganannya. `watch`
+    // akan membangun ulang seluruh MaterialApp tiap kali jaringan berganti.
+    ref.listen(uploadPipelineProvider, (_, _) {});
 
     return MaterialApp.router(
       title: 'KamelScan',

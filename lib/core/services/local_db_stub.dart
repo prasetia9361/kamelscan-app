@@ -34,6 +34,20 @@ class WebLocalDbService implements LocalDbService {
       const Result.ok(<UploadTask>[]);
 
   @override
+  Future<Result<List<UploadTask>>> tasksToProcess({int limit = 5}) async =>
+      const Result.ok(<UploadTask>[]);
+
+  @override
+  Future<Result<void>> markProcessed(
+    String videoId, {
+    required String localPath,
+    required int bytesTotal,
+    required int durationSeconds,
+    String? thumbnailPath,
+  }) async =>
+      const Result.err(_unsupported);
+
+  @override
   Future<Result<List<UploadTask>>> allTasks() async =>
       const Result.ok(<UploadTask>[]);
 

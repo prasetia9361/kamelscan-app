@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/widgets/failure_messages.dart';
 import '../../core/widgets/page_scaffold_placeholder.dart';
+import 'widgets/cellular_upload_switch.dart';
 import 'widgets/logout_button.dart';
 
 /// AccountPage — **baru sebagian**.
@@ -29,6 +30,12 @@ class AccountPage extends ConsumerWidget {
               specChapter: 'Bab 9.6',
               icon: Icons.person_outline_rounded,
             ),
+          ),
+          // Sakelar Bab 8.7 dipasang di sini sampai halaman Pengaturan
+          // (Bab 9.7) ada — alasan lengkapnya di `CellularUploadSwitch`.
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: CellularUploadSwitch(),
           ),
           // Jarak bawah 88 dp, bukan 24 dp: tombol Rekam yang mengambang di
           // sudut kanan bawah kerangka mobile menumpang di atas isi halaman,

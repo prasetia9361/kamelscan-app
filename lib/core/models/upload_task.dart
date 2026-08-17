@@ -21,13 +21,47 @@ abstract class UploadTask with _$UploadTask {
     required String resiCode,
     required VideoType type,
 
-    /// Lokasi berkas di penyimpanan aplikasi. Dihapus setelah unggah sukses
-    /// (Bab 0.2 poin 7).
+    /// Berkas yang berlaku **sekarang**.
+    ///
+    /// Selama [status] masih `pendingProcess` ini adalah rekaman mentah dari
+    /// kamera; setelah watermark ditempelkan ia berganti menjadi hasil
+    /// prosesnya, dan yang mentah dihapus. Satu kolom, bukan dua, agar tidak
+    /// pernah ada keraguan berkas mana yang akan diunggah.
+    ///
+    /// Dihapus setelah unggah sukses (Bab 0.2 poin 7).
     required String localPath,
 
     /// Kunci tujuan di R2.
     required String storageKey,
     required DateTime createdAt,
+
+    /// Nama toko **saat direkam**, untuk teks watermark.
+    ///
+    /// Disimpan, bukan diambil ulang saat memproses. Dua alasan: gudang sering
+    /// tanpa sinyal sehingga nama toko tidak dapat ditanyakan ke server, dan
+    /// bila Owner mengganti nama tokonya bulan depan, video ini tetap harus
+    /// menunjukkan nama yang berlaku pada hari kejadian.
+    @Default('') String shopName,
+
+    /// Waktu yang dibakar ke watermark — hasil koreksi [ServerClock], bukan
+    /// jam HP. Dipakai lagi saat menyusun kunci objek R2.
+    DateTime? scanTime,
+
+    /// `false` = aplikasi belum pernah menyinkronkan waktu server, sehingga
+    /// jam pada watermark berasal dari jam HP apa adanya (Bab 8.5 aturan 4).
+    /// Ikut ke kolom `package_videos.time_verified`.
+    @Default(true) bool timeVerified,
+
+    /// Waktu mulai rekam menurut jam HP. Hanya untuk audit selisih jam
+    /// (`package_videos.device_started_at`), tidak pernah dipakai berhitung.
+    DateTime? deviceStartedAt,
+    @Default(0) int durationSeconds,
+
+    /// Koordinat saat merekam. `null` bila izin lokasi ditolak — video tetap
+    /// sah (Bab 1.3 poin 6).
+    double? lat,
+    double? lng,
+    double? locationAccuracyM,
 
     @Default(UploadTaskStatus.queued) UploadTaskStatus status,
     @Default(0) int attempts,
@@ -49,12 +83,17 @@ abstract class UploadTask with _$UploadTask {
   bool get isTerminal =>
       status == UploadTaskStatus.done || status == UploadTaskStatus.duplicate;
 
+  /// Masih menunggu watermark (Bab 8.5) — berkasnya belum layak diunggah.
+  bool get needsProcessing => status == UploadTaskStatus.pendingProcess;
+
   /// Bab 7.7 — resi ganda tidak boleh diulang terus-menerus; ia menunggu
   /// tindakan pengguna (*Hapus dari antrian*).
   bool get needsUserAction => status == UploadTaskStatus.duplicate;
 
   bool isReady({DateTime? now, int maxAttempts = 5}) {
     if (isTerminal || status == UploadTaskStatus.paused) return false;
+    // 🔴 Rekaman mentah tidak pernah diunggah — lihat [localPath].
+    if (needsProcessing) return false;
     if (attempts >= maxAttempts) return false;
     final next = nextAttemptAt;
     if (next == null) return true;

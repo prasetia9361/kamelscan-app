@@ -203,6 +203,16 @@ enum WatermarkPosition {
 /// Status antrian upload lokal (SQLite). `duplicate` menandai resi yang
 /// ditolak server dengan error 23505 — jangan diulang terus (Bab 7.7).
 enum UploadTaskStatus {
+  /// Rekaman **mentah**, watermark-nya belum ditempelkan (Bab 8.5).
+  ///
+  /// 🔴 Baris pada status ini belum boleh diunggah: yang disimpan ke cloud
+  /// wajib berkas hasil proses. Berkas mentah 14 kali lebih besar dan tidak
+  /// membawa satu pun keterangan bukti — resi, waktu, toko, koordinat.
+  ///
+  /// Statusnya disimpan di database, bukan hanya di memori, supaya rekaman
+  /// yang belum sempat diolah saat aplikasi tertutup tidak menjadi berkas
+  /// yatim yang memenuhi penyimpanan tanpa ada yang tahu.
+  pendingProcess,
   queued,
   running,
   paused,
@@ -211,6 +221,7 @@ enum UploadTaskStatus {
   done;
 
   static UploadTaskStatus fromWire(String? v) => switch (v) {
+        'pending_process' => UploadTaskStatus.pendingProcess,
         'running' => UploadTaskStatus.running,
         'paused' => UploadTaskStatus.paused,
         'failed' => UploadTaskStatus.failed,
@@ -219,5 +230,8 @@ enum UploadTaskStatus {
         _ => UploadTaskStatus.queued,
       };
 
-  String get wire => name;
+  String get wire => switch (this) {
+        UploadTaskStatus.pendingProcess => 'pending_process',
+        _ => name,
+      };
 }

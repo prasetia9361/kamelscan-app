@@ -183,7 +183,10 @@ class MobileVideoProcessor implements VideoProcessor {
   }) {
     final lines = <String>[
       'RESI: ${data.resiCode}',
-      WatermarkCommand.formatStamp(data.serverTime),
+      WatermarkCommand.formatStamp(
+        data.serverTime,
+        timeVerified: data.timeVerified,
+      ),
       data.shopName,
       if (settings.showGpsOnWatermark)
         data.coordinates == null
@@ -212,6 +215,7 @@ class MobileVideoProcessor implements VideoProcessor {
         shopId: data.shopId,
         lat: data.lat,
         lng: data.lng,
+        timeVerified: data.timeVerified,
       ),
     );
   }

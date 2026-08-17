@@ -105,12 +105,17 @@ class WatermarkCommand {
     required String shopId,
     double? lat,
     double? lng,
+    bool timeVerified = true,
   }) {
     String clean(String v) => v.replaceAll(RegExp(r'[|=]'), '');
     final parts = <String>[
       'KamelScan',
       'resi=${clean(resiCode)}',
       'ts=${serverTime.toUtc().toIso8601String()}',
+      // Selalu ditulis, tidak hanya saat bernilai 0. Metadata yang menghilang
+      // saat keadaannya baik membuat pembacanya tidak dapat membedakan
+      // "waktunya sahih" dari "versi aplikasi ini belum menulis tandanya".
+      'time_verified=${timeVerified ? 1 : 0}',
       'shop_id=${clean(shopId)}',
       if (lat != null) 'lat=${lat.toStringAsFixed(6)}',
       if (lng != null) 'lng=${lng.toStringAsFixed(6)}',
@@ -122,11 +127,17 @@ class WatermarkCommand {
   ///
   /// ⚠️ Selalu waktu **server**, tidak pernah jam perangkat — jam HP dapat
   /// dimundurkan untuk memalsukan bukti (Bab 1.3 poin 6).
-  static String formatStamp(DateTime serverTime) {
+  ///
+  /// [timeVerified] `false` menempelkan keterangan apa adanya ke dalam gambar.
+  /// Keputusan Product Owner 16 Agustus 2026: aplikasi yang belum pernah
+  /// menyentuh sinyal tetap boleh merekam, dan videonya ditandai — bukan
+  /// ditolak, dan bukan pula ditampilkan seolah waktunya terjamin.
+  static String formatStamp(DateTime serverTime, {bool timeVerified = true}) {
     final t = serverTime.toLocal();
     String two(int v) => v.toString().padLeft(2, '0');
-    return '${two(t.day)}/${two(t.month)}/${t.year} '
+    final stamp = '${two(t.day)}/${two(t.month)}/${t.year} '
         '${two(t.hour)}.${two(t.minute)}.${two(t.second)}';
+    return timeVerified ? stamp : '$stamp (waktu belum terverifikasi)';
   }
 
   /// Perintah lengkap.

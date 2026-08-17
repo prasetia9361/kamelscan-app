@@ -18,6 +18,7 @@ class WatermarkData {
     this.lat,
     this.lng,
     this.logoPath,
+    this.timeVerified = true,
   });
 
   final String resiCode;
@@ -41,6 +42,15 @@ class WatermarkData {
 
   /// Logo kustom, hanya tier Pro (Bab 2.2 catatan 4).
   final String? logoPath;
+
+  /// `false` = [serverTime] sebenarnya berasal dari jam HP, karena aplikasi
+  /// belum pernah berhasil menanyakan waktu server (Bab 8.5 aturan 4).
+  ///
+  /// 🔴 Videonya tetap direkam — bukti dengan waktu yang mungkin meleset jauh
+  /// lebih berharga daripada tidak ada bukti. Tetapi keterangannya ikut
+  /// dibakar ke gambar dan ke metadata berkas, supaya orang yang membacanya
+  /// saat sengketa tahu persis seberapa jauh jam itu boleh dipercaya.
+  final bool timeVerified;
 }
 
 /// Hasil pemrosesan video.
