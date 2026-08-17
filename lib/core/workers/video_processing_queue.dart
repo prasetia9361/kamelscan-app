@@ -175,6 +175,19 @@ class VideoProcessingQueue {
       _cancelledByPause = false;
       await _deleteQuietly(outputPath);
       _log.i('Watermark ditunda, akan diulang di sela berikutnya');
+      // 🔴 Wajib `debugPrint`, bukan hanya `AppLogger` (jebakan 11).
+      //
+      // Baris inilah satu-satunya bukti bahwa FFmpeg **masih bekerja saat
+      // perekaman dimulai** — keadaan yang sudah terukur membuat pratinjau
+      // patah-patah dan HP memanas (`DEVIASI_LIBRARY.md` bagian J: watermark
+      // 30 detik melar dari 19 ke 32 detik saat keduanya berebut CPU).
+      //
+      // Tanpa baris ini, laporan "patah-patah" hanya dapat dijawab dengan
+      // tebakan. Dengan baris ini, jawabannya terbaca langsung dari perangkat:
+      // sering muncul berarti antrean watermark memang belum sempat kosong
+      // di sela antar-paket.
+      debugPrint('KAMELSCAN_PIPA Watermark ditunda — FFmpeg sedang berjalan '
+          'saat perekaman dimulai · resi=${task.resiCode}');
       return;
     }
 

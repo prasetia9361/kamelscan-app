@@ -690,21 +690,40 @@ class _StopButtonOverlay extends ConsumerWidget {
             child: Semantics(
               button: true,
               label: t.recordStopButton,
-              child: Material(
-                color: colors.danger,
-                shape: const CircleBorder(
-                  side: BorderSide(color: Colors.white, width: 3),
+              // 🔴 Strukturnya sengaja sama persis dengan `_RoundButton`
+              // (tombol senter), yang sudah lama terbukti tidak mengganggu
+              // kelancaran pratinjau.
+              //
+              // Bentuk sebelumnya memakai `clipBehavior: Clip.antiAlias` dan
+              // cincin sebagai `BorderSide` pada `CircleBorder`. Keduanya
+              // menambah lapisan pemotong **di atas tekstur kamera**, dan
+              // Product Owner melaporkan pratinjau menjadi patah-patah tepat
+              // setelah tombol itu muncul. Cincinnya kini sekadar lingkaran
+              // putih di belakangnya — dua lingkaran penuh, tanpa satu pun
+              // pemotongan.
+              //
+              // ⚠️ Jangan menambahkan `clipBehavior` di sini. Tidak ada yang
+              // meluber dari lingkaran ini, jadi tidak ada yang perlu dipotong.
+              child: Container(
+                padding: const EdgeInsets.all(3),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
                 ),
-                clipBehavior: Clip.antiAlias,
-                child: InkWell(
-                  customBorder: const CircleBorder(),
-                  onTap: () => _onStop(context, ref),
-                  child: const SizedBox(
-                    // 76 dp, jauh di atas ambang Bab 9.10: layar ini dipakai
-                    // sambil memegang paket, kadang dengan sarung tangan.
-                    width: _diameter,
-                    height: _diameter,
-                    child: Icon(Icons.stop_rounded, color: Colors.white, size: 34),
+                child: Material(
+                  color: colors.danger,
+                  shape: const CircleBorder(),
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: () => _onStop(context, ref),
+                    child: const SizedBox(
+                      // 76 dp, jauh di atas ambang Bab 9.10: layar ini dipakai
+                      // sambil memegang paket, kadang dengan sarung tangan.
+                      width: _diameter,
+                      height: _diameter,
+                      child:
+                          Icon(Icons.stop_rounded, color: Colors.white, size: 34),
+                    ),
                   ),
                 ),
               ),
