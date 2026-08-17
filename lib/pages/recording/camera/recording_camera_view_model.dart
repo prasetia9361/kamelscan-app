@@ -166,6 +166,8 @@ class RecordingScreenState {
     this.warningKeys = const [],
     this.pendingResi,
     this.torchOn = false,
+    this.previewGeometry = PreviewGeometry.unknown,
+    this.previewSettling = false,
     this.secondsUntilScanStop = 0,
     this.notice,
     this.checkingResi = false,
@@ -192,6 +194,24 @@ class RecordingScreenState {
   final String? pendingResi;
 
   final bool torchOn;
+
+  /// Bentuk dan koreksi putaran pratinjau yang sedang berjalan. Diisi
+  /// [CameraService.readPreviewGeometry]; alasan lengkapnya ada di sana.
+  final PreviewGeometry previewGeometry;
+
+  /// Bingkai kamera sedang berganti bentuk — pratinjau ditutup sementara.
+  ///
+  /// 🔴 Bukan hiasan. CameraX melaporkan bingkai barunya lewat metadata
+  /// **lebih dulu**, baru beberapa frame kemudian benar-benar mengirim piksel
+  /// yang sudah diputar. Di sela itu hitungan layar dan isi gambar tidak
+  /// sinkron, dan pratinjau berkedip berputar — ke satu arah saat mulai
+  /// merekam, ke arah sebaliknya saat berhenti (diamati Product Owner
+  /// 15 Agustus 2026 dengan gunting sebagai objek acuan).
+  ///
+  /// Balapan ini **tidak bisa dimenangkan dengan mengatur waktu**: Flutter
+  /// tidak punya cara mengetahui frame mana yang pertama sudah berputar.
+  /// Satu-satunya jalan adalah tidak menampilkan apa pun selama peralihan.
+  final bool previewSettling;
 
   /// Sisa detik sebelum pemindaian boleh menghentikan perekaman.
   final int secondsUntilScanStop;
@@ -220,6 +240,8 @@ class RecordingScreenState {
     String? pendingResi,
     bool clearPending = false,
     bool? torchOn,
+    PreviewGeometry? previewGeometry,
+    bool? previewSettling,
     int? secondsUntilScanStop,
     RecordingNotice? notice,
     bool clearNotice = false,
@@ -239,6 +261,8 @@ class RecordingScreenState {
         warningKeys: warningKeys ?? this.warningKeys,
         pendingResi: clearPending ? null : (pendingResi ?? this.pendingResi),
         torchOn: torchOn ?? this.torchOn,
+        previewGeometry: previewGeometry ?? this.previewGeometry,
+        previewSettling: previewSettling ?? this.previewSettling,
         secondsUntilScanStop: secondsUntilScanStop ?? this.secondsUntilScanStop,
         notice: clearNotice ? null : (notice ?? this.notice),
         checkingResi: checkingResi ?? this.checkingResi,
@@ -292,6 +316,22 @@ class RecordingCameraViewModel extends _$RecordingCameraViewModel {
   /// pencegah pengulangan dialog.
   final Set<String> _dialogShownFor = <String>{};
 
+  /// Resi yang **sudah selesai direkam** selama layar ini terbuka.
+  ///
+  /// 🔴 Pengaman untuk perekaman beruntun tanpa tombol. Aturan berhenti membuat
+  /// packer memindai label yang sama untuk mengakhiri rekaman — dan label itu
+  /// masih persis di depan kamera sesudahnya. Tanpa catatan ini, pemindaian
+  /// yang langsung hidup lagi akan menerima resi yang sama dan merekamnya
+  /// ulang seketika, berulang kali, memakan token dan kuota.
+  ///
+  /// Pengecekan resi ganda ke server tidak menolong di sini: videonya belum
+  /// terunggah, jadi server menjawab "belum ada".
+  ///
+  /// Sengaja hanya seumur layar (diputuskan Product Owner 15 Agustus 2026).
+  /// Merekam ulang resi yang sama adalah kejadian langka dan sudah punya
+  /// jalannya lewat Riwayat; rekaman ganda tak disengaja akan terjadi tiap hari.
+  final Set<String> _recordedInSession = <String>{};
+
   Timer? _ticker;
   Timer? _manualDebounce;
   DateTime? _startedAt;
@@ -302,12 +342,16 @@ class RecordingCameraViewModel extends _$RecordingCameraViewModel {
   /// daripada ML Kit menyelesaikannya dan perangkat kehabisan memori.
   bool _analyzing = false;
 
+  /// Kapan frame terakhir diserahkan ke ML Kit — untuk penjarangan.
+  DateTime? _lastAnalyzedAt;
+
   /// Sedang berpindah jalur kamera atau memeriksa resi — frame diabaikan agar
   /// pembacaan beruntun tidak memulai perekaman kedua.
   bool _busy = false;
 
   int _noticeId = 0;
   DateTime? _lastRejectNotice;
+  DateTime? _lastAlreadyNotice;
   bool _saidFinalCountdown = false;
   VoiceLines? _voice;
 
@@ -378,12 +422,16 @@ class RecordingCameraViewModel extends _$RecordingCameraViewModel {
           AppConstants.hardMaxRecordingDuration,
     );
 
+    final recent = await _loadRecentResi();
+    if (_disposed) return;
+
     _set(state.copyWith(
       preparing: false,
       cameraReady: true,
       warningKeys: permissions.warningKeys,
       machine: RecordingMachine.ready(maxDuration: maxDuration),
-      manual: state.manual.copyWith(recent: await _loadRecentResi()),
+      previewGeometry: await _camera.readPreviewGeometry(),
+      manual: state.manual.copyWith(recent: recent),
     ));
 
     await _startScanning();
@@ -421,6 +469,15 @@ class RecordingCameraViewModel extends _$RecordingCameraViewModel {
 
   void _onFrame(CameraImage image) {
     if (_disposed || _analyzing || _busy) return;
+
+    // Penjarangan: kamera mengirim ± 30 frame per detik, ML Kit hanya perlu
+    // ± 8. Alasan lengkapnya di [AppConstants.scanFrameInterval].
+    final now = DateTime.now();
+    final last = _lastAnalyzedAt;
+    if (last != null && now.difference(last) < AppConstants.scanFrameInterval) {
+      return;
+    }
+    _lastAnalyzedAt = now;
     // Dialog resi ganda sedang terbuka — memindai di belakangnya hanya akan
     // menumpuk dialog kedua di atasnya.
     if (state.duplicate != null) return;
@@ -499,10 +556,33 @@ class RecordingCameraViewModel extends _$RecordingCameraViewModel {
     _notice(RecordingNoticeKind.notAResi);
   }
 
+  /// Sama seperti [_noticeRejected]: label yang sudah direkam akan terbaca
+  /// belasan kali per detik selama kamera masih menghadapnya, jadi pesannya
+  /// dibatasi sekali per 3 detik.
+  void _noticeAlreadyRecorded(String resi) {
+    final now = DateTime.now();
+    final last = _lastAlreadyNotice;
+    if (last != null && now.difference(last) < const Duration(seconds: 3)) {
+      return;
+    }
+    _lastAlreadyNotice = now;
+    _notice(RecordingNoticeKind.alreadyRecorded, resi: resi);
+    unawaited(ref.read(scanFeedbackProvider).rejected());
+  }
+
   // ---------- Mulai merekam ----------
 
   Future<void> _onAccepted(String resi) async {
     if (_busy) return;
+
+    // Label yang barusan dipakai menghentikan rekaman masih ada di depan
+    // kamera. Tanpa penolakan ini, perekamannya langsung dimulai ulang.
+    if (_recordedInSession.contains(resi)) {
+      _gate.reset();
+      _noticeAlreadyRecorded(resi);
+      return;
+    }
+
     _busy = true;
     try {
       await ref.read(scanFeedbackProvider).accepted();
@@ -565,26 +645,97 @@ class RecordingCameraViewModel extends _$RecordingCameraViewModel {
     // mencoba memulai perekaman kedua di atas yang pertama.
     if (next == null) return;
 
-    final result = await _camera.startRecording(onFrame: _onFrame);
+    // 🔴 CameraX membalik bingkai pratinjau **di tengah** `startVideoRecording`,
+    // ± 620 ms sebelum panggilan itu kembali (diukur di Redmi Note 9,
+    // 15 Agustus 2026). Bila koreksinya baru dibaca sesudahnya, pratinjau
+    // tampak berputar selama 620 ms setiap kali perekaman dimulai. Karena itu
+    // bingkainya dipantau **berbarengan**, bukan sesudahnya.
+    _set(state.copyWith(previewSettling: true));
+
+    final starting = _camera.startRecording(onFrame: _onFrame);
+    unawaited(_followPreviewGeometry(starting));
+
+    final result = await starting;
     if (_disposed) return;
 
     if (result.isErr) {
       _gate.reset();
+      // Penutup wajib dibuka juga di jalur gagal — kalau tidak, pratinjau
+      // tinggal hitam selamanya dan layarnya tampak mati.
       _set(state.copyWith(
         machine: RecordingMachine.fail(
           state.machine,
           result.failureOrNull?.messageKey ?? 'errorUnknown',
         ),
+        previewSettling: false,
       ));
       return;
     }
 
     _startedAt = DateTime.now();
     _saidFinalCountdown = false;
-    _set(state.copyWith(machine: next, clearFinished: true));
+
+    // 🔴 Memasang perekam menambah pemakai kamera yang ketiga, dan CameraX
+    // dapat menjawabnya dengan mengganti bentuk bingkai pratinjau — yang
+    // membuat pratinjau miring seperempat putaran bila dibiarkan. Ditanyakan di
+    // sini, bukan ditebak; alasan lengkapnya di
+    // `CameraService.readPreviewRotationCorrection`.
+    final geometry = await _camera.readPreviewGeometry();
+    if (_disposed) return;
+
+    _set(state.copyWith(
+      machine: next,
+      clearFinished: true,
+      previewGeometry: geometry,
+    ));
+    unawaited(_uncoverPreview());
 
     unawaited(_speak(_voice?.start(resi)));
     _ticker = Timer.periodic(const Duration(milliseconds: 200), _onTick);
+  }
+
+  /// Mengejar perubahan bingkai pratinjau selagi [until] masih berjalan.
+  ///
+  /// Berhenti pada perubahan pertama — begitu koreksinya berbeda, tidak ada
+  /// lagi yang perlu dikejar. Batas 25 kali × 60 ms menjaga agar pemantauan
+  /// tidak menggantung bila bingkainya memang tidak pernah berubah (perangkat
+  /// `LEVEL_3` tidak menyalakan StreamSharing sama sekali).
+  Future<void> _followPreviewGeometry(Future<void> until) async {
+    var finished = false;
+    unawaited(until.whenComplete(() => finished = true));
+
+    for (var i = 0; i < 25; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+      if (_disposed || finished) return;
+
+      final geometry = await _camera.readPreviewGeometry();
+      if (_disposed) return;
+      if (geometry.quarterTurnCorrection !=
+          state.previewGeometry.quarterTurnCorrection) {
+        _set(state.copyWith(previewGeometry: geometry));
+        return;
+      }
+    }
+  }
+
+  /// Membuka kembali pratinjau setelah bingkainya benar-benar tenang.
+  ///
+  /// 🔴 **Angka ini aman kelebihan, tidak aman kekurangan.** Metadata bingkai
+  /// berubah lebih dulu; piksel yang sudah diputar baru menyusul entah berapa
+  /// frame kemudian, dan Flutter tidak punya cara mengetahui kapan. Kelebihan
+  /// jeda hanya membuat layar hitam sedikit lebih lama; kekurangan jeda
+  /// membuat kedipan putarannya terlihat lagi.
+  ///
+  /// 400 ms diuji Product Owner 15 Agustus 2026 dan **masih kebobolan** pada
+  /// kedua peralihan. Dinaikkan ke 1 detik. Bila suatu saat terasa terlalu
+  /// lama, turunkan sedikit demi sedikit sambil diuji ulang di perangkat —
+  /// jangan dipangkas berdasarkan dugaan.
+  static const Duration _previewSettleGrace = Duration(seconds: 1);
+
+  Future<void> _uncoverPreview() async {
+    await Future<void>.delayed(_previewSettleGrace);
+    if (_disposed) return;
+    _set(state.copyWith(previewSettling: false));
   }
 
   // ---------- Pencatat waktu ----------
@@ -634,8 +785,17 @@ class RecordingCameraViewModel extends _$RecordingCameraViewModel {
     final elapsed = stopping.elapsed;
     _set(state.copyWith(machine: stopping));
 
+    _set(state.copyWith(previewSettling: true));
+
     final result = await _camera.stopRecording();
     if (_disposed) return;
+
+    // Perekam dilepas — bingkai pratinjau kembali ke bentuk semula, jadi
+    // koreksinya ikut ditarik kembali.
+    final geometry = await _camera.readPreviewGeometry();
+    if (_disposed) return;
+    _set(state.copyWith(previewGeometry: geometry));
+    unawaited(_uncoverPreview());
 
     await ref.read(scanFeedbackProvider).stopped();
     unawaited(_speak(_voice?.finished));
@@ -681,6 +841,8 @@ class RecordingCameraViewModel extends _$RecordingCameraViewModel {
     await _rememberResi(resi);
     if (_disposed) return;
 
+    _recordedInSession.add(resi);
+
     _set(state.copyWith(
       finished: FinishedRecording(
         resiCode: resi,
@@ -690,22 +852,45 @@ class RecordingCameraViewModel extends _$RecordingCameraViewModel {
         reason: reason,
       ),
     ));
+
+    await _armForNextPackage();
   }
 
-  /// Siap untuk resi berikutnya tanpa keluar dari layar.
-  Future<void> next() async {
+  /// Berapa lama ringkasan rekaman terakhir tetap terlihat.
+  ///
+  /// Cukup untuk dibaca sambil menggeser paket, tidak cukup lama untuk
+  /// menghalangi paket berikutnya.
+  static const Duration _finishedNoticeDuration = Duration(seconds: 4);
+
+  /// Siap untuk resi berikutnya — **berjalan sendiri**, tanpa tombol.
+  ///
+  /// 🔴 Diputuskan Product Owner 15 Agustus 2026. Sebelumnya packer harus
+  /// menekan "Rekam paket berikutnya" tiap kali; pada 100 paket itu berarti
+  /// 100 ketukan yang tidak menghasilkan apa pun.
+  ///
+  /// Ringkasan rekaman tetap tampil sebentar, tetapi **tidak menghalangi** —
+  /// pemindaian sudah hidup lagi di belakangnya. Konfirmasi bahwa rekaman
+  /// berhasil tetap sampai lewat bunyi, getar, dan suara "selesai" (Bab 8.4),
+  /// jadi packer tidak dibuat buta oleh hilangnya panel.
+  Future<void> _armForNextPackage() async {
     _gate.reset();
     _startedAt = null;
-    _set(RecordingScreenState(
-      mode: _strategy.mode,
+
+    _set(state.copyWith(
       machine: RecordingMachine.next(state.machine),
-      preparing: false,
-      cameraReady: state.cameraReady,
-      warningKeys: state.warningKeys,
-      torchOn: state.torchOn,
       manual: const ManualEntry().copyWith(recent: state.manual.recent),
     ));
+
     await _startScanning();
+    if (_disposed) return;
+
+    unawaited(_hideFinishedNotice());
+  }
+
+  Future<void> _hideFinishedNotice() async {
+    await Future<void>.delayed(_finishedNoticeDuration);
+    if (_disposed) return;
+    _set(state.copyWith(clearFinished: true));
   }
 
   // ---------- Mode Input Manual (Bab 8.3.4) ----------

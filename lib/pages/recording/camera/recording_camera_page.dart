@@ -54,6 +54,21 @@ class _RecordingCameraPageState extends ConsumerState<RecordingCameraPage> {
         widget.shopId,
       );
 
+  /// 🔴 Dibuat **sekali** dan dipakai ulang — jangan diubah jadi konstruksi
+  /// di dalam `build`.
+  ///
+  /// Selama merekam, pencatat waktu berdetak tiap 200 ms dan mengubah state,
+  /// sehingga `build` halaman ini berjalan 5 kali per detik. Bila widget
+  /// pratinjau ikut dibuat ulang tiap kali, seluruh subtree terberat di layar
+  /// (Texture kamera + putarannya) ikut dibangun ulang padahal isinya tidak
+  /// berubah sama sekali — dan pratinjaunya patah-patah.
+  ///
+  /// Dengan instance yang sama, Flutter melihat widget identik dan melewati
+  /// subtree itu. Keduanya berlangganan sendiri ke bagian state yang benar-
+  /// benar mereka butuhkan lewat `select`, jadi tetap ikut berubah saat perlu.
+  late final Widget _preview = _Preview(provider: _provider);
+  late final Widget _transitionCover = _TransitionCover(provider: _provider);
+
   @override
   void dispose() {
     _manualController.dispose();
@@ -101,7 +116,8 @@ class _RecordingCameraPageState extends ConsumerState<RecordingCameraPage> {
             : Stack(
                 fit: StackFit.expand,
                 children: [
-                  _Preview(ready: state.cameraReady),
+                  _preview,
+                  _transitionCover,
                   if (state.cameraReady && state.mode != TriggerMode.manual)
                     ScanFrameOverlay(
                       wide: state.mode == TriggerMode.barcode1d,
@@ -112,23 +128,19 @@ class _RecordingCameraPageState extends ConsumerState<RecordingCameraPage> {
                       children: [
                         _TopBar(state: state),
                         const Spacer(),
+                        // Ringkasan rekaman terakhir. Tidak menghalangi apa
+                        // pun: pemindaian sudah hidup lagi di belakangnya, dan
+                        // ini menghilang sendiri.
                         if (state.finished != null)
-                          _FinishedPanel(
-                            finished: state.finished!,
-                            onNext: () {
-                              _manualController.clear();
-                              _vm.next();
-                            },
-                          )
-                        else ...[
-                          if (state.mode == TriggerMode.manual &&
-                              !state.isRecording)
-                            _ManualPanel(
-                              controller: _manualController,
-                              state: state,
-                            ),
-                          _BottomBar(state: state),
-                        ],
+                          _FinishedNotice(finished: state.finished!),
+                        if (state.mode == TriggerMode.manual &&
+                            !state.isRecording &&
+                            state.finished == null)
+                          _ManualPanel(
+                            controller: _manualController,
+                            state: state,
+                          ),
+                        _BottomBar(state: state),
                       ],
                     ),
                   ),
@@ -238,13 +250,45 @@ class _RecordingCameraPageState extends ConsumerState<RecordingCameraPage> {
 
 // ---------------------------------------------------------------------------
 
-class _Preview extends ConsumerWidget {
-  const _Preview({required this.ready});
+/// Penutup peralihan — berlangganan **hanya** pada `previewSettling`.
+///
+/// Dipisah dari halaman agar detak pencatat waktu tidak ikut membangunnya
+/// ulang; lihat catatan pada `_transitionCover`.
+class _TransitionCover extends ConsumerWidget {
+  const _TransitionCover({required this.provider});
 
-  final bool ready;
+  final RecordingCameraViewModelProvider provider;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Muncul seketika agar kedipan putaran tidak sempat terlihat, lalu memudar
+    // supaya terbaca sebagai "sedang menyiapkan", bukan sebagai layar rusak.
+    final settling =
+        ref.watch(provider.select((s) => s.previewSettling));
+
+    return IgnorePointer(
+      child: AnimatedOpacity(
+        opacity: settling ? 1 : 0,
+        duration:
+            settling ? Duration.zero : const Duration(milliseconds: 220),
+        child: const ColoredBox(color: Colors.black),
+      ),
+    );
+  }
+}
+
+class _Preview extends ConsumerWidget {
+  const _Preview({required this.provider});
+
+  final RecordingCameraViewModelProvider provider;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Hanya dua kepingan state ini yang mempengaruhi pratinjau. Berlangganan
+    // seluruh state akan membuatnya dibangun ulang tiap detak pencatat waktu.
+    final ready = ref.watch(provider.select((s) => s.cameraReady));
+    final geometry = ref.watch(provider.select((s) => s.previewGeometry));
+
     if (!ready) {
       return Center(
         child: Column(
@@ -269,17 +313,58 @@ class _Preview extends ConsumerWidget {
       return const SizedBox.shrink();
     }
 
+    // 🔴 `CameraPreview` sengaja TIDAK dipakai. Widget itu mengunci bentuk
+    // kotaknya pada `AspectRatio(1/previewSize)`, dan `previewSize` hanya diisi
+    // sekali saat kamera dibuka. Selama merekam CameraX mengganti bingkainya
+    // (720x480 → 480x720), sehingga `Texture` diberi kotak yang bentuknya salah
+    // dan gambarnya melar 2,25 kali. Bentuk itu tidak dapat ditimpa dari luar,
+    // jadi kotaknya dihitung sendiri di sini dari ukuran yang sedang berjalan.
+    final value = controller.value;
+    final correction = geometry.quarterTurnCorrection;
+
+    // Putaran yang biasanya disumbang `CameraPreview`. Wajib direplikasi:
+    // delegasi plugin menguranginya lagi dari putarannya sendiri, jadi kalau
+    // dihilangkan pratinjau ikut miring saat perangkat dimiringkan.
+    final turns = _preAppliedQuarterTurns(value) + correction;
+
+    // Berapa kali kotak terbalik sebelum sampai ke `Texture`: putaran plugin
+    // dan putaran kita sama-sama menukar lebar dengan tinggi.
+    final base = (controller.description.sensorOrientation ~/ 90) % 4;
+    final swapped = (base + correction).isOdd;
+
+    final buffer =
+        geometry.liveSize ?? value.previewSize ?? const Size(720, 480);
+    final box = swapped ? Size(buffer.height, buffer.width) : buffer;
+
     // Pratinjau 480p diregangkan menutupi layar. Memotong sisi lebih baik
     // daripada menyisakan pita hitam: bagian yang dipindai selalu ada di
     // tengah, di dalam bingkai bantu.
     return FittedBox(
       fit: BoxFit.cover,
       child: SizedBox(
-        width: controller.value.previewSize?.height ?? 480,
-        height: controller.value.previewSize?.width ?? 640,
-        child: CameraPreview(controller),
+        width: box.width,
+        height: box.height,
+        child: RotatedBox(
+          quarterTurns: turns,
+          child: controller.buildPreview(),
+        ),
       ),
     );
+  }
+
+  /// Salinan setia `CameraPreview._getQuarterTurns` (paket `camera` 0.12.0).
+  static int _preAppliedQuarterTurns(CameraValue value) {
+    final orientation = value.isRecordingVideo
+        ? (value.recordingOrientation ?? value.deviceOrientation)
+        : (value.previewPauseOrientation ??
+            value.lockedCaptureOrientation ??
+            value.deviceOrientation);
+    return switch (orientation) {
+      DeviceOrientation.portraitUp => 0,
+      DeviceOrientation.landscapeRight => 1,
+      DeviceOrientation.portraitDown => 2,
+      DeviceOrientation.landscapeLeft => 3,
+    };
   }
 }
 
@@ -671,15 +756,23 @@ class _ManualPanel extends ConsumerWidget {
   }
 }
 
-/// Ringkasan setelah perekaman berhenti.
+/// Ringkasan rekaman terakhir — **memberi tahu, bukan menghalangi**.
+///
+/// 🔴 Sengaja tanpa tombol. Sebelum 15 Agustus 2026 di sini ada panel dengan
+/// tombol "Rekam paket berikutnya" yang wajib ditekan sebelum packer boleh
+/// merekam lagi. Pada 100 paket itu berarti 100 ketukan yang tidak
+/// menghasilkan apa pun. Sekarang pemindaian berlanjut sendiri, dan panel ini
+/// hanya lewat sebentar.
+///
+/// Melihat rincian rekaman lama adalah kebutuhan sesekali — tempatnya di tab
+/// Riwayat, bukan di jalan yang dilewati ratusan kali sehari.
 ///
 /// ⚠️ Berkas yang dilaporkan masih **mentah**. Watermark (Bab 8.5) dan antrian
-/// upload (Bab 8.6) belum tersambung; panel ini adalah titik serah terimanya.
-class _FinishedPanel extends StatelessWidget {
-  const _FinishedPanel({required this.finished, required this.onNext});
+/// upload (Bab 8.6) belum tersambung; ini titik serah terimanya.
+class _FinishedNotice extends StatelessWidget {
+  const _FinishedNotice({required this.finished});
 
   final FinishedRecording finished;
-  final VoidCallback onNext;
 
   @override
   Widget build(BuildContext context) {
@@ -687,51 +780,47 @@ class _FinishedPanel extends StatelessWidget {
     final colors = Theme.of(context).extension<AppColors>()!;
 
     return Container(
-      margin: const EdgeInsets.all(AppSizes.spaceMd),
-      padding: const EdgeInsets.all(AppSizes.spaceMd),
+      margin: const EdgeInsets.symmetric(
+        horizontal: AppSizes.spaceMd,
+        vertical: AppSizes.spaceSm,
+      ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSizes.spaceMd,
+        vertical: AppSizes.spaceSm,
+      ),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
+        color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.92),
         borderRadius: BorderRadius.circular(AppSizes.radiusLarge),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: Row(
         children: [
-          Row(
-            children: [
-              Icon(Icons.check_circle, color: colors.success),
-              const SizedBox(width: AppSizes.spaceSm),
-              Expanded(
-                child: Text(
-                  t.recordFinishedTitle,
-                  style: Theme.of(context).textTheme.titleMedium,
+          Icon(Icons.check_circle, color: colors.success),
+          const SizedBox(width: AppSizes.spaceSm),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  finished.resiCode,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: 'JetBrainsMono',
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.2,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSizes.spaceSm),
-          Text(
-            finished.resiCode,
-            style: const TextStyle(
-              fontFamily: 'JetBrainsMono',
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.2,
-            ),
-          ),
-          const SizedBox(height: AppSizes.spaceXs),
-          Text(
-            '${Formatters.duration(finished.duration)} · '
-            '${Formatters.fileSize(finished.sizeBytes)}',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(height: AppSizes.spaceMd),
-          SizedBox(
-            height: AppSizes.touchComfort,
-            child: FilledButton.icon(
-              onPressed: onNext,
-              icon: const Icon(Icons.videocam),
-              label: Text(t.recordNextPackage),
+                Text(
+                  '${t.recordFinishedTitle} · '
+                  '${Formatters.duration(finished.duration)} · '
+                  '${Formatters.fileSize(finished.sizeBytes)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
             ),
           ),
         ],

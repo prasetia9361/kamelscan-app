@@ -44,6 +44,23 @@ class AppConstants {
   /// Debounce pengecekan resi ganda pada mode input manual (Bab 7.7).
   static const Duration manualResiCheckDebounce = Duration(milliseconds: 500);
 
+  /// Jarak minimal antar-frame yang diserahkan ke ML Kit — ± 8 kali per detik.
+  ///
+  /// 🔴 Kamera mengirim ± 30 frame per detik, dan sebelumnya **semuanya**
+  /// dibaca. Itu pemborosan yang mahal: ML Kit adalah beban CPU terberat di
+  /// layar rekam, dan pada Redmi Note 9 ia bersaing langsung dengan encoder
+  /// FFmpeg yang mengolah rekaman sebelumnya. Diukur 15 Agustus 2026: saat
+  /// keduanya berebut, watermark 30 detik melar dari 19 ke 32 detik — melewati
+  /// batas 1,0x, artinya antrean akan menumpuk tanpa henti.
+  ///
+  /// 8 kali per detik masih jauh lebih cepat daripada packer memindahkan paket,
+  /// dan tetap aman untuk aturan pembacaan ganda barcode 1D: jendela
+  /// konfirmasinya 5 detik, sedangkan dua pembacaan berjarak ± 125 ms.
+  ///
+  /// ⚠️ Jangan dinaikkan tanpa mengukur ulang di perangkat. Menjarangkan
+  /// terlalu jauh membuat barcode terlewat saat paket digeser cepat.
+  static const Duration scanFrameInterval = Duration(milliseconds: 125);
+
   /// Lama perekaman minimum sebelum pemindaian boleh menghentikannya.
   ///
   /// 🔴 PENYIMPANGAN DARI BAB 8.3.2 — disetujui Product Owner 13 Agustus 2026.
