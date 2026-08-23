@@ -7,70 +7,113 @@ Salin seluruh isi di bawah garis ini ke sesi Claude Code yang baru.
 Kamu adalah programmer Flutter profesional yang melanjutkan proyek **KamelScan**
 — aplikasi SaaS perekaman video bukti packing berbasis pemicu barcode/QR.
 
-**Tugas worktree ini: mengerjakan Bab 9** (UI/UX aplikasi mobile), berikut satu
-utang yang dibawa dari Bab 8 — **Bab 8.8**, yang rumah sebenarnya ada di
-Bab 9.4.
+**Tugas worktree ini: memperbaiki cacat pada alur masuk & pendaftaran** —
+khususnya **Lupa Password** dan **pendaftaran lewat "Lanjutkan dengan Google"**.
+
+Kerjakan di worktree `login-logout`, bukan di master.
 
 ## Cara kerja yang saya harapkan
 
 - **Bahasa Indonesia.** Saya bukan programmer; jelaskan dengan bahasa yang mudah
   dipahami, tanpa istilah teknis yang tidak perlu. Kalau saya bilang "belum
   paham", ulangi dengan perumpamaan, jangan diulang dengan istilah yang sama.
-- **Verifikasi, jangan asumsi.** Pola yang paling berharga di proyek ini: tiap
-  asumsi berisiko dibuktikan di perangkat/database sungguhan **sebelum** kode
-  besar ditulis di atasnya. Berkali-kali cara ini menyelamatkan kami dari
-  pekerjaan yang harus dibongkar ulang.
-- **Jangan menyimpulkan cacat visual dari satu tangkapan layar.** 15 Agustus
-  2026 sebuah perbaikan dinyatakan gagal karena benda di foto tampak miring —
-  padahal bendanya memang tergeletak miring. Satu putaran build terbuang.
-  Bandingkan dua keadaan pada adegan yang sama, atau tanyakan apa yang saya
-  lihat dengan mata sendiri.
+- **Verifikasi, jangan asumsi.** Pola paling berharga di proyek ini: tiap asumsi
+  berisiko dibuktikan di perangkat/database sungguhan **sebelum** kode besar
+  ditulis di atasnya.
+- **Jangan menyimpulkan cacat visual dari satu tangkapan layar.** Bandingkan dua
+  keadaan pada adegan yang sama, atau tanyakan apa yang saya lihat dengan mata
+  sendiri.
 - **Laporkan apa adanya.** Kalau gagal, katakan gagal beserta pesannya. Kalau
   belum diuji, katakan belum diuji. Kalau tidak tahu sebabnya, katakan tidak
   tahu — jangan menebak lalu menyuruh saya build berkali-kali.
 - **Jangan ubah keputusan yang sudah diambil** tanpa memberi tahu saya lebih
   dulu.
+- 🔴 **Tanya saya dulu sebelum menyunting berkas catatan** (`DEVIASI_LIBRARY.md`,
+  README, prompt serah terima).
+
+### 🔴 Aturan yang lahir dari sesi Bab 9 — patuhi, ini mahal dipelajari
+
+**1. Berhenti setelah dua percobaan perbaikan yang gagal.**
+Satu cacat (Beranda kosong) dikejar **empat ronde berturut-turut**. Percobaan
+kedua memperbaiki cacat aslinya tetapi melahirkan yang lebih buruk, dan
+percobaan ketiga serta keempat menumpuk di atasnya sampai layar splash yang
+sudah beres ikut rusak. Seluruhnya akhirnya **dibatalkan atas permintaan saya**.
+
+Bila percobaan kedua gagal **dan gejalanya berubah**, hentikan. Kembalikan
+keadaan, lalu ukur bagian yang belum pernah diukur sama sekali. Tiap ronde
+memakan satu build 13 menit dan satu pengujian di perangkat saya.
+
+**2. "Sekali coba berhasil" bukan bukti untuk cacat yang muncul kadang-kadang.**
+Beranda pernah dinyatakan aman, lalu kambuh. Setelah diukur: 3 dari 4 siklus
+gagal, dan yang satu lolos hanya karena datanya kebetulan tiba tepat waktu.
+Untuk cacat semacam ini, ulangi **minimal 4–5 kali** sebelum menyatakan beres.
+
+**3. Kemudikan perangkatnya sendiri lewat adb — ini yang akhirnya memecahkan.**
+Tiga ronde pertama menebak dari potongan logcat yang saya salin, dan dua
+tebakannya salah. Ronde keempat berhasil karena aplikasinya dikendalikan
+langsung: mengetuk, mengetik, memasang, mengambil tangkapan layar, dan membaca
+logcat sendiri. Kemampuan itu ada — pakai sejak awal.
+
+```powershell
+$adb = "C:\Users\ACER\AppData\Local\Android\Sdk\platform-tools\adb.exe"
+& $adb devices
+& $adb shell input tap <x> <y>
+& $adb shell input text "teks%stanpa%sspasi"
+& $adb exec-out screencap -p > layar.png      # lalu baca gambarnya
+& $adb logcat -c ; & $adb logcat -v time > log.txt
+```
+
+⚠️ Layar bergulir saat papan ketik muncul — **ambil tangkapan layar ulang
+setelah mengetik** sebelum menghitung koordinat berikutnya. Beberapa ketukan
+mendarat di kolom yang salah karena ini.
+
+⚠️ `input keyevent 111` (Escape) menutup bottom sheet, bukan papan ketik.
 
 ## Dokumen acuan
 
-- `panduan_dokumentasi.md` — kitab suci proyek, Bab 0–17. **Baca bab yang
-  sedang dikerjakan sebelum menulis kode.**
-- `DEVIASI_LIBRARY.md` — **wajib dibaca lebih dulu.** Seluruh penyimpangan
-  beserta alasannya, dan jebakan yang sudah memakan waktu. Bagian **J** (kamera)
-  dan **L** (pipeline Bab 8.5–8.7) panjang dan penting.
-- `supabase/README.md` — skema database, RLS, jebakan Supabase, hasil pengujian.
+- `panduan_dokumentasi.md` — kitab suci proyek, Bab 0–17. **Baca bab yang sedang
+  dikerjakan sebelum menulis kode.** Untuk worktree ini: **Bab 6** (autentikasi).
+- `DEVIASI_LIBRARY.md` — **wajib dibaca lebih dulu.** Bagian **B** (google_sign_in
+  v7), **J** (kamera), **L** (pipeline), **M** (Bab 9).
+- `supabase/README.md` — skema database, RLS, jebakan Supabase.
 - `palet_warna_dan_tipografi.md` — palet resmi.
 - `dataapp.md` — seluruh kredensial. Ter-gitignore. **Jangan pernah menuliskan
-  isinya ke berkas yang masuk git.**
+  isinya ke berkas yang masuk git**, dan jangan menampilkannya di percakapan.
 
-⚠️ **`panduan_dokumentasi.md` dan `dataapp.md` juga ter-gitignore**, jadi
-worktree baru tidak memilikinya. Salin dari `E:\kamelscan\` bersama
-`env.dev.json`.
+⚠️ `panduan_dokumentasi.md` dan `dataapp.md` juga ter-gitignore, jadi worktree
+baru tidak memilikinya. Salin dari `E:\kamelscan\` bersama `env.dev.json`.
 
 ## Lingkungan
 
 | | |
 |---|---|
 | Flutter | `E:\flutter_sdk\flutter_3.44.8\bin\flutter.bat` (tidak ada di PATH) |
-| Dart | `E:\flutter_sdk\flutter_3.44.8\bin\dart.bat` |
+| Dart | `E:\flutter_sdk\flutter_3.44.8\bin\cache\dart-sdk\bin\dart.exe` |
 | JDK | `$env:JAVA_HOME = 'E:\Android\Android Studio\jbr'` |
-| adb | `C:\Users\ACER\AppData\Local\Android\Sdk\platform-tools\adb.exe` (tidak ada di PATH) |
+| adb | `C:\Users\ACER\AppData\Local\Android\Sdk\platform-tools\adb.exe` |
 | Perangkat uji | Xiaomi Redmi Note 9, serial `7744ca520408` |
 
 **🔴 Jangan pernah menjalankan `flutter run` polos.** Tanpa
 `--dart-define-from-file=env.dev.json` aplikasi berhenti di layar "Konfigurasi
-belum lengkap", dan lebih buruk: kernel Dart tanpa kredensial ikut tersimpan di
-cache sehingga `flutter build` berikutnya diam-diam memakainya. Pakai
-`.\run.ps1`. Bila terlanjur: hapus `.dart_tool/flutter_build` lalu bangun ulang.
+belum lengkap", dan kernel Dart tanpa kredensial ikut tersimpan di cache
+sehingga `flutter build` berikutnya diam-diam memakainya. Pakai `.\run.ps1`.
+Bila terlanjur: hapus `.dart_tool/flutter_build` lalu bangun ulang.
 
-**Mode profile** — `.\run.ps1 -Profile`
+- `.\run.ps1 -Profile` — jalankan mode profile
+- `.\run.ps1 -Build -Profile` — hanya bangun APK (± 13 menit)
 
-🔴 **Mode debug SENGAJA lambat** dan pratinjau kamera akan terasa patah-patah di
-sana. Itu **bukan cacat produk**. Terukur di Redmi Note 9: watermark video 30
-detik butuh 32 detik di debug, hanya 17 detik di profile.
+🔴 **Mode debug SENGAJA lambat.** Bila saya melaporkan "patah-patah", tanyakan
+dulu **mode apa yang dipakai** sebelum menyelidiki apa pun.
 
-Bila saya melaporkan "patah-patah", tanyakan dulu **mode apa yang dipakai**
-sebelum menyelidiki apa pun.
+**Internet laptop saya berasal dari HP saya lewat kabel.** Bila HP dilepas,
+laptop kehilangan internet — dan `flutter analyze` maupun `flutter test`
+**menggantung lama** karena keduanya mengecek paket ke `pub.dev` lebih dulu.
+Gejalanya tampak seperti proyek yang rusak, padahal bukan. Jalan pintasnya:
+
+```powershell
+& "E:\flutter_sdk\flutter_3.44.8\bin\cache\dart-sdk\bin\dart.exe" analyze lib test
+& "E:\flutter_sdk\flutter_3.44.8\bin\flutter.bat" test --no-pub
+```
 
 **Worktree baru wajib dibangkitkan kodenya lebih dulu**, kalau tidak
 `flutter analyze` melaporkan ratusan error yang tidak ada hubungannya dengan
@@ -84,292 +127,275 @@ flutter gen-l10n
 
 ## Supabase
 
-Project `ofggpithmvgnhsshglwx` (wilayah ap-southeast-1):
+Project `ofggpithmvgnhsshglwx` (wilayah ap-southeast-1). Kredensial di
+`dataapp.md`.
+
+Edge Function yang sudah terpasang: `create-packer`, `delete-packer`,
+`get-upload-url`, `get-video-url`, `create-public-link`, `get-public-video`,
+`resolve-username`.
+
+**Deploy Edge Function** butuh `$env:SUPABASE_ACCESS_TOKEN` dari `dataapp.md`:
 
 ```powershell
-$env:SUPABASE_DB_HOST='aws-0-ap-southeast-1.pooler.supabase.com'
-$env:SUPABASE_DB_PORT='5432'
-$env:SUPABASE_DB_USER='postgres.ofggpithmvgnhsshglwx'
-$env:SUPABASE_DB_PASSWORD='<lihat dataapp.md>'
-$env:SUPABASE_DB_NAME='postgres'
-cd tool\db_migrate
-dart run bin/migrate.dart status
-dart run bin/migrate.dart up
-dart run bin/sql.dart "select 1"
+npx --yes supabase@latest functions deploy <nama> --project-ref ofggpithmvgnhsshglwx
 ```
 
-⚠️ Driver Postgres Dart tidak sanggup menerima beberapa perintah berpenghasil
-baris sekaligus. Gabungkan dengan `union all`, jangan pisah dengan `;`.
+⚠️ **Token akses Supabase punya masa berlaku** dan yang lama sempat kedaluwarsa
+di tengah pekerjaan. Gejalanya `status 401 {"message":"Unauthorized"}` —
+bukan pesan yang menyebut kedaluwarsa. Periksa di
+<https://supabase.com/dashboard/account/tokens>.
 
-⚠️ `tool/db_migrate` adalah paket Dart terpisah. `flutter analyze` di akar akan
-melaporkan ± 30 error dari sana bila dependensinya belum diambil — **itu bukan
-masalah pada aplikasi**. Pakai `flutter analyze lib` untuk menilai aplikasinya.
+⚠️ Bila deploy lewat CLI mentok, **fungsinya bisa ditempel lewat browser**:
+Dashboard → Edge Functions → Deploy a new function → Via Editor. Cara ini
+sudah terbukti berhasil.
 
-Edge Function: `npx --yes supabase@latest functions deploy <nama> --project-ref
-ofggpithmvgnhsshglwx`, dengan `$env:SUPABASE_ACCESS_TOKEN` dari `dataapp.md`.
+**Menjalankan migrasi SQL:** saya menjalankannya sendiri lewat Dashboard → SQL
+Editor. Beri saya isi berkasnya beserta langkah yang **detail** — sebutkan menu
+yang diklik dan hasil yang seharusnya muncul (`Success. No rows returned`).
+Instruksi ringkas pernah membuat saya tersinggung karena terasa seperti diuji.
 
-Yang sudah terpasang: `create-packer`, `get-upload-url`, `resolve-username`.
+## Keadaan proyek — sudah selesai dan TERBUKTI
 
-## Sudah selesai dan TERBUKTI jalan
+**Bab 0–8 selesai.** Rantai perekaman lengkap terbukti di Redmi Note 9:
+watermark terbakar benar, video sampai di R2, token terpotong tepat satu per
+video, isolate unggah latar belakang hidup.
 
-**Bab 0–4** — arsitektur MVVM, `analyze` bersih.
+**Bab 9 selesai dan sudah di-merge ke master** (commit `4c0c42c`), kecuali
+**9.9 Tutorial** yang belum dikerjakan. 295 tes hijau, `analyze` bersih.
 
-**Bab 5** — 20 migrasi terpasang. RLS diuji dua tenant lewat JWT asli:
-kebocoran nol, kenaikan role ditolak `42501`.
+Layar yang jadi: Beranda, Riwayat, Toko, Akun, Kelola Akun Packer, Pengaturan,
+Pembayaran. Bab 8.8 (putar/unduh/tautan publik) juga lunas.
 
-**Bab 6** — registrasi, verifikasi email (Resend), login email + Google,
-username unik, packer + batas 5, persetujuan S&K, layar Lengkapi Profil.
+Enam cacat ditemukan lewat pengujian di perangkat — **tidak satu pun terdeteksi
+`analyze` atau tes**. Uraiannya di `DEVIASI_LIBRARY.md` bagian **M.15–M.17**.
 
-**Bab 7** — aturan kuota token & masa langganan teruji.
+## 🔴 Tugas worktree ini
 
-**Bab 8.1–8.7 dan 8.9 — SELESAI dan terbukti di perangkat.** Rantai lengkapnya
-dijalankan di Redmi Note 9 pada 17 Agustus 2026:
+Saya melaporkan ada cacat pada dua alur berikut. **Gejala persisnya belum
+dijelaskan — tanyakan saya lebih dulu di awal sesi**, jangan menebak dan jangan
+langsung membongkar kode:
 
-- Layar kamera penuh, pemindaian **selama** merekam, perekaman beruntun tanpa
-  tombol, pratinjau tegak dan lancar
-- Watermark: **isinya dilihat langsung** pada berkas di R2 — GPS, nama toko,
-  waktu, nomor resi keempatnya terbaca. Waktu 19.59 WIB cocok tepat dengan log
-  unggah 12:59 UTC, tanpa keterangan *"waktu belum terverifikasi"*
-- Rasio watermark di profile: **0,42x sendirian, 0,61–0,81x beruntun**. Pakai
-  angka yang beruntun untuk merencanakan
-- Video sampai di R2 lewat aplikasi; `token_ledger` memotong **tepat satu token
-  per video** (100 → 99 → 98)
-- Isolate unggah latar belakang hidup, sesi Supabase pulih di dalamnya, drift
-  terbuka berdampingan tanpa saling mengunci
+1. **Lupa Password**
+2. **Pendaftaran akun lewat "Lanjutkan dengan Google"**
 
-Seluruh riwayat, angka, dan dua cacat yang ditemukan di dalamnya ada di
-`DEVIASI_LIBRARY.md` **bagian L**. Bagian **L.9** wajib dibaca sebelum menyentuh
-`ServerClock` atau `uploadPipeline`.
+Yang perlu ditanyakan: apa yang saya lakukan, apa yang muncul di layar, dan
+apakah ada email yang masuk atau tidak.
 
-## Utang yang dibawa masuk ke worktree ini
+### Di mana kodenya
 
-### 1. Bab 8.8 — pemutaran, unduh, dan berbagi (BELUM ADA)
-
-Rumahnya di **Bab 9.4 (Riwayat)**, karena di situlah tombol putar, unduh, dan
-bagikan sebenarnya tinggal. Di sisi aplikasi metodenya **sudah ada**
-(`VideoRepository.getPlaybackUrl`, `.createPublicLink`), tetapi Edge Function
-yang dipanggilnya **belum dibuat sama sekali** — menekan tombol putar hari ini
-akan gagal.
-
-Yang harus dibuat:
-
-- Edge Function `get-video-url` — presigned GET berumur 15 menit.
-  ⚠️ Bab 2.2 catatan 5: **tolak pemanggil dengan `app_role = 'admin'`.** Admin
-  platform hanya boleh melihat metadata, bukan isi video pelanggan.
-- Edge Function `create-public-link` — `public_token` acak 32 karakter,
-  `public_expires_at` = `expires_at` video. Hanya Owner.
-- Halaman publik `/v/{token}` — pemutar + metadata, **tanpa login**, menampilkan
-  sisa masa berlaku tautan (pusat resolusi marketplace kadang membuka tautannya
-  beberapa hari kemudian).
-- Unduh (`dio.download`) dan berbagi (`share_plus`).
-
-✅ **Tidak perlu migrasi baru.** Kolom `public_token` (unik),
-`public_expires_at`, dan indeks parsial `idx_videos_public` sudah ada sejak
-migrasi `05_package_videos.sql`. Yang kurang murni Edge Function, halaman
-publik, dan tombolnya di Riwayat.
-
-### 2. Sakelar "unggah lewat data seluler" menumpang di halaman Akun
-
-Rumah sebenarnya **Bab 9.7 (Setting)**. Ia dipasang lebih awal di halaman Akun
-pada 17 Agustus 2026 karena tanpa layar untuk menyalakannya, antrian unggah
-tidak dapat diuji sama sekali di perangkat yang hanya punya sinyal seluler.
-Pindahkan ke Setting saat Bab 9.7 dikerjakan — nilainya ada di
-`SharedPreferences`, jadi kepindahan itu tidak menghilangkan pilihan pengguna.
-Lihat `DEVIASI_LIBRARY.md` **L.7**.
-
-### 3. Dua hal yang belum terbukti dari Bab 8
-
-- **Satu video sungguhan lewat jalur unggah latar belakang.** Isolatenya sudah
-  terbukti hidup dan berwenang, tetapi antriannya selalu keburu dihabiskan jalur
-  aplikasi-terbuka. Prosedur pengujiannya di `DEVIASI_LIBRARY.md` **L.8**;
-  butuh Wi-Fi.
-- **Dugaan Product Owner soal pratinjau patah-patah.** Beliau mengamati
-  patah-patah muncul saat antrian menumpuk (sakelar seluler mati, tidak ada
-  Wi-Fi). Jejak yang menjawabnya sudah ditanam dan tinggal dibaca:
-
-  ```
-  adb logcat -v time | findstr "ditunda"
-  ```
-
-  Sering muncul = FFmpeg masih berjalan tiap kali perekaman dimulai, artinya
-  dugaan itu benar. Tidak muncul sama sekali = penyebabnya lain.
-
-## Tugas worktree ini: Bab 9
-
-Seluruh halamannya **sudah ada sebagai placeholder** dan sudah terhubung ke
-router; yang belum ada adalah isinya. Kerangka layar (bottom nav, app bar,
-tombol Rekam mengambang) sudah berdiri.
-
-| Bagian | Keadaan |
+| Bagian | Berkas |
 |---|---|
-| 9.1 Kerangka layar | Sudah berdiri |
-| 9.2 Home | 🔴 Placeholder — kartu monitoring & menu utama belum ada |
-| 9.3 Alur perekaman | Sudah selesai di Bab 8 |
-| 9.4 Riwayat | 🔴 Placeholder — **plus seluruh Bab 8.8** |
-| 9.5 Toko | 🔴 Placeholder |
-| 9.6 Akun | Baru tombol Keluar + sakelar seluler yang menumpang |
-| 9.7 Setting | 🔴 Placeholder — **rumah sakelar seluler** |
-| 9.8 Pembayaran | 🔴 Placeholder |
-| 9.9 Tutorial | 🔴 Placeholder |
-| 9.10 Aturan desain umum | Berlaku terus |
-| 9.11 Dwibahasa | Kerangkanya jalan; tiap teks baru wajib lewat ARB |
+| Layar Lupa Password | `lib/pages/auth/forgot_password/` |
+| Layar Masuk (tombol Google) | `lib/pages/auth/login/` |
+| Layar Daftar | `lib/pages/auth/register/` |
+| Lengkapi Profil | `lib/pages/auth/complete_profile/` |
+| Ganti Password | `lib/pages/auth/change_password/` |
+| Logika Google & reset | `lib/core/services/auth_service.dart` |
+| Pembungkusnya | `lib/core/repositories/auth_repository.dart` |
+| Penjagaan rute | `lib/navigation/route_guards.dart` |
+| Pembuatan tenant otomatis | `supabase/migrations/15_triggers.sql` → `handle_new_user()` |
 
-**Mulai dari 9.2 (Home).** Alasannya bukan urutan nomor: Home adalah satu-satunya
-tempat Product Owner dapat melihat saldo token dan jumlah video tanpa membuka
-database. Selama ia kosong, tiap pengujian menuntut saya membuka `psql`.
+### Tersangka yang sudah diketahui — periksa ini lebih dulu
 
-⚠️ Bab 9.1 menyembunyikan menu **Toko** untuk role Packer — **disembunyikan,
-bukan dinonaktifkan**. Pakai `IndexedStack` dengan daftar tab yang dibangun dari
-role agar indeks tidak bergeser dan salah arah.
+**a. Redirect URL yang tidak terdaftar TIDAK menghasilkan error.**
+Supabase diam-diam memakai Site URL sebagai gantinya, sehingga pengguna mendarat
+di halaman web alih-alih kembali ke aplikasi. Ini tersangka nomor satu untuk
+**Lupa Password**, karena tautannya harus membuka aplikasi lewat deep link
+`id.kamelscan.app://`.
 
-## Keputusan Product Owner yang WAJIB dipatuhi
+Periksa: Dashboard → Authentication → URL Configuration → Redirect URLs, dan
+cocokkan dengan `AUTH_REDIRECT_SCHEME` di `env.dev.json` serta `intent-filter`
+di `android/app/src/main/AndroidManifest.xml`.
 
-**1. Aturan berhenti perekaman** (menyimpang dari Bab 8.3.2):
-1. Pindai pertama → mulai merekam
-2. 5 detik pertama → pemindaian belum bisa menghentikan
-3. Setelah 5 detik → pindai resi **yang sama** menghentikan
-4. Resi **berbeda** → perekaman lanjut, disertai pesan *"Masih merekam X"*
-5. **Tombol Berhenti selalu hidup**; bila ditekan < 5 detik muncul konfirmasi
+**b. Google Sign-In di Android hanya berfungsi bila SHA-1 dan SHA-256 keystore
+— debug DAN release — sudah didaftarkan di Google Cloud Console.** Bila belum,
+`authenticate()` gagal dengan galat konfigurasi yang tidak menyebut SHA sama
+sekali.
 
-**2. Perekaman beruntun tanpa tombol** (menyimpang dari Bab 8.3): panel
-"Rekaman selesai" beserta tombolnya dihapus; pemindaian hidup lagi sendiri.
+**c. `google_sign_in` v7 berbeda total dari v6** yang ditulis di Bab 4.2:
+memakai singleton `GoogleSignIn.instance` dan wajib `initialize()` lebih dulu.
+Lihat `DEVIASI_LIBRARY.md` bagian **B**.
 
-🔴 **Pengamannya wajib ikut ada.** `_recordedInSession` menolak resi yang sudah
-selesai direkam selama layar rekam terbuka. Menghapusnya berarti merekam ulang
-paket yang sama berkali-kali dan membakar token pelanggan.
+**d. Pendaftaran lewat Google melewati formulir**, sehingga nomor HP dan
+persetujuan S&K tidak pernah ditanyakan (Bab 6.2). Penjagaannya ada di
+`needsProfileCompletionProvider` yang melempar ke layar Lengkapi Profil. Periksa
+apakah penjagaan itu benar-benar menyala pada akun Google baru — kalau tidak,
+seseorang memperoleh tenant beserta 100 video gratis tanpa nomor kontak dan
+tanpa pernah menyetujui apa pun.
 
-**3. Arsitektur kamera:** `camera` + `google_mlkit_barcode_scanning` satu-satunya
-pemilik kamera.
+**e. `handle_new_user()` memakai `raw_user_meta_data`.** Pendaftaran biasa
+mengisi `full_name`, `username`, `phone`, `business_name` di sana; pendaftaran
+Google **tidak mengisi satu pun**. Periksa apa yang sebenarnya terbentuk di
+`public.users` dan `public.tenants` untuk akun Google — `username` bisa jadi
+null, dan `full_name` jatuh ke potongan email.
 
-**4.** Tanda *waktu belum terverifikasi* hidup di kolom
-`package_videos.time_verified` **dan** metadata berkas, **dan** ikut terbakar ke
-gambar.
-
-**5.** Sakelar "unggah lewat data seluler" disimpan di HP (`SharedPreferences`),
-bukan di server — preferensi milik satu perangkat.
-
-**6.** FFmpeg berjalan **di sela antar-paket**, satu per satu, dijeda saat
-merekam.
-
-**7. Layar rekam, diputuskan 17 Agustus 2026:**
-
-- **Blok gelap di luar bingkai pindai dicabut.** Packer memindai *sambil
-  mengemas*; yang digelapkan justru barang yang sedang ia kerjakan.
-  🔴 Jangan mengembalikannya tanpa bertanya lebih dulu.
-- **Isi watermark ditampilkan selama merekam**, di posisi yang sama seperti yang
-  akan terbakar. Isinya disusun `WatermarkCommand.buildLines` — penyusun yang
-  **sama** dengan yang dipakai FFmpeg. Jangan menyusunnya ulang di lapisan
-  tampilan.
-- **Tombol Berhenti bulat seperti tombol rana kamera**, berdiri sendiri sebagai
-  lapisan di `Stack`. Lihat jebakan 16 di bawah.
+**f. Batas kirim email Supabase.** Sudah dipetakan sebagai
+`errorEmailRateLimited`. Percobaan berulang saat menguji Lupa Password mudah
+menabraknya, dan pesannya bisa disalahartikan sebagai cacat.
 
 ## Jebakan yang sudah memakan waktu
 
+**Umum:**
+
 1. `flutter run` polos meracuni cache kernel — lihat di atas
 2. Ekstensi Supabase ada di schema `extensions`, bukan `public`. Pakai
-   `gen_random_uuid()`, bukan `uuid_generate_v4()`
-3. Redirect URL yang tidak cocok **tidak menghasilkan error** — Supabase
-   diam-diam memakai Site URL
+   `gen_random_uuid()`
+3. Redirect URL tidak cocok → tidak ada error, diam-diam pakai Site URL
 4. Auth Hook wajib aktif, kalau tidak semua tabel mengembalikan **nol baris**
    tanpa pesan apa pun
-5. Bucket R2 `kamelscan-videos`, bukan `scanproof-videos` seperti di dokumen
-6. `AppColors` adalah `ThemeExtension`, diakses lewat
+5. `AppColors` adalah `ThemeExtension`, diakses lewat
    `Theme.of(context).extension<AppColors>()!`
-7. Periksa API widget/paket sebelum memakainya — beberapa kali ditebak dan salah
+6. `flutter analyze` di akar melaporkan error dari `tool/db_migrate`. Pakai
+   `flutter analyze lib`
+7. **Periksa worktree sebelum mempercayai hasil `analyze`/`test`.** Sesi pernah
+   terlempar ke worktree lain diam-diam. Jalur berkas pada keluaran tes
+   menyebutkan worktree-nya — baca itu
 
-**Jebakan pemasangan APK (MIUI):**
+**Diagnosis:**
 
-8. `adb install` ditolak `INSTALL_FAILED_USER_RESTRICTED`. Pesannya menyesatkan.
-   Dua sebab: HP tanpa internet (MIUI memverifikasi ke server Xiaomi dulu), atau
-   tidak ada yang menekan *Izinkan* di layar HP. Claude tidak bisa menekannya;
-   minta saya menjalankan `.\run.ps1` sendiri — itu lebih cepat.
-9. `adb install` mengembalikan **exit code 0 walaupun gagal**. Baca keluarannya.
-10. **Memasang ulang APK menghapus cache aplikasi**, termasuk rekaman mentah.
+8. 🔴 **`AppLogger` tidak pernah sampai ke logcat.** Ia memakai
+   `dart:developer`. Untuk jejak yang perlu dibaca dari perangkat, pakai
+   `debugPrint` (tembus sebagai `I/flutter`).
 
-**Jebakan diagnosis — dua di antaranya masing-masing membuang satu sesi penuh:**
+   **Aturan yang lahir dari sini: bila jalur berhasilnya dicetak dengan
+   `debugPrint`, jalur gagalnya WAJIB ikut.**
 
-11. 🔴 **`AppLogger` tidak pernah sampai ke logcat.** Ia memakai
-    `dart:developer`, yang hanya muncul di terminal `flutter run`. Untuk jejak
-    yang perlu dibaca dari perangkat, pakai `debugPrint` (tembus sebagai
-    `I/flutter`).
+9. Jejak `KAMELSCAN_*` yang sudah ada **sengaja permanen** — jangan dihapus
+   sebagai sisa lupa dibersihkan. Yang relevan untuk worktree ini:
+   `KAMELSCAN_SPLASH`, `KAMELSCAN_GUARD`, `KAMELSCAN_SESI`.
 
-    **Aturan yang lahir dari sini, dan berlaku untuk seluruh jejak baru: bila
-    jalur berhasilnya dicetak dengan `debugPrint`, jalur gagalnya WAJIB ikut.**
-    17 Agustus 2026 enam video keluar bertanda "waktu belum terverifikasi" dan
-    tidak ada satu pun baris yang menjelaskan sebabnya — karena hanya
-    keberhasilan yang tercetak. Rinciannya di `DEVIASI_LIBRARY.md` L.9.
+**Pemasangan APK (MIUI):**
 
-12. `flutter analyze` di akar melaporkan error dari `tool/db_migrate`. Pakai
-    `flutter analyze lib`.
+10. `adb install` ditolak `INSTALL_FAILED_USER_RESTRICTED`. Pesannya
+    menyesatkan. Sebabnya: tidak ada yang menekan *Izinkan* di layar HP, atau
+    HP tanpa internet (MIUI memverifikasi ke server Xiaomi). **Minta saya
+    menjalankan perintah `adb install`-nya sendiri** — saya yang menekan
+    izinnya. Kadang berhasil langsung, kadang tidak; jangan menyerah di
+    percobaan pertama.
+11. `adb install` pernah mengembalikan exit code 0 walaupun gagal. **Baca
+    keluarannya**, jangan percaya kode keluarnya saja.
+12. **Memasang ulang APK menghapus cache aplikasi**, termasuk sesi login. Jangan
+    menguji "sesi bertahan setelah aplikasi ditutup" tepat setelah memasang
+    ulang — pengujiannya tidak akan pernah sampai ke jalur yang dimaksud.
 
-13. **Periksa worktree sebelum mempercayai hasil `analyze`/`test`.** Sesi pernah
-    terlempar ke worktree lain diam-diam, dan hasil dari checkout yang salah
-    sempat dilaporkan sebagai hasil pekerjaan. Jalur berkas pada keluaran tes
-    menyebutkan worktree-nya — baca itu. Jumlah tes juga penanda cepat.
+**Tata letak — sudah terjadi DUA KALI:**
 
-**Jebakan khusus layar kamera — baca `DEVIASI_LIBRARY.md` bagian J sebelum
-menyentuhnya:**
+13. 🔴 **Tombol bertema di proyek ini menuntut lebar TAK TERHINGGA.**
+    `filledButtonTheme` memakai `minimumSize: Size.fromHeight(...)`. Menaruhnya
+    di dalam `Row` membuatnya melahap seluruh lebar, dan `Expanded` di
+    sebelahnya tergencet jadi nol.
 
-14. **`CameraPreview` sengaja TIDAK dipakai.** Ia mengunci bentuk kotaknya pada
-    `previewSize` yang hanya diisi sekali, sehingga gambar melar 2,25x saat
-    merekam. Putaran bawaannya direplikasi manual di `_preAppliedQuarterTurns` —
-    jangan dihapus.
-15. 🔴 **Widget berat di layar rekam dibuat sekali di `State`, bukan di dalam
-    `build`.** Selama merekam, pencatat waktu berdetak 5x per detik. Widget yang
-    dibuat ulang tiap kali membuat pratinjau patah-patah, dan **gejalanya akan
-    tampak seperti masalah kamera** — bukan masalah widget. Ini sudah pernah
-    menyesatkan penyelidikan sampai tiga dugaan salah.
+    Pertama kali: judul halaman Toko tergambar satu huruf per baris (M.12).
+    Kedua kali: kolom kode promo hilang sama sekali, hanya tersisa ikon (M.17).
 
-    Pola yang benar: `late final Widget _x = ...` di `State`, lalu widget itu
-    berlangganan sendiri lewat `ref.watch(provider.select(...))`.
-16. **Tombol Berhenti berdiri sendiri sebagai lapisan di `Stack`, bukan di dalam
-    `_BottomBar`.** Saat masih berada di `Row` berisi dua `Spacer` di baris
-    bawah, tombol itu **tidak pernah tergambar sama sekali** — padahal tombol
-    senter di baris yang sama tampil, dan tiga elemen lain yang dihidupkan
-    syarat yang sama persis (`isRecording`) juga tampil. Sebabnya tidak pernah
-    ditemukan. Jangan mengembalikannya ke dalam `_BottomBar`.
+    Membungkusnya dengan `SizedBox(height: ...)` **tidak menolong** — yang
+    merusak lebarnya. Batasnya harus datang dari `Expanded`.
 
-    Jejak `KAMELSCAN_UI tombol Berhenti tampil=…` sengaja permanen. Jangan
-    dihapus sebagai sisa lupa dibersihkan.
-17. **Jangan menambahkan `clipBehavior` pada widget yang menumpang di atas
-    tekstur kamera** tanpa alasan kuat. Lapisan pemotong di atas tekstur adalah
-    tersangka pertama saat kelancaran turun.
+    ⚠️ **Tes tata letak yang tidak memakai `AppTheme` tidak membuktikan apa
+    pun.** Percobaan pertama memakai tema bawaan Flutter dan **lulus**, sehingga
+    sempat menyimpulkan susunannya baik-baik saja.
 
-## Beban perangkat — sudah diselidiki, jangan diulang
+**Pesan error:**
 
-Pratinjau pernah patah-patah. Tiga dugaan **semuanya salah** dan sudah
-dibuktikan salah lewat pengukuran; jangan diselidiki ulang:
+14. 🔴 **Menambah kegagalan baru menuntut TIGA tempat disentuh**, dan
+    melewatkan yang ketiga tidak menimbulkan gejala apa pun:
 
-1. Build debug — profile pun masih patah-patah
-2. ML Kit membaca tiap frame — sudah dijarangkan ke ± 8/detik, tetap patah-patah
-3. FFmpeg berebut CPU — pengukur dicabut seluruhnya, tetap patah-patah
+    1. `AppFailure` — kunci pesannya
+    2. `app_id.arb` / `app_en.arb` — kalimatnya
+    3. `failure_messages.dart` — sambungan antara keduanya
 
-Penyebab sebenarnya: widget dibangun ulang tiap detak pencatat waktu
-(jebakan 15). Sudah diperbaiki dan terbukti halus.
+    Yang terlewat diam-diam berubah jadi *"Terjadi kesalahan"*. Dijaga
+    `test/core/failure_message_keys_test.dart` — jalankan bila menambah
+    kegagalan baru.
 
-⚠️ Ini **tidak** membatalkan dugaan Product Owner di utang nomor 3 — yang di
-sana adalah keadaan berbeda: antrean yang tidak pernah kosong sehingga FFmpeg
-selalu sedang berjalan tepat saat perekaman dimulai. Baris `ditunda` di logcat
-yang menjawabnya.
+15. Penolakan Edge Function membawa kodenya di **badan balasan**, bukan di
+    pesannya. Pemetaannya di `SupabaseService._mapFunctions`. Kelas dasarnya
+    `FunctionException` (tanpa `s`).
+
+**Riverpod:**
+
+16. 🔴 **Semua `ref.watch` dan `ref.listen` harus dipanggil SEBELUM `await`
+    pertama** di dalam `build()`. Yang didaftarkan sesudahnya tidak tersambung
+    dengan benar, dan gejalanya layar yang memuat selamanya tanpa error apa pun.
+17. Riverpod yang sedang **mengulang percobaan** membungkus kegagalannya dalam
+    `AsyncLoading` yang membawa error — bukan `AsyncError`. Pencocokan menurut
+    tipe akan meleset dan jatuh ke cabang "sedang memuat".
+
+## Utang yang belum lunas
+
+### 1. 🔴 `activate-subscription` — SAYA SUDAH TRANSFER SUNGGUHAN
+
+22 Agustus 2026 saya melakukan **transfer uang sungguhan** lewat alur Bab 9.8,
+mengunggah buktinya, dan layarnya berhenti di *"Menunggu verifikasi"*.
+
+**Belum ada apa pun yang dapat mengubahnya menjadi aktif.** Langkah terakhir
+Bab 12.2 — Admin memeriksa bukti lalu paket dinyalakan — ada di panel Admin
+(Bab 11) dan belum dibuat.
+
+Fungsi yang dibutuhkan harus mengerjakan empat hal dan keempatnya harus benar
+bersamaan:
+
+1. `subscriptions.status = 'paid'`, `paid_at = now()`
+2. `tenants.tier_plan` = paket yang dibeli, `period_start = now()`,
+   `period_end = now() + 30 hari`
+3. `token_wallets.monthly_quota` & `balance` = kuota tier baru
+4. `token_ledger` catat `plan_upgrade`, `audit_logs` catat aksi admin
+
+Perkiraan **± 2 jam**. Saya sudah diberi tahu ini penambahan lingkup dan
+**belum memutuskan** kapan dikerjakan.
+
+⚠️ Trigger `guard_subscription_owner_update` (migrasi 25) mengunci seluruh kolom
+`subscriptions` bagi Owner kecuali `proof_url`. Ia **dilewati** oleh
+`service_role` dan Admin — jadi Edge Function aktivasi tidak akan tertahan
+olehnya. Jangan menghapus trigger itu untuk "memudahkan".
+
+### 2. Bab 9.9 Tutorial — belum dikerjakan
+
+Ditunda atas keputusan saya. Halaman daftar bernomor dari tabel `tutorials`,
+membuka YouTube lewat `url_launcher`. Bagian paling ringan di Bab 9.
+
+### 3. Halaman `/settings/watermark` masih placeholder
+
+Khusus tier Pro; seluruh tenant saat ini masih trial/Standar, jadi belum ada
+yang dapat menemukannya.
+
+### 4. Tautan bukti publik belum bisa dibuka
+
+`https://kamelscan.com/v/{token}` menunggu aplikasi web Bab 10 di-deploy.
+Edge Function-nya sudah jadi dan sudah diuji tanpa login.
+
+### 5. Satu video sungguhan lewat jalur unggah latar belakang
+
+Isolatenya terbukti hidup, tetapi antriannya selalu keburu dihabiskan jalur
+aplikasi-terbuka. Prosedurnya di `DEVIASI_LIBRARY.md` **L.8**; butuh Wi-Fi.
+
+### 6. Akun packer uji yang perlu dibersihkan
+
+`ujiberanda@ramirez-corp.com` (nama **Uji Beranda**) dibuat untuk mereproduksi
+cacat Beranda, dan **belum dihapus**. Kuota packer saya jadi 4 dari 5. Ia belum
+pernah merekam, jadi tombol Hapus seharusnya bekerja.
+
+### 7. `server_now` ditolak sebelum login
+
+`KAMELSCAN_WAKTU sinkron GAGAL · permission denied for function server_now
+(42501)` muncul tiap kali aplikasi dibuka, sebelum sesi ada. Ia pulih sendiri
+sesudah login, jadi tidak merusak apa pun — tetapi berisik di logcat dan
+sebaiknya dibereskan bersama pekerjaan autentikasi. Kemungkinan `server_now`
+belum di-`grant` ke peran `anon`.
 
 ## Penyangga jadwal
 
 Bab 0.2 mewajibkan tiap penambahan lingkup disertai pengurangan setara atau
-geser tanggal. Penyangga **minus ± 7 jam** — bertambah 1 jam pada 17 Agustus
-2026 dari kolom `time_verified` beserta migrasinya, dan 1 jam lagi dari sakelar
-data seluler yang dipasang lebih awal. Beri tahu saya setiap kali ada tambahan
-baru; jangan diam-diam menyerapnya.
-
-Satu utang teknis tercatat dan **sengaja ditunda**: menambal
-`camera_android_camerax` (akar kedipan peralihan). Alasannya di
-`DEVIASI_LIBRARY.md` bagian J — berkas video tidak terpengaruh, dan memelihara
-fork paket resmi Flutter terlalu mahal untuk saat ini.
+geser tanggal. Penyangga **minus ± 7 jam**. Beri tahu saya setiap kali ada
+tambahan baru; jangan diam-diam menyerapnya.
 
 ## Mulai dari mana
 
 1. Salin `env.dev.json`, `panduan_dokumentasi.md`, dan `dataapp.md` dari
    `E:\kamelscan\` (ketiganya ter-gitignore)
 2. Bangkitkan kode: `pub get` → `build_runner build` → `gen-l10n`
-3. Baca `DEVIASI_LIBRARY.md` — terutama bagian J dan L
-4. Baca Bab 9 di `panduan_dokumentasi.md`
-5. Mulai dari **9.2 Home**
+3. Baca `DEVIASI_LIBRARY.md` bagian **B** dan **M**
+4. Baca **Bab 6** di `panduan_dokumentasi.md`
+5. **Tanyakan saya dulu**: gejala persis pada Lupa Password dan pendaftaran
+   Google — apa yang saya lakukan, apa yang muncul, ada email masuk atau tidak
+6. Baru sesudah itu periksa kode dan konfigurasi Supabase
