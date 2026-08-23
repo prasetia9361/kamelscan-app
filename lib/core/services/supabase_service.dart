@@ -1,10 +1,13 @@
+import 'dart:async';
 import 'dart:convert';
 
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/env.dart';
 import '../utils/app_failure.dart';
 import '../utils/logger.dart';
+import 'timeout_http_client.dart';
 
 /// Pembungkus tipis di atas SDK Supabase (Bab 3.2).
 ///
@@ -28,6 +31,11 @@ class SupabaseService {
         // PKCE diperlukan untuk OAuth Google lewat deep link (Bab 6).
         authFlowType: AuthFlowType.pkce,
       ),
+      // 🔴 Batas waktu untuk seluruh permintaan Supabase — auth, tabel, dan
+      // Edge Function. Tanpa ini, jaringan yang diam membuat permintaan
+      // menggantung selamanya, dan aplikasi berputar tak berujung di layar
+      // splash (19 Agustus 2026). Alasan lengkapnya di `TimeoutHttpClient`.
+      httpClient: TimeoutHttpClient(),
       debug: Env.isDev,
     );
     _log.i('Supabase siap (${Env.appEnv.name})');
@@ -79,6 +87,24 @@ class SupabaseService {
   static AppFailure mapError(Object error, [StackTrace? stack]) {
     if (error is AppFailure) return error;
 
+    // 🔴 Kegagalan jaringan HARUS dikenali sebelum yang lain.
+    //
+    // Sebelum 19 Agustus 2026 ketiganya tidak ditangani sama sekali dan jatuh
+    // ke `AppFailure.unknown`. Akibatnya perangkat dalam mode pesawat
+    // menampilkan *"Terjadi kesalahan. Coba lagi beberapa saat."* — kalimat
+    // yang menyembunyikan satu-satunya hal yang perlu diketahui penggunanya:
+    // sinyalnya yang hilang, bukan aplikasinya yang rusak. Di gudang, keliru
+    // itu berarti packer mencari-cari masalah pada aplikasi padahal cukup
+    // berjalan ke tempat yang ada sinyalnya.
+    //
+    // `ClientException` adalah pembungkus lintas platform dari `package:http`;
+    // di Android ia membungkus `SocketException` (mis. DNS gagal), dan di web
+    // ia yang muncul langsung. `TimeoutException` datang dari
+    // `TimeoutHttpClient`.
+    if (error is TimeoutException || error is http.ClientException) {
+      return AppFailure.network.copyWith(debugMessage: error.toString());
+    }
+
     if (error is PostgrestException) {
       return switch (error.code) {
         // Pelanggaran unique constraint — resi ganda (Bab 7.7).
@@ -90,6 +116,13 @@ class SupabaseService {
         _ => _mapByMessage(error.message, error.code),
       };
     }
+
+    // Kegagalan Edge Function membawa kode niatnya di dalam badan balasan,
+    // bukan di pesannya. Tanpa cabang ini semuanya jatuh ke `unknown` —
+    // terlihat 20 Agustus 2026 di logcat perangkat Product Owner, ketika
+    // penolakan `EMAIL_ALREADY_USED` yang sangat jelas sampai ke layar sebagai
+    // *"Terjadi kesalahan. Coba lagi beberapa saat."*
+    if (error is FunctionException) return _mapFunctions(error);
 
     if (error is AuthException) return _mapAuth(error);
 
@@ -172,6 +205,49 @@ class SupabaseService {
 
   /// Trigger di server melempar pesan bertanda (Bab 7.4). Petakan ke failure
   /// yang punya arti di UI.
+  /// Menerjemahkan kode yang dikirim Edge Function menjadi kegagalan yang
+  /// punya kalimatnya sendiri.
+  ///
+  /// Seluruh fungsi di `supabase/functions/` sepakat membalas
+  /// `{ "error": "KODE_HURUF_BESAR", ... }`; kode itulah yang dibaca di sini,
+  /// bukan pesan bahasa Inggris dari Supabase yang dapat berubah kapan saja.
+  static AppFailure _mapFunctions(FunctionException error) {
+    final details = error.details;
+    final kode = details is Map ? details['error']?.toString() : null;
+    final jejak = '${error.runtimeType}(${error.status}) $kode · $details';
+
+    // Permintaannya tidak pernah sampai — jaringan, bukan penolakan. Statusnya
+    // 0 karena tidak ada balasan sama sekali, jadi tidak ada kode yang dapat
+    // dibaca dari badan balasan.
+    if (error is FunctionsFetchException) {
+      return AppFailure.network.copyWith(debugMessage: jejak);
+    }
+
+    return switch (kode) {
+      'EMAIL_ALREADY_USED' =>
+        AppFailure.packerEmailTaken.copyWith(debugMessage: jejak),
+      'PACKER_HAS_VIDEOS' =>
+        AppFailure.packerHasVideos.copyWith(debugMessage: jejak),
+      'PACKER_LIMIT_REACHED' =>
+        AppFailure.packerLimitReached.copyWith(debugMessage: jejak),
+      'SUBSCRIPTION_INACTIVE' =>
+        AppFailure.subscriptionInactive.copyWith(debugMessage: jejak),
+      'TOKEN_EXHAUSTED' =>
+        AppFailure.tokenExhausted.copyWith(debugMessage: jejak),
+      'UNAUTHORIZED' =>
+        AppFailure.sessionExpired.copyWith(debugMessage: jejak),
+      'FORBIDDEN' || 'ADMIN_FORBIDDEN' =>
+        AppFailure.permissionDenied.copyWith(debugMessage: jejak),
+      'NOT_FOUND' => AppFailure.notFound.copyWith(debugMessage: jejak),
+      _ => AppFailure(
+          kind: FailureKind.unknown,
+          messageKey: 'errorUnknown',
+          debugMessage: jejak,
+          code: kode ?? '${error.status}',
+        ),
+    };
+  }
+
   static AppFailure _mapByMessage(String message, String? code) {
     final m = message.toUpperCase();
     if (m.contains('TOKEN_EXHAUSTED') || m.contains('INSUFFICIENT_TOKEN')) {

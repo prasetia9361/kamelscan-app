@@ -132,6 +132,31 @@ class AppFailure extends Equatable implements Exception {
     messageKey: 'errorPackerLimitReached',
   );
 
+  /// Email sudah dipakai akun lain saat Owner menambah packer.
+  ///
+  /// Sengaja **tidak** memakai `errorEmailAlreadyUsed` milik pendaftaran:
+  /// kalimat itu menyuruh pembacanya masuk atau memakai Lupa Password, dan itu
+  /// nasihat untuk orang yang sedang mendaftarkan dirinya sendiri — bukan
+  /// untuk Owner yang sedang mendaftarkan orang lain.
+  ///
+  /// Bukan sekadar kenyamanan: bila kegagalan ini jatuh ke [unknown], Owner
+  /// hanya membaca *"Terjadi kesalahan"* dan akan mencoba lagi berkali-kali
+  /// dengan email yang sama.
+  static const AppFailure packerEmailTaken = AppFailure(
+    kind: FailureKind.conflict,
+    messageKey: 'packersEmailTaken',
+  );
+
+  /// Packer tidak dapat dihapus karena sudah pernah merekam (Bab 5.2).
+  ///
+  /// Layar Kelola Packer menangkapnya lebih dulu dan menampilkan dialog
+  /// beserta jumlah videonya; [messageKey] hanya cadangan bila kegagalan ini
+  /// sampai ke penampil pesan biasa.
+  static const AppFailure packerHasVideos = AppFailure(
+    kind: FailureKind.conflict,
+    messageKey: 'packersCannotDeleteTitle',
+  );
+
   factory AppFailure.unknown(Object error, [StackTrace? stack]) => AppFailure(
         kind: FailureKind.unknown,
         messageKey: 'errorUnknown',

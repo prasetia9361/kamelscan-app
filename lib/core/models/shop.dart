@@ -35,13 +35,19 @@ class MarketNames {
   static const String tokopedia = 'Tokopedia';
   static const String tiktokShop = 'TikTok Shop';
   static const String lazada = 'Lazada';
+  static const String blibli = 'Blibli';
+  static const String bukalapak = 'Bukalapak';
   static const String other = 'Lainnya';
 
+  /// Urutannya mengikuti Bab 9.5. `Lainnya` sengaja paling akhir: ia jalan
+  /// keluar, bukan pilihan yang setara dengan yang lain.
   static const List<String> all = [
     shopee,
     tokopedia,
     tiktokShop,
     lazada,
+    blibli,
+    bukalapak,
     other,
   ];
 }

@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_constants.dart';
 import '../models/shop.dart';
+import '../models/shop_summary.dart';
 import '../services/supabase_service.dart';
 import '../utils/result.dart';
 
@@ -14,16 +15,70 @@ class ShopRepository {
 
   final SupabaseClient _client;
 
-  Future<Result<List<Shop>>> fetchShops({bool activeOnly = false}) async {
+  /// Daftar toko yang boleh dipakai pengguna aktif.
+  ///
+  /// [assignedOnly] menyaring ke toko yang **ditugaskan** kepada pengguna ini
+  /// lewat `shop_packers`. Wajib dinyalakan untuk packer di layar pemilihan
+  /// toko (panduan §8.2: *"Bagi packer, hanya toko yang ditugaskan kepadanya"*).
+  ///
+  /// 🔴 Jangan andalkan RLS untuk penyaringan ini. `shops_select` sengaja
+  /// memberi seluruh anggota tenant hak baca atas semua toko, supaya nama toko
+  /// tetap dapat ditampilkan di Riwayat — termasuk pada video lama dari toko
+  /// yang penugasannya sudah dicabut. Menyempitkan policy itu akan membuat
+  /// riwayat packer kehilangan nama tokonya.
+  ///
+  /// ⚠️ Sampai 20 Agustus 2026 layar perekaman memanggil metode ini tanpa
+  /// penyaringan apa pun sambil menuliskan komentar bahwa "filter sesungguhnya
+  /// ada di RLS". Filter itu tidak pernah ada. Akibatnya, packer yang hanya
+  /// ditugaskan ke 2 toko tetap melihat ketiga toko di layar Pilih Toko **dan
+  /// berhasil merekam atas nama toko yang bukan tugasnya** — terbukti di
+  /// perangkat Product Owner. Penjagaan sesungguhnya sekarang ada di policy
+  /// `videos_insert` (migrasi `24_videos_insert_assignment.sql`); penyaringan
+  /// di sini yang membuat pilihannya tidak pernah muncul sejak awal.
+  Future<Result<List<Shop>>> fetchShops({
+    bool activeOnly = false,
+    bool assignedOnly = false,
+  }) async {
     try {
       // RLS otomatis memfilter berdasarkan tenant (Bab 5.4).
       // Tidak perlu — dan tidak boleh diandalkan — .eq('tenant_id', ...).
-      var query = _client.from(AppConstants.tblShops).select();
+      //
+      // `!inner` membuat toko tanpa baris penugasan yang cocok ikut tersingkir;
+      // tanpa tanda itu PostgREST tetap mengembalikan tokonya dengan daftar
+      // penugasan kosong, dan penyaringannya tidak terjadi sama sekali.
+      final uid = SupabaseService.currentUser?.id;
+      var query = assignedOnly && uid != null
+          ? _client.from(AppConstants.tblShops).select(
+                '*, ${AppConstants.tblShopPackers}!inner(user_id)',
+              ).eq('${AppConstants.tblShopPackers}.user_id', uid)
+          : _client.from(AppConstants.tblShops).select();
+
       if (activeOnly) query = query.eq('is_active', true);
 
       final rows = await query.order('created_at', ascending: false);
       return Result.ok(
         rows.map((r) => Shop.fromJson(r)).toList(growable: false),
+      );
+    } on Object catch (e, s) {
+      return Result.err(SupabaseService.mapError(e, s));
+    }
+  }
+
+  /// Daftar toko beserta jumlah videonya, untuk halaman Toko (Bab 9.5).
+  ///
+  /// Jumlahnya diambil lewat agregat bersarang PostgREST dalam permintaan yang
+  /// sama. Alternatifnya satu permintaan `count` per toko — pada Owner dengan
+  /// belasan toko itu belasan perjalanan bolak-balik hanya untuk mengisi satu
+  /// baris angka.
+  Future<Result<List<ShopSummary>>> fetchShopSummaries() async {
+    try {
+      final rows = await _client
+          .from(AppConstants.tblShops)
+          .select('*, ${AppConstants.tblPackageVideos}(count)')
+          .order('created_at', ascending: false);
+
+      return Result.ok(
+        rows.map((r) => ShopSummary.fromJson(r)).toList(growable: false),
       );
     } on Object catch (e, s) {
       return Result.err(SupabaseService.mapError(e, s));

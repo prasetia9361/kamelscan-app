@@ -414,13 +414,25 @@ class RecordingCameraViewModel extends _$RecordingCameraViewModel {
   /// video tetap sah (Bab 1.3 poin 6).
   GeoPoint? _location;
 
+  /// Tipe video yang sedang direkam (Bab 9.2).
+  ///
+  /// 🔴 Sebelum 18 Agustus 2026 ketiga pemakaiannya memaku `VideoType.packing`,
+  /// sehingga tidak ada satu pun jalan yang menghasilkan video `return`.
+  /// Tipenya bukan sekadar label: ia ikut menentukan pengecekan resi ganda,
+  /// karena indeks `uq_resi_per_tenant_type` memang mengizinkan satu resi
+  /// direkam sekali saat packing dan sekali lagi saat paketnya kembali
+  /// (Bab 7.7).
+  late VideoType _type;
+
   @override
   RecordingScreenState build(
     String cameraName,
     String triggerWire,
     String shopId,
+    String typeWire,
     String shopName,
   ) {
+    _type = VideoType.fromWire(typeWire);
     _strategy = TriggerStrategy.of(TriggerMode.fromWire(triggerWire));
     _gate = ScanGate(strategy: _strategy);
     _camera = ref.watch(cameraServiceProvider);
@@ -459,12 +471,22 @@ class RecordingCameraViewModel extends _$RecordingCameraViewModel {
       ));
       return;
     }
+    // Sakelar "Rekam dengan suara" (Bab 9.7) hanya dapat **menurunkan**
+    // kemampuan: izin sistem tetap yang menentukan batas atasnya. Mikrofon
+    // yang ditolak sistem membuat video bisu walaupun sakelarnya menyala —
+    // dan itu memang benar, karena Bab 8.9 memilih video bisu daripada tidak
+    // ada video sama sekali.
+    final micDiizinkanPengguna =
+        await ref.read(micEnabledProvider.future).catchError((_) => true);
+    final rekamSuara = permissions.withAudio && micDiizinkanPengguna;
+
     _log.i('Izin OK · audio=${permissions.withAudio} '
+        'sakelarSuara=$micDiizinkanPengguna '
         'lokasi=${permissions.withLocation}');
 
     final init = await _camera.init(
       cameraName: cameraName,
-      enableAudio: permissions.withAudio,
+      enableAudio: rekamSuara,
     );
     if (_disposed) return;
 
@@ -690,7 +712,7 @@ class RecordingCameraViewModel extends _$RecordingCameraViewModel {
     _set(state.copyWith(checkingResi: true));
     final result = await ref.read(videoRepositoryProvider).resiExists(
           resiCode: resi,
-          type: VideoType.packing,
+          type: _type,
         );
     if (_disposed) return false;
     _set(state.copyWith(checkingResi: false));
@@ -971,7 +993,7 @@ class RecordingCameraViewModel extends _$RecordingCameraViewModel {
       shopId: shopId,
       userId: session.user.id,
       resiCode: resi,
-      type: VideoType.packing,
+      type: _type,
       localPath: rawPath,
       storageKey: buildStorageKey(
         tenantId: session.tenantId,
@@ -1138,7 +1160,7 @@ class RecordingCameraViewModel extends _$RecordingCameraViewModel {
   Future<bool> _isDuplicateQuiet(String resi) async {
     final result = await ref.read(videoRepositoryProvider).resiExists(
           resiCode: resi,
-          type: VideoType.packing,
+          type: _type,
         );
     return result.getOrElse((_) => false);
   }

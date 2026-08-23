@@ -31,12 +31,18 @@ class RecordingCameraPage extends ConsumerStatefulWidget {
     required this.cameraName,
     required this.triggerWire,
     required this.shopId,
+    required this.typeWire,
     this.shopName = '',
   });
 
   final String cameraName;
   final String triggerWire;
   final String shopId;
+
+  /// `packing` atau `return` (Bab 9.2). Menentukan tipe baris video **dan**
+  /// pengecekan resi ganda — satu resi boleh direkam sekali saat packing dan
+  /// sekali lagi saat paketnya kembali (Bab 7.7).
+  final String typeWire;
 
   /// Nama toko untuk watermark (Bab 8.5). Dibawa dari layar setup karena
   /// gudang sering tanpa sinyal.
@@ -59,6 +65,7 @@ class _RecordingCameraPageState extends ConsumerState<RecordingCameraPage> {
         widget.cameraName,
         widget.triggerWire,
         widget.shopId,
+        widget.typeWire,
         widget.shopName,
       );
 
@@ -122,6 +129,7 @@ class _RecordingCameraPageState extends ConsumerState<RecordingCameraPage> {
           cameraName: widget.cameraName,
           triggerWire: widget.triggerWire,
           shopId: widget.shopId,
+          typeWire: widget.typeWire,
           shopName: widget.shopName,
           child: state.fatalKey != null
             ? _FatalView(messageKey: state.fatalKey!)
@@ -1036,6 +1044,7 @@ class _RecordingScope extends InheritedWidget {
     required this.cameraName,
     required this.triggerWire,
     required this.shopId,
+    required this.typeWire,
     required this.shopName,
     required super.child,
   });
@@ -1043,6 +1052,7 @@ class _RecordingScope extends InheritedWidget {
   final String cameraName;
   final String triggerWire;
   final String shopId;
+  final String typeWire;
   final String shopName;
 
   static _RecordingScope of(BuildContext context) =>
@@ -1053,6 +1063,7 @@ class _RecordingScope extends InheritedWidget {
           cameraName,
           triggerWire,
           shopId,
+          typeWire,
           shopName,
         ).notifier,
       );
@@ -1062,5 +1073,6 @@ class _RecordingScope extends InheritedWidget {
       old.cameraName != cameraName ||
       old.triggerWire != triggerWire ||
       old.shopId != shopId ||
+      old.typeWire != typeWire ||
       old.shopName != shopName;
 }

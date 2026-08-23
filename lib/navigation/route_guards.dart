@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart' show ChangeNotifier, kIsWeb;
+import 'package:flutter/foundation.dart' show ChangeNotifier, debugPrint, kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/models/enums.dart';
@@ -23,12 +23,66 @@ class RouteGuards {
     if (location == Routes.splash) return null;
 
     if (!signedIn) {
-      return Routes.isPublic(location) ? null : Routes.login;
+      if (!Routes.isPublic(location)) {
+        // 🔴 Jejak diagnosis — jangan dihapus tanpa penggantinya.
+        //
+        // Inilah satu-satunya tempat pengguna dilempar ke halaman masuk. Saat
+        // aplikasi dalam mode pesawat membuka login padahal sesinya masih
+        // tersimpan (19 Agustus 2026), baris ini yang membuktikan apakah
+        // pengalihannya datang dari sini atau dari layar splash.
+        //
+        // Dicetak hanya saat benar-benar mengalihkan — `redirect` dipanggil
+        // pada setiap perpindahan rute, dan mencetak semuanya akan menenggelamkan
+        // jejak lain.
+        debugPrint('KAMELSCAN_GUARD → login · dari=$location');
+        return Routes.login;
+      }
+      return null;
     }
 
     // Sudah login tetapi membuka halaman auth — lempar ke beranda.
+    //
+    // 🔴 …kecuali bila perannya BELUM diketahui. Saat itu tujuannya layar
+    // pembuka, bukan Beranda.
+    //
+    // Sesaat setelah tombol Masuk ditekan, `isSignedIn` sudah true sementara
+    // `sessionProvider` baru mulai memuat profil, tenant, katalog tier, dan
+    // dompet. Mengirim pengguna ke Beranda pada detik itu berarti membangun
+    // layar yang seluruh isinya bergantung pada sesi yang belum ada.
+    //
+    // Terbukti di perangkat Product Owner 22 Agustus 2026, empat siklus
+    // logout–login berturut-turut lewat kabel:
+    //
+    //     SHELL cabang=0 tab=0 role=null
+    //     HOME  vm mulai · sesi=AsyncLoading role=null   ← dibangun terlalu dini
+    //     HOME  bangun · AsyncLoading error=true         ← gagal, lalu mengulang
+    //     SPLASH mulai · isSignedIn=true                 ← splash baru jalan di sini
+    //     SPLASH sesi siap · role=packer
+    //     HOME  vm keadaan → AsyncData punyaNilai=true   ← datanya akhirnya jadi…
+    //     HOME  vm dibuang                               ← …ke ViewModel yang sudah
+    //                                                      tidak ada penontonnya
+    //
+    // Baris terakhir itu yang terlihat sebagai Beranda kosong: halaman yang
+    // terlanjur dibangun sudah dibuang ketika rutenya digantikan, dan hasil
+    // kerjanya tidak pernah sampai ke layar. Tiga dari empat siklus berakhir
+    // begitu; yang satu lolos hanya karena datanya kebetulan tiba sebelum
+    // pembuangan. Itu sebabnya cacat ini kadang muncul kadang tidak.
+    //
+    // Owner nyaris tidak pernah terkena bukan karena ia kebal, melainkan karena
+    // urutan waktunya kebetulan berbeda.
+    //
+    // Layar pembuka memang dibuat untuk keadaan ini: ia menunggu sesi dengan
+    // batas waktu, punya tampilan memuat, dan punya tombol *Coba lagi* bila
+    // gagal (M.13). Mengembalikan penantian itu kepadanya membuat jalur sesudah
+    // login sama persis dengan jalur membuka aplikasi dari mati — jalur yang
+    // pada pengujian yang sama terbukti sehat tiga dari tiga kali.
     if (Routes.isPublic(location) && location != Routes.splash) {
-      return _homeFor(_ref.read(currentRoleProvider));
+      final peran = _ref.read(currentRoleProvider);
+      if (peran == null) {
+        debugPrint('KAMELSCAN_GUARD → splash · sesi belum siap · dari=$location');
+        return Routes.splash;
+      }
+      return _homeFor(peran);
     }
 
     // Bab 6.7 — packer yang masih memakai password sementara tidak boleh

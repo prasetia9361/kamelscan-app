@@ -803,6 +803,9 @@ baik-baik saja begitu Owner mengisi token. Keduanya menjadwalkan ulang
 
 ### L.7 Sakelar "unggah lewat data seluler" disimpan di perangkat
 
+> **Utang ini lunas 19 Agustus 2026.** Sakelarnya sudah pindah ke halaman
+> Pengaturan (Bab 9.7) — lihat M.14.
+
 Diputuskan Product Owner 17 Agustus 2026: `SharedPreferences`, bukan kolom di
 `user_settings`. Alasannya bukan penghematan migrasi — ini preferensi milik
 **satu HP**, dan packer berkuota terbatas tidak seharusnya terikat pilihan
@@ -1068,3 +1071,1320 @@ diketahui terunggah, dan sempat terlihat seperti pemotongan ganda. Yang
 sebenarnya terjadi: Product Owner merekam video kedua di sela pemeriksaan.
 **Cocokkan `token_ledger.video_id` dengan `package_videos`, jangan menyimpulkan
 dari selisih saldo saja.**
+
+---
+
+## M. Bab 9: UI/UX aplikasi mobile
+
+**Dikerjakan mulai 18 Agustus 2026.**
+
+### M.1 Kartu Beranda dihitung per periode dompet, bukan per bulan kalender
+
+**Keputusan Product Owner 18 Agustus 2026,** diambil setelah melihat angkanya
+pada data sungguhan.
+
+Contoh SQL di Bab 9.2 menghitung video sejak `date_trunc('month', now())`. Itu
+benar untuk pelanggan berbayar yang kuotanya di-reset tiap bulan, dan salah
+selama masa uji coba: jatah 100 video **tidak pernah** di-reset (`period_end`
+NULL, Bab 7.5). Dibuktikan pada tenant `0b5ae403…` — 27 video, seluruhnya
+17 Agustus 2026 — dengan mengandaikan hari ini 1 September:
+
+| Cara hitung | Kartu Video | Kartu Token |
+|---|---|---|
+| bulan kalender (contoh panduan) | **0** | 73 / 100 |
+| sejak `token_wallets.period_start` | **27** | 73 / 100 |
+
+Baris pertama menaruh *"belum merekam apa pun"* tepat di sebelah *"27 kupon
+sudah habis"*. Dua kartu bersebelahan yang saling membantah, tanpa satu pun
+keterangan di layar yang menjelaskannya.
+
+Pemilihannya bukan soal ketelitian melainkan soal **pertanyaan apa yang dijawab
+kartu itu**. Product Owner memilih *"jatah saya tinggal berapa"*, karena itulah
+yang dilihat sambil bekerja. Pertanyaan *"bulan ini berapa paket dikirim dan
+di-return"* tetap dijawab — di **grafik dashboard web** (Bab 10.4,
+`get_daily_stats`), yang memang punya pemilih rentang 7/30/90 hari.
+
+🔴 Jangan menggabungkan keduanya ke satu kartu. Itu persis yang membuat
+angkanya saling membantah.
+
+Kartu juga membawa keterangan *"sejak 13 Agu"*. Tanpa itu angkanya benar tetapi
+pembacanya menduga "bulan ini", dan dugaan itu salah.
+
+### M.2 `get_home_stats()` tunduk RLS — bukan `security definer`
+
+Contoh di Bab 9.2 memakai `security definer`, yang menembus RLS. Dengan itu,
+packer melihat jumlah video **seluruh tenant** di Beranda — padahal Bab 2.2
+catatan 3 sudah menutup Riwayatnya (`shop_history_visible_to_packer` bawaannya
+`false`, dan memang `false` di seluruh tenant saat ini). Menutup satu layar lalu
+membocorkan hitungannya di layar sebelah bukan penjagaan.
+
+Diuji dengan klaim JWT sungguhan (`set role authenticated` +
+`set_config('request.jwt.claims', …)`), 18 Agustus 2026:
+
+| Sebagai | Hasil | |
+|---|---|---|
+| Owner "Sarang sarung" | 27 packing · saldo 73/100 | ✅ 27 + 73 = 100 |
+| Owner "Toko Uji" | 1 packing · saldo 99/100 | ✅ tidak melihat tenant sebelah |
+| Packer, **bukan** perekamnya | **0** packing | ✅ tidak menembus RLS |
+| Packer, perekamnya sendiri | 27 packing | ✅ tidak asal memblokir |
+| Tamu (`anon`) | ditolak `42501` | ✅ bukan diam-diam 0 |
+
+Baris ketiga akan keluar **27** bila `security definer` dipakai.
+
+⚠️ Menguji lewat koneksi `postgres` biasa tidak membuktikan apa pun — peran itu
+mengabaikan RLS dan akan selalu lulus.
+
+### M.3 🔴 Publikasi `supabase_realtime` KOSONG — Realtime tidak pernah hidup
+
+> **Terselesaikan 18 Agustus 2026.** Sesudah kedua tabel didaftarkan, Realtime
+> terbukti mengirim perubahannya ke perangkat — buktinya di M.7.
+
+**Temuan 18 Agustus 2026, dan akibatnya mundur sampai Bab 7.**
+
+```
+select * from pg_publication_tables where pubname = 'supabase_realtime';
+→ 0 baris
+```
+
+PostgreSQL hanya mengalirkan perubahan untuk tabel yang terdaftar di publikasi.
+Tanpa baris di sana, Realtime **tidak mengirim apa pun** — dan yang membuatnya
+mahal: langganannya "berhasil", tidak ada error, tidak ada peringatan, lalu
+diam selamanya. Kerabat dekat jebakan 4 (Auth Hook mati → semua tabel
+mengembalikan nol baris tanpa pesan).
+
+⚠️ **Ini bukan hanya soal Bab 9.2.** `TokenRepository.watchWallet` sudah ada
+sejak Bab 7 dan dipakai `tokenWalletStreamProvider` supaya indikator token ikut
+berubah saat packer lain menyelesaikan unggahan. Fitur itu tidak pernah bekerja,
+dan tidak ada yang menyadarinya karena tidak ada gejalanya.
+
+Diperbaiki di migrasi `21_realtime_publication.sql`, yang mendaftarkan dua tabel
+saja — daftarnya dijaga sempit, bukan "semua tabel supaya aman":
+
+- `token_wallets` — bergerak setiap kali video **berhasil** diunggah, karena
+  trigger `after_video_uploaded` memotong satu token. Jalur paling andal, dan
+  policy-nya sederhana sehingga pemeriksaan RLS per pelanggan Realtime ringan.
+- `package_videos` — untuk perubahan yang tidak menyentuh dompet: unggahan
+  gagal, dan video yang dihapus Owner.
+
+🔴 **Belum diuji di perangkat.** Policy `videos_select` memuat sub-kueri
+`exists` yang tidak sederhana, dan Realtime memeriksa policy per pelanggan.
+Bila kelak kartu tidak ikut bergerak untuk packer, di situlah tempat pertama
+yang harus dilihat. Jejak yang menjawabnya sudah ditanam:
+
+```
+adb logcat -v time | findstr KAMELSCAN_HOME
+```
+
+Sesuai aturan L.9, **jalur gagalnya ikut dicetak**, bukan hanya yang berhasil —
+sehingga *"isyaratnya tidak pernah datang"* dapat dibedakan dari *"isyaratnya
+datang tetapi angkanya gagal diambil"*.
+
+### M.4 Tipe `return` tidak pernah dapat direkam — diperbaiki
+
+**Temuan 18 Agustus 2026, diperbaiki hari yang sama atas keputusan Product
+Owner.**
+
+Bab 9.2 meminta dua menu perekaman, tetapi seluruh alur rekam memaku
+`VideoType.packing` — tiga tempat di `recording_camera_view_model.dart`, dan
+tidak ada satu pun jalan yang menghasilkan video bertipe `return`. Layar setup
+pun tidak punya pilihannya.
+
+**Kenapa ini bukan sekadar label yang keliru.** Indeks unik
+`uq_resi_per_tenant_type` memisahkan kedua tipe justru supaya satu resi boleh
+direkam sekali saat packing dan sekali lagi saat paketnya kembali (Bab 7.7).
+Video return yang tersimpan sebagai packing menabrak baris packing-nya sendiri,
+dan packer ditolak *"resi sudah pernah direkam"* pada paket yang belum pernah ia
+rekam sebagai return. Dibuktikan langsung di database, di dalam transaksi yang
+di-rollback:
+
+```
+resi sama + tipe berbeda  → DITERIMA (packing + return)
+resi sama + tipe sama     → 23505 duplicate key … uq_resi_per_tenant_type
+```
+
+**Yang diubah** — tipe mengalir dari menu sampai ke baris `package_videos`:
+
+```
+Beranda → Routes.recordSetupOf(type)
+        → RecordingSetupPage(typeWire)      ← pilihan dapat diganti di layar
+        → Routes.recordCameraOf(type)
+        → RecordingCameraViewModel(_type)   ← 3 pemakaian, termasuk resiExists
+        → UploadTask.type → package_videos.type
+```
+
+Tipe dibawa di **query rute**, bukan `extra`, dengan alasan yang sama seperti
+tiga pilihan lainnya: rute yang dipulihkan setelah aplikasi di-restart tidak
+boleh diam-diam kembali ke packing.
+
+⚠️ Yang mudah terlewat saat menambah parameter ini: `_RecordingScope` di
+`recording_camera_page.dart` **ikut** membawa seluruh argumen keluarga. Satu
+saja tertinggal, widget anak membaca instance ViewModel yang berbeda — tombolnya
+tampak normal tetapi tidak melakukan apa pun. Peringatan itu memang sudah
+tertulis di kepala kelasnya.
+
+**Pilihan tipe TIDAK disimpan ke `SharedPreferences`,** berbeda dari mode pemicu
+dan toko. Keduanya sama sepanjang hari; tipe berganti per paket. Mengingat
+pilihan terakhir justru berbahaya: packer yang merekam satu paket return kemarin
+akan menemukan layarnya masih di posisi Return hari ini, dan seluruh rekaman
+packing-nya masuk dengan tipe yang salah.
+
+Pemilihnya berdiri sebagai **bagian nomor 1** di layar setup, di atas kamera —
+ia keputusan yang paling mahal bila keliru. Penomoran tiga bagian lama bergeser
+menjadi 2, 3, 4.
+
+🔴 **Belum diuji di perangkat.** Yang terbukti baru sisi database dan
+`flutter test`.
+
+### M.6 Bilah atas kerangka mobile (Bab 9.1)
+
+Bab 9.1 mensyaratkan bilah atas 72 dp, tetapi kerangka yang ada sama sekali
+tidak memilikinya — `MobileShell` hanya `body` + `bottomNavigationBar`. Diisi
+18 Agustus 2026: foto profil 44 dp (inisial di atas warna hasil hash `user_id`
+bila `avatar_url` kosong), ucapan menurut jam, nama, dan lencana peran beserta
+nama usaha.
+
+Ambang ucapannya ditaruh di `core/domain/greeting.dart` — murni Dart, teruji
+tanpa perangkat. Alasannya: angka batas seperti 00–10 / 11–14 / 15–18 / 19–23
+mudah tergeser satu jam, dan salahnya **hanya muncul pada jam tertentu** — jenis
+cacat yang tidak akan pernah tertangkap saat mencoba aplikasi di siang hari.
+
+Ini satu-satunya tempat jam HP boleh dipakai apa adanya: sapaan memang harus
+mengikuti pagi-sore yang sedang dialami penggunanya. Bandingkan dengan watermark,
+yang justru tidak boleh menyentuh jam perangkat sama sekali (L.1).
+
+**Lonceng notifikasi diganti indikator antrian unggah**, persis seperti yang
+diinstruksikan Bab 9.1 bila loncengnya belum punya isi. Lonceng kosong yang
+tidak pernah berbunyi hanya melatih pengguna untuk mengabaikannya.
+
+Warna lencana peran (Admin ungu, Owner biru, Packer hijau) meminjam warna
+semantik palet yang sudah ada — tidak ada `Color(0xFF…)` baru yang ditulis di
+widget (§6 palet), sehingga mode gelapnya ikut benar dengan sendirinya. Titik
+berwarnanya selalu ditemani tulisan perannya (§0 palet).
+
+### M.5 Antrian di Beranda dibaca dari perangkat, bukan dari server
+
+Spanduk *"4 video menunggu diunggah"* memakai `pendingUploadCountProvider`
+(antrian lokal), **bukan** `pending_upload` dari `get_home_stats()`.
+
+Alasannya L.5: baris `package_videos` baru dibuat **saat mengunggah**, jadi
+video yang direkam di gudang tanpa sinyal belum punya baris di server sama
+sekali — padahal justru itu yang paling perlu diberitahukan. Kolomnya tetap
+dikembalikan RPC dan tercatat di model beserta peringatan ini, supaya tidak ada
+yang memakainya untuk spanduk itu di kemudian hari.
+
+### M.7 Hasil uji perangkat 18 Agustus 2026 — Redmi Note 9
+
+Uji pertama Bab 9 di perangkat sungguhan. Tiga temuan Product Owner.
+
+**1. Kartu ketiga di luar layar.** Ketiga kartu pantauan digulir mendatar dengan
+lebar tetap 200 dp, persis seperti bunyi Bab 9.2 — dan akibatnya saldo token
+berada di luar layar. Angka yang paling sering dicari justru satu-satunya yang
+harus dicari.
+
+Bab 9.2 menyebut "dapat digulir horizontal" sebagai **bentuk**, bukan tujuan.
+Tujuannya ketiga angka terlihat; menggulir hanya jalan keluar bila tidak muat.
+Sekarang ketiganya berbagi lebar layar dan tidak digulir sama sekali.
+
+Ikut berubah: keterangan periode (*"sejak 13 Agu 2026"*) dipindahkan dari tiap
+kartu ke satu baris di samping judul **Pantauan**. Ia menerangkan ketiga angka
+sekaligus, dan pada lebar sepertiga layar pengulangannya memakan ruang yang
+dibutuhkan angkanya sendiri. Keterangan itu sendiri tetap wajib ada (M.1).
+
+Angka memakai `FittedBox`: tenant sibuk bisa menembus empat digit, dan angka
+bukti yang terpotong lebih buruk daripada angka yang mengecil.
+
+**2. 🔴 Realtime TIDAK memicu penyegaran.** Video return terekam, angkanya
+benar, tetapi baru muncul setelah halaman dimuat ulang dengan tangan. Ini
+membuktikan yang sudah ditandai sebagai belum teruji di M.3: mendaftarkan tabel
+ke publikasi ternyata **belum cukup**.
+
+Sebabnya belum diketahui, dan tidak layak ditebak. Dua langkah diambil:
+
+- **Jejak diagnosis dilengkapi.** `subscribe()` kini mencetak statusnya, karena
+  tanpa itu langganan yang ditolak Realtime tampak persis sama dengan langganan
+  sehat yang kebetulan belum ada perubahannya — dua-duanya diam.
+
+  ```
+  adb logcat -v time | findstr KAMELSCAN_HOME
+  ```
+
+  `status=subscribed` tanpa baris `isyarat` → channel sehat, servernya yang
+  tidak mengirim (periksa publikasi & RLS Realtime). `status=channelError` →
+  langganannya sendiri yang ditolak, dan pesannya ikut tercetak.
+
+- **Jaring pengaman yang tidak bergantung Realtime.** `HomeViewModel` kini juga
+  mendengarkan **antrian lokal**: saat jumlahnya berkurang, sebuah video baru
+  saja selesai terkirim, dan itulah saat angka di server berubah. Sumbernya
+  SQLite di perangkat — tidak melibatkan jaringan sama sekali, jadi ia bekerja
+  walaupun Realtime tetap bermasalah.
+
+  Kenaikan sengaja diabaikan: video yang baru direkam belum menambah apa pun di
+  server (L.5).
+
+**3. Jenis paket ditentukan menu, bukan dipilih ulang** — lihat M.8.
+
+#### Uji lanjutan 18 Agustus 2026 — sesudah ketiga perbaikan
+
+Product Owner melaporkan: **ketiga kartu muat tanpa digeser**, dan **angkanya
+berubah sendiri tanpa dimuat ulang.**
+
+**Realtime TERBUKTI HIDUP.** Angka yang bergerak dapat datang dari dua jalur
+yang dari luar tampak sama — Realtime dari server, atau jaring pengaman antrian
+lokal — jadi keduanya dipisahkan lewat logcat, bukan disimpulkan dari layar.
+
+Dugaan awal keliru dan dicatat di sini supaya tidak diulang: karena publikasi
+`supabase_realtime` sudah terdaftar sejak build pertama (yang saat itu tidak
+bergerak), sempat disimpulkan bahwa Realtime masih diam dan hanya jaring
+pengaman yang bekerja. Logcat membantahnya.
+
+**Bukti 1 — dipicu dari luar aplikasi.** Satu `update` pada `token_wallets`
+dijalankan langsung dari `bin/sql.dart` (hanya stempel waktu; saldo tidak
+disentuh). Aplikasi bereaksi pada detik yang sama, tanpa ada yang menyentuh HP:
+
+```
+15:34:06 UTC  update token_wallets … (dari laptop)
+22:34:06 WIB  KAMELSCAN_HOME isyarat · token_wallets/update
+```
+
+Ini sekaligus membuktikan keadaan yang tidak dapat ditiru jaring pengaman:
+perubahan berasal dari luar perangkat, dan antrian lokal sama sekali tidak
+bergerak.
+
+**Bukti 2 — satu perekaman utuh, kedua jalur terlihat berdampingan:**
+
+```
+15:21:41  KAMELSCAN_HOME langganan status=subscribed
+15:23:52  KAMELSCAN_HOME isyarat · package_videos/insert      ← Realtime
+15:23:57  KAMELSCAN_PIPA Terunggah · resi=6896RTI
+15:23:57  KAMELSCAN_HOME antrian 1 → 0 · menyegarkan          ← jaring pengaman
+15:23:57  KAMELSCAN_HOME isyarat · package_videos/update      ← Realtime
+15:23:57  KAMELSCAN_HOME isyarat · token_wallets/update       ← Realtime
+15:23:58  KAMELSCAN_HOME segar · packing=28 retur=3 token=69
+```
+
+Empat isyarat dalam 400 ms menghasilkan **satu** pemuatan ulang — jeda 600 ms
+di `_scheduleRefresh` bekerja seperti yang dimaksudkan. Tanpa itu, perekaman
+beruntun akan memanggil RPC belasan kali beruntun.
+
+Jaring pengaman tetap dipertahankan meski Realtime terbukti hidup. Ia menutup
+keadaan yang berbeda: perangkat yang kehilangan sambungan WebSocket sementara
+tetap mengetahui videonya sendiri sudah terkirim. Keduanya murah dan tidak
+saling mengganggu — bukti di atas memperlihatkan keduanya berbunyi berdampingan
+tanpa menghasilkan pemuatan ganda.
+
+**Ikut terbukti pada jejak yang sama** — jenis paket mengalir utuh lewat rute:
+
+```
+GoRouter: pushing /record?type=packing
+GoRouter: pushing /record/camera?camera=0&mode=manual&shop=…&type=packing&shop_name=…
+```
+
+Sisi database diperiksa dan seluruhnya benar:
+
+| Tabel | Terdaftar di publikasi | RLS | Replica identity |
+|---|---|---|---|
+| `package_videos` | ✅ | aktif | default (primary key) |
+| `token_wallets` | ✅ | aktif | default (primary key) |
+
+⚠️ **Jejak `KAMELSCAN_*` sampai ke logcat lewat breadcrumb Sentry**, bukan
+sebagai baris `I/flutter`. Mencarinya dengan `findstr flutter` akan
+mengembalikan kosong dan tampak seperti jejaknya tidak ada. Cari kata kuncinya
+langsung:
+
+```
+adb logcat -v time | findstr KAMELSCAN_HOME
+```
+
+### M.8 Jenis paket punya satu sumber: menu yang ditekan
+
+**Keputusan Product Owner 18 Agustus 2026, `arahan.json`.**
+
+```
+menu rekam_paket_packing → masuk: packing, keluar: none
+menu rekam_paket_return  → masuk: return,  keluar: none
+selain itu               → none (tidak ada perekaman)
+```
+
+Pemilih *"Pilih jenis paket"* yang sempat berdiri sebagai bagian 1 di layar
+setup **dicabut**. Alasannya sama dengan alasan `buildLines` hanya boleh punya
+satu penyusun (L.11): dua sumber kebenaran untuk satu hal akan menyimpang.
+Packer yang menekan "Rekam Paket Return" lalu menemukan chip Packing masih
+dapat dipilih akan wajar mengira menu tadi belum berlaku.
+
+Sebagai gantinya, **judul layar menyatakan jenisnya** — *"Perekaman packing"*
+atau *"Perekaman return"*. Penomoran tiga pilihan yang tersisa kembali ke
+1, 2, 3.
+
+*"Keluar → none"* tidak memerlukan kode khusus: providernya dibuang begitu
+layarnya ditutup, jadi jenisnya memang tidak bertahan ke mana pun. Ia juga
+tidak pernah disimpan ke `SharedPreferences`.
+
+🔴 **Tombol Rekam mengambang ikut berubah.** Ia tidak berangkat dari salah satu
+menu, jadi jenisnya belum ditentukan — dan aturan `else → none` melarangnya
+merekam begitu saja. Ia kini menanyakan jenis lebih dulu lewat lembar pilihan.
+
+Tanpa perubahan itu, mencabut pemilih di layar setup justru membuka lubang yang
+lebih buruk daripada sebelumnya: tombol itu akan diam-diam merekam **segalanya**
+sebagai packing, termasuk paket return, tanpa satu pun tempat untuk
+membetulkannya.
+
+### M.9 Riwayat (Bab 9.4) dan utang Bab 8.8
+
+**Dikerjakan 18 Agustus 2026.** Tata letaknya mengikuti acuan tangkapan layar
+yang diberikan Product Owner: judul, chip jenis, kolom pencarian, kartu daftar,
+lalu halaman detail berisi pemutar, tombol unduh, kartu metadata berpasangan
+label–nilai, dan tombol hapus.
+
+#### Edge Function `get-video-url` — dibuat dari nol
+
+`VideoRepository.getPlaybackUrl` sudah ada di kode sejak Bab 8, tetapi fungsi
+yang dipanggilnya **belum pernah dibuat**; menekan tombol putar sebelum ini
+pasti gagal.
+
+🔴 **RLS tidak berlaku di dalamnya.** Fungsi ini memakai service role, jadi
+seluruh aturan siapa-boleh-melihat-apa ditulis ulang dengan tangan dan harus
+tetap sejalan dengan policy `videos_select` di `14_rls.sql`. Bila policy itu
+kelak diubah, berkas ini wajib ikut diubah — tidak ada yang mengingatkan.
+
+Yang ditegakkan di sana:
+
+| Aturan | Alasan |
+|---|---|
+| `app_role = 'admin'` **ditolak** | Bab 2.2 catatan 5. Admin boleh melihat metadata pelanggan, bukan isi videonya: rekaman gudang memuat wajah pegawai, tata letak, dan barang yang dikirim. Penolakannya berdiri di server, bukan di aplikasi, karena aplikasi dapat diganti sedangkan Edge Function tidak. |
+| Langganan tidak aktif → `402` | Bab 7.6 — riwayat tetap terbaca, isi videonya terkunci sampai diperpanjang. |
+| Packer di luar cakupannya → `403` | Cerminan `videos_select`: rekamannya sendiri, atau se-toko bila `shop_history_visible_to_packer` menyala **dan** ia memang ditugaskan ke toko itu. |
+| Status bukan `uploaded` → `409` / `410` | Dibedakan dari `404`: barisnya ada, isinya yang tidak. "Belum terkirim" dan "sudah dihapus sesuai retensi" adalah dua kalimat yang berbeda bagi penggunanya. |
+
+**Hasil uji penolakan 18 Agustus 2026** (jalur sukses belum diuji — perlu JWT
+pengguna sungguhan dari aplikasi):
+
+```
+tanpa header Authorization   → 401
+sebagai tamu (anon key)      → 401 UNAUTHORIZED
+metode GET                   → 405 METHOD_NOT_ALLOWED
+```
+
+⚠️ Satu URL melayani dua keperluan yang perlakuannya berbeda, jadi permintaan
+membawa penanda `download`. Untuk **menonton**, berkas disajikan `inline` agar
+pemutar dapat melompat ke tengah video; untuk **mengunduh**, ia diberi
+`attachment` bernama nomor resi. Menyatukan keduanya sebagai `attachment` akan
+membuat halaman publik Bab 10.6 mengunduh berkas alih-alih memutarnya.
+
+#### Nama toko dan perekam diambil lewat embedding, bukan per baris
+
+`fetchHistory` memakai embedding PostgREST (`shops`, `users`) dalam satu
+permintaan. Alternatifnya 20 permintaan tambahan per halaman, dan pada jaringan
+gudang itu terasa seperti aplikasi yang menggantung.
+
+Embedding tetap tunduk RLS. `shops_select` dan `users_select_self_or_tenant`
+sama-sama mengizinkan seluruh anggota tenant membacanya, jadi namanya terisi
+untuk packer maupun Owner. ⚠️ Bila policy itu kelak diperketat, yang muncul
+**bukan error melainkan nama yang kosong** — periksa ke sana lebih dulu sebelum
+menduga masalahnya di Dart. `HistoryItem` sengaja dipisah dari `PackageVideo`
+supaya kolom hasil join tidak ikut terbawa ke jalur unggah.
+
+#### Tiga keputusan yang menyimpang dari acuan Product Owner
+
+1. **Logo marketplace diganti huruf awal berwarna.** Berkas logonya belum ada
+   di repo, dan logo Shopee/Tokopedia adalah merek dagang pihak lain yang
+   pemakaiannya perlu diputuskan lebih dulu. Warnanya diambil dari palet, bukan
+   warna merek aslinya, agar mode gelap tetap terbaca (§6 palet).
+
+2. **Tombol unduh membuka lembar Bagikan** sesudah berkasnya turun, dan
+   berkasnya disimpan di direktori dokumen aplikasi. Menulis ke folder Unduhan
+   bersama pada Android modern menuntut izin penyimpanan tambahan, sedangkan
+   pemakaian nyatanya hampir selalu meneruskan berkas itu ke pusat resolusi
+   marketplace lewat aplikasi pesan.
+
+3. **Pemutar tidak memuat video sampai ditekan** — disetujui Product Owner
+   18 Agustus 2026. Acuan menampilkan pemutar yang langsung siap; di sini yang
+   tampil bidang gelap dengan tombol putar. Packer membuka halaman detail
+   terutama untuk membaca nomor resi dan waktunya saat menjawab komplain, dan
+   di gudang yang hanya punya sinyal seluler, menarik berkas 1 MB setiap kali
+   halaman dibuka akan membakar kuota data mereka tanpa videonya pernah
+   ditonton.
+
+#### Ditambahkan di luar acuan karena Bab 9.4 mewajibkannya
+
+**Sisa retensi** — *"Video akan dihapus otomatis dalam 18 hari"*. Acuan tidak
+memilikinya. Pelanggan yang tidak tahu videonya akan terhapus tidak akan pernah
+menyimpan salinannya, dan baru menyadarinya saat sengketa terjadi.
+
+Kondisi kosong dibedakan menjadi dua: belum pernah merekam apa pun, atau
+pencariannya yang tidak menemukan. Menyamakan keduanya membuat orang mengira
+datanya hilang.
+
+#### Belum dikerjakan
+
+- Edge Function `create-public-link` dan halaman publik `/v/{token}`
+  (Bab 10.6). Karena keduanya belum ada, tombol **Salin Tautan** dan
+  **Bagikan tautan** sengaja **tidak dipasang** — pelajaran dari menu Rekam
+  Return (M.4): tombol yang gagal saat ditekan lebih buruk daripada tombol yang
+  belum ada.
+- Tombol saringan lanjutan dan pindai QR pada baris pencarian, keduanya ada di
+  acuan.
+- Tombol *Coba unggah lagi* pada video berstatus `failed`.
+
+#### Hasil uji perangkat 19 Agustus 2026 — Redmi Note 9
+
+Dilaporkan Product Owner: **daftar riwayat muncul, penyaringan bekerja, video
+dapat diputar dan diunduh.** Dengan itu rantai Bab 8.8 terbukti utuh dari
+tombol di layar sampai berkas di R2 — termasuk `get-video-url`, yang jalur
+suksesnya sebelumnya belum pernah teruji.
+
+Permintaan yang menyusul dari uji itu: tombol **Unduh dipendekkan** dan
+**Tautan Publik** ditaruh di sebelah kanannya (lihat M.10).
+
+### M.10 Tautan bukti publik — Bab 8.8 tuntas, kecuali tempat menaruhnya
+
+**Dikerjakan 19 Agustus 2026**, atas permintaan Product Owner sesudah uji
+Riwayat: *"untuk ke tautan publik taruh di sebelah kanan download, button
+download dipendekan lagi."*
+
+Yang ternyata ikut harus dibuat: halaman `/v/{token}` **belum terdaftar di
+router sama sekali** — yang ada baru konstanta alamatnya di `route_names.dart`.
+Tautan tanpa halaman adalah tautan mati, jadi tombolnya tidak dapat berdiri
+sendiri.
+
+#### Dua Edge Function baru
+
+**`create-public-link`** — hanya Owner (Bab 2.2). Admin platform pun ditolak:
+ia tidak berhak menyebarkan isi video pelanggan, sama seperti pada
+`get-video-url`.
+
+🔴 **Idempoten, dan itu bukan kerapian.** Tautan yang masih berlaku dipakai
+ulang alih-alih diterbitkan baru. Menerbitkan token baru tiap kali tombolnya
+ditekan akan mematikan tautan yang sudah terkirim ke pusat resolusi
+marketplace — persis pada saat sengketanya sedang diperiksa.
+
+Masa berlaku tautan mengikuti `expires_at` videonya, bukan umur tersendiri:
+tautan yang hidup lebih lama daripada berkasnya membuka halaman kosong, yang
+lebih pendek memutus bukti sebelum waktunya.
+
+Tokennya 32 karakter dari alfabet 31 huruf (tanpa huruf yang mudah tertukar) =
+± 160 bit, dibangkitkan `crypto.getRandomValues` — **bukan** `Math.random()`.
+Token ini satu-satunya penjaga video yang dapat dibuka tanpa login; angka acak
+yang dapat ditebak berarti bukti pelanggan dapat dijelajahi orang luar.
+
+**`get-public-video`** — satu-satunya Edge Function di proyek ini yang sengaja
+**tidak** memeriksa sesi. Yang dikembalikan dibatasi seketat mungkin:
+`tenant_id`, `user_id`, `shop_id`, dan `storage_key` tidak pernah ikut keluar.
+Dari id itu orang luar dapat menyusun peta pelanggan, sedangkan untuk memeriksa
+sengketa mereka hanya butuh isi buktinya.
+
+Token yang tidak dikenal dan token yang sudah mati sama-sama dijawab tanpa
+menyebut mana yang mana — membedakannya akan memberi tahu penebak bahwa
+tokennya pernah benar.
+
+#### Hasil uji 19 Agustus 2026
+
+Halaman publik dapat diuji penuh tanpa perangkat maupun akun, justru karena ia
+memang tidak memerlukan login:
+
+| Yang diuji | Hasil |
+|---|---|
+| Buka tautan berlaku, tanpa login | ✅ metadata lengkap + URL video |
+| Kolom sensitif ikut keluar? | ✅ **tidak ada** — diperiksa satu per satu |
+| Berkas video di R2 | ✅ `206 Partial Content`, `video/mp4`, `inline` |
+| Tautan kedaluwarsa | ✅ `410 LINK_EXPIRED` |
+| Token asal-asalan | ✅ `400` — ditolak sebelum menyentuh database |
+| Token 32 huruf tapi tidak dikenal | ✅ `404` |
+| `create-public-link` sebagai tamu | ✅ `401` |
+
+`206 Partial Content` membuktikan pemutar dapat melompat ke tengah video, dan
+`inline` membuktikan pemisahan tonton/unduh pada `get-video-url` bekerja
+sebagaimana dirancang.
+
+⚠️ Data uji dibuat langsung di database lalu **dibersihkan**: 0 tautan publik
+tersisa, saldo token tidak tersentuh.
+
+🔴 Belum teruji: **jalur sukses `create-public-link`** — perlu JWT Owner, jadi
+hanya dapat diuji dari aplikasi.
+
+#### 🔴 Tautannya belum dapat dibuka siapa pun — dan sebabnya bukan kode
+
+Tautan berbentuk `https://kamelscan.com/v/{token}`. Diperiksa 19 Agustus 2026:
+
+```
+kamelscan.com        → tidak ada A record
+www.kamelscan.com    → tidak ditemukan
+membuka halamannya   → tidak ada jawaban
+```
+
+Domainnya **sudah dibeli** Product Owner; yang belum ada adalah aplikasi web di
+belakangnya dan pengarahan DNS ke sana. Tidak diperlukan domain kedua — yang
+kurang isinya, bukan namanya.
+
+**Keputusan Product Owner 19 Agustus 2026: ditunda sampai Bab 10.** Alasannya
+membangun dan mengunggah aplikasi web memang lingkup Bab 10, dan menariknya ke
+Bab 9 akan menambah ± 2–3 jam pada penyangga yang sudah minus ± 10 jam.
+
+Tidak ada pekerjaan yang terbuang oleh penundaan itu: tombolnya berfungsi,
+tokennya tersimpan benar, dan halaman `/v/{token}` sudah jadi — ia hanya belum
+punya alamat yang dapat dijangkau orang luar. Basis alamatnya sendiri dibaca
+dari env `PUBLIC_BASE_URL` di Edge Function, jadi domainnya dapat diganti
+**tanpa merilis ulang aplikasi**.
+
+⚠️ Sampai Bab 10 selesai, jangan menyarankan Product Owner mengirim tautan ini
+ke pusat resolusi marketplace — yang terbuka di sana halaman kosong, bukan
+buktinya.
+
+#### Tata letak tombol
+
+Unduh dan Tautan Publik berbagi satu baris, masing-masing setengah lebar.
+Tautan Publik hanya tampil untuk Owner; bagi packer, Unduh kembali memakai
+lebar penuh supaya tidak ada ruang kosong yang tidak dapat dijelaskan.
+
+Menekan Tautan Publik menyalin alamatnya ke papan klip dan menyebut **sampai
+kapan tautan itu berlaku** (Bab 9.4). Masa berlaku disebut di muka, bukan
+disembunyikan: pusat resolusi marketplace kadang baru membukanya beberapa hari
+kemudian, dan Owner perlu tahu itu **sebelum** mengirimkannya.
+
+### M.11 Halaman Toko (Bab 9.5)
+
+**Dikerjakan 19 Agustus 2026.** Halaman ini menghalangi pekerjaan lain bila
+kosong: perekaman tidak dapat dimulai tanpa toko, sehingga pelanggan baru
+langsung buntu di layar setup.
+
+#### Jumlah video diambil sekali jalan — tanpa migrasi baru
+
+Daftar toko menampilkan jumlah video tiap toko lewat **agregat bersarang
+PostgREST** dalam permintaan yang sama:
+
+```
+select=*,package_videos(count)
+```
+
+Sintaksnya diuji lebih dulu langsung ke server sebelum kode ditulis di atasnya,
+dan terbukti didukung. Alternatifnya satu permintaan `count` per toko — pada
+Owner dengan belasan toko itu belasan perjalanan bolak-balik hanya untuk mengisi
+satu baris angka.
+
+⚠️ Bentuk yang dikembalikan tidak biasa: **daftar berisi satu objek**, bukan
+angka.
+
+```json
+"package_videos": [ { "count": 12 } ]
+```
+
+Salah membacanya membuat setiap toko tampak belum pernah dipakai — dan itu
+berbahaya, karena angka inilah yang menentukan tombol Hapus dijalankan atau
+ditolak. Karena itu pembacaannya dikunci tes (`shop_summary_test.dart`).
+
+#### Jumlah yang dihitung adalah SELURUH video, termasuk yang dihapus
+
+Menyimpang dari Bab 9.5 yang menulis "jumlah video bulan ini", dan berbeda pula
+dari kartu Beranda yang memakai periode dompet (M.1). Alasannya angka ini
+menjawab pertanyaan yang berbeda: **apakah toko ini dapat dihapus.**
+
+`package_videos.shop_id` memakai `on delete restrict`, dan yang menghalangi
+penghapusan adalah **adanya baris** — bukan status maupun tanggalnya. Angka yang
+menghitung lebih sedikit akan menjanjikan toko dapat dihapus padahal server
+menolaknya.
+
+#### Penolakan hapus yang menawarkan jalan keluar
+
+Toko yang punya video tidak dapat dihapus, dan itu disengaja sejak Bab 5.2:
+video terikat pada toko tempat perekaman terjadi, jadi menghapus tokonya memutus
+rantai bukti. Yang ditampilkan bukan pesan error melainkan tawaran:
+
+> *"Toko ini memiliki 27 video. Nonaktifkan toko alih-alih menghapusnya — video
+> lamanya tetap tersimpan dan tetap dapat dibuka."*
+
+beserta tombol **Nonaktifkan** yang langsung melakukannya.
+
+🔴 Toko yang tidak dapat dihapus **tidak** ditanyai "yakin ingin menghapus?"
+lebih dulu. Menanyakan lalu menolak sesudah ditekan adalah cara tercepat membuat
+orang mengira aplikasinya rusak.
+
+`23503` dari server tetap ditangani sebagai penolakan yang sama, bukan error tak
+dikenal: daftar di layar bisa tertinggal beberapa detik bila packer lain baru
+saja merekam.
+
+`23505` (`uq_shop_per_tenant`) juga diberi kalimatnya sendiri — Owner yang
+mengetik nama yang sudah ada berhak tahu sebabnya, bukan menerima "terjadi
+kesalahan".
+
+#### Dua penyimpangan dari Bab 9.5
+
+1. **Tombol Tambah Toko bukan tombol mengambang.** Sudut kanan bawah sudah
+   ditempati tombol Rekam milik kerangka layar (Bab 9.1); menumpuk dua tombol
+   mengambang di titik yang sama membuat keduanya sulit ditekan tepat.
+
+2. **Menu tiga titik menggantikan geser-ke-kiri** untuk Edit / Nonaktifkan /
+   Hapus. Gestur geser tidak meninggalkan petunjuk apa pun di layar, dan di
+   gudang yang sering dioperasikan dengan sarung tangan, sasaran sentuh 48 dp
+   yang terlihat jauh lebih dapat diandalkan daripada gerakan yang harus ditebak
+   (Bab 9.10).
+
+#### Hasil uji perangkat 19 Agustus 2026 — Redmi Note 9
+
+Tampilan halaman Toko **baik** setelah perbaikan M.12. Satu cacat ditemukan
+Product Owner: sesudah menambah atau mengubah toko, daftarnya **tidak ikut
+berubah** sampai ditarik ke bawah.
+
+🔴 Sebabnya salah sasaran `invalidate`:
+
+```dart
+ref.invalidate(shopRepositoryProvider);   // tidak melakukan apa-apa yang terlihat
+```
+
+Repository **tidak menyimpan state** (Bab 3.1 poin 3) — ia hanya pengambil
+data — dan `ShopsViewModel` membacanya dengan `ref.read`, jadi ia tidak pernah
+tahu ada yang berubah. Yang harus di-invalidate adalah **ViewModel yang
+menyimpan daftarnya**:
+
+```dart
+ref.invalidate(shopsViewModelProvider);
+ref.invalidate(recordingSetupViewModelProvider);
+```
+
+Baris kedua sama pentingnya: layar setup perekaman membaca daftar toko yang
+sama. Tanpa itu, toko yang baru dibuat belum muncul bila packer langsung
+menekan Rekam — dan pada pelanggan baru, itu persis urutan yang paling mungkin
+terjadi.
+
+⚠️ Pola ini berlaku umum di proyek ini: **meng-invalidate repository tidak
+menyegarkan layar apa pun.** Sasarannya selalu ViewModel yang memegang
+datanya. Terbukti diperbaiki di perangkat pada hari yang sama.
+
+#### Belum dikerjakan
+
+Penugasan packer ke toko (multi-select pada formulir). Ditandai 🟡 TARGET di
+Bab 9.5, bukan wajib MVP; tabel `shop_packers` sudah ada sejak `04_shops.sql`.
+
+### M.12 🔴 Jebakan: tombol bertema menuntut lebar TAK TERHINGGA
+
+**Ditemukan 19 Agustus 2026 di Redmi Note 9, dilaporkan Product Owner.**
+
+Gejalanya: judul "Toko Saya" tergambar **menurun satu huruf per baris**, dan
+seluruh daftar tokonya tidak terlihat sama sekali.
+
+Sebabnya **bukan** di halaman Toko, melainkan di `app_theme.dart`:
+
+```dart
+filledButtonTheme:  minimumSize: const Size.fromHeight(AppSizes.touchComfort)
+outlinedButtonTheme: minimumSize: const Size.fromHeight(AppSizes.touchComfort)
+```
+
+`Size.fromHeight(52)` sama dengan `Size(double.infinity, 52)` — lebar
+minimumnya **tak terhingga**. Itu disengaja dan benar: tombol utama seperti
+*Simpan*, *Mulai*, dan *Unduh* memang harus selebar layar.
+
+Yang tidak disengaja adalah akibatnya di dalam `Row`. Tombol itu menuntut
+seluruh lebar, dan `Expanded` di sebelahnya tidak kebagian apa pun:
+
+```
+BoxConstraints forces an infinite width.
+BoxConstraints(w=Infinity, 52.0<=h<=Infinity)
+```
+
+⚠️ **Di perangkat tidak muncul pita overflow kuning-hitam sama sekali**, dan
+`flutter analyze` tetap bersih. Jadi jangan menunggu peringatan — kenali
+gejalanya dari bentuk teksnya.
+
+#### Bentuk mana yang aman
+
+| Bentuk | Aman? |
+|---|---|
+| `Row( Expanded(teks), FilledButton(...) )` | ❌ runtuh |
+| `Row( Expanded(SizedBox(FilledButton)), Expanded(...) )` | ✅ lebar ditentukan induk |
+| `Column( teks, FilledButton(...) )` | ✅ tombol memang selebar layar |
+| `FilledButton(style: styleFrom(minimumSize: Size(0, 48)))` | ⚠️ tidak runtuh, tetapi hanya menyisakan ± 119 dp untuk teks di sebelahnya pada layar 393 dp |
+
+Halaman Toko memakai bentuk ketiga: judul dan keterangan di atas, tombol selebar
+layar di bawahnya. Tombol Unduh + Tautan Publik pada detail video memakai bentuk
+kedua, dan karena itu tidak pernah ikut runtuh.
+
+Seluruh `FilledButton`/`OutlinedButton` di `lib/` sudah disisir; tidak ada
+pemakaian berisiko lain yang tersisa.
+
+#### 🔴 Pelajaran tentang tes tata letak
+
+Tes pertama yang ditulis untuk mengejar cacat ini memakai **tema bawaan
+Flutter** dan **lulus** — sehingga sempat menyimpulkan susunan widget-nya
+baik-baik saja dan penyebabnya di tempat lain. Baru setelah `theme: AppTheme.light`
+dipasang, cacatnya muncul.
+
+**Tes tata letak yang tidak memakai `AppTheme` tidak membuktikan apa pun tentang
+aplikasi ini.** Tes regresinya ada di `test/pages/shops_header_layout_test.dart`,
+lengkap dengan kasus bentuk-yang-aman agar keduanya tidak tertukar lagi.
+
+⚠️ Yang diukur di tes itu **tinggi** teks, bukan lebarnya. `Text` di dalam
+`Column` menyusut ke lebar tulisannya sendiri, jadi lebarnya tidak memberi tahu
+apa pun tentang ruang yang tersedia — sedangkan judul yang menurun satu huruf
+per baris tingginya melonjak dari ± 30 dp menjadi ratusan.
+
+### M.13 🔴 Aplikasi menggantung selamanya di layar splash saat jaringan mati
+
+**Ditemukan 19 Agustus 2026 di Redmi Note 9.** Bukan cacat Bab 9 — ia sudah ada
+sejak layar splash dibuat, dan baru terlihat ketika jaringan kebetulan mati
+tepat pada saat aplikasi dibuka.
+
+Gejalanya: logo KamelScan berputar terus sebelum halaman login. Tidak ada pesan,
+tidak ada tombol, dan satu-satunya jalan keluar adalah menutup paksa aplikasi.
+
+#### Log yang menjawabnya
+
+Product Owner menyimpan logcat-nya. Jejak aplikasi berhenti persis di tiga baris
+ini dan tidak pernah berlanjut:
+
+```
+supabase.supabase_flutter: INFO: ***** Supabase init completed *****
+GoRouter: INFO: Using MaterialApp configuration
+KAMELSCAN_WAKTU penghitung: sejak HP menyala (elapsedRealtime, boot_id=…)
+```
+
+Tidak ada perpindahan rute, dan tidak ada `KAMELSCAN_WAKTU sinkron` — yang
+berarti alurnya berhenti **sebelum** sesi selesai dipulihkan.
+
+#### Sebab
+
+`SplashViewModel.build()` menunggu `sessionProvider.future`, dan pemulihan sesi
+menembakkan **empat permintaan berturut-turut** ke Supabase: profil pengguna,
+tenant, katalog tier, lalu dompet token.
+
+🔴 Klien HTTP-nya tidak punya batas waktu bawaan. Pada jaringan yang **mati di
+tengah** — bukan menolak sambungan, melainkan diam — permintaan itu tidak pernah
+kembali, dan `await`-nya tidak pernah selesai.
+
+`uploadWorker.requestImmediateRun()` yang ikut di-`await` menambah satu lagi
+tempat yang dapat menggantung dengan cara yang sama.
+
+#### Perbaikan
+
+1. **Batas waktu 20 detik** pada pemulihan sesi. Lewat dari itu ia melempar
+   `AppFailure.network`. `SplashPage` sudah lama menangani keadaan error dengan
+   `AppErrorView` beserta tombol *Coba lagi* — yang selama ini kurang hanyalah
+   sesuatu yang mengakhiri penantiannya.
+
+2. 🔴 **Tidak jatuh ke halaman login saat waktu habis.** Sesinya kemungkinan
+   besar masih sah; yang gagal jaringannya. Melempar pengguna ke layar masuk
+   berarti menyuruhnya mengetik ulang kata sandi untuk masalah yang bukan
+   salahnya — dan di gudang tanpa sinyal ia justru tidak akan bisa masuk
+   kembali.
+
+3. **Membangunkan antrian unggah tidak lagi ditunggu** (`unawaited`). Itu bukan
+   syarat untuk memakai aplikasi.
+
+#### Kenapa ini penting melebihi kejadiannya sendiri
+
+Produk ini dipakai di gudang, dan gudang adalah tempat sinyal paling sering
+hilang di tengah. Keadaan yang menimpa Product Owner satu malam adalah keadaan
+sehari-hari packer.
+
+#### 🔴 Batas waktu di layar saja TIDAK cukup — tiga lapis yang bekerja bersamaan
+
+Perbaikan di atas ternyata baru separuh jalan, dan itu baru ketahuan setelah
+diuji di perangkat. Log 19 Agustus 2026 memperlihatkan layar splash mengulang
+dirinya **11 kali** dengan jeda yang berlipat rapi:
+
+```
+0,2 dtk → 0,4 → 0,8 → 1,6 → 3,2 → 6,4 → 6,4 → 6,4 …
+```
+
+Ada **tiga lapis** yang bekerja bersamaan, dan dua di antaranya bukan milik
+kode ini:
+
+| Lapis | Perilaku | Milik |
+|---|---|---|
+| Batas waktu permintaan | 15 detik | `TimeoutHttpClient` (ditambahkan) |
+| Coba-lagi Postgrest | mengulang permintaan gagal sebelum menyerah | bawaan Supabase |
+| Coba-lagi Riverpod | 10× dengan jeda 200 ms → 6,4 dtk | bawaan Riverpod 3 |
+
+Pola jeda di atas persis `ProviderContainer.defaultRetry`:
+
+```dart
+static Duration? defaultRetry(int retryCount, Object error, {
+  int maxRetries = 10,
+  Duration maxDelay = const Duration(milliseconds: 6400),
+  Duration minDelay = const Duration(milliseconds: 200),
+})
+```
+
+⚠️ Batas waktu yang dipasang di **layar** tidak menghentikan permintaannya:
+layar berhenti menunggu, tetapi permintaannya tetap hidup, dan percobaan
+berikutnya menunggu dari nol lagi. Batasnya harus berdiri di permintaannya
+sendiri — lihat `TimeoutHttpClient`, yang dipasang lewat
+`Supabase.initialize(httpClient: …)` dan terbukti diteruskan ke auth,
+postgrest, maupun Edge Function.
+
+#### 🔴 `keepAlive` menyimpan kegagalan — tombol *Coba lagi* jadi mati
+
+Diuji di perangkat: dengan internet sudah kembali, menekan *Coba lagi* **tidak
+melakukan apa pun**. Layarnya tetap sama.
+
+Sebabnya `sessionProvider` adalah `@Riverpod(keepAlive: true)`. Sekali gagal, ia
+menyimpan kegagalan itu; menyegarkan layar splash saja akan membaca kegagalan
+lama dan menyerah seketika **tanpa pernah menyentuh jaringan**.
+
+```dart
+void retry() {
+  ref.invalidate(sessionProvider);   // ← wajib, tidak boleh dilewat
+  ref.invalidateSelf();
+}
+```
+
+⚠️ **Pola ini akan terulang.** Setiap tombol *Coba lagi* yang sumber datanya
+`keepAlive` harus membuang sumbernya juga, bukan hanya layarnya. Kerabat dekat
+temuan M.11: meng-invalidate benda yang salah tidak menghasilkan gejala apa pun
+selain "tombolnya tidak bekerja".
+
+#### 🔴 Kegagalan jaringan tidak dikenali sama sekali
+
+Layar menampilkan *"Terjadi kesalahan. Coba lagi beberapa saat."* padahal yang
+terjadi sinyalnya hilang. `SupabaseService.mapError` tidak mengenal
+`ClientException` maupun `TimeoutException`, sehingga keduanya jatuh ke
+`AppFailure.unknown`.
+
+Kalimat itu menyembunyikan satu-satunya hal yang perlu diketahui penggunanya. Di
+gudang, keliru itu berarti packer mencari-cari masalah pada aplikasi padahal
+cukup berjalan ke tempat yang ada sinyalnya.
+
+Dikunci tes di `test/core/network_failure_mapping_test.dart`.
+
+#### Coba-lagi otomatis dimatikan KHUSUS di layar splash
+
+```dart
+@Riverpod(retry: _tanpaCobaLagiOtomatis)
+```
+
+Di layar lain coba-lagi otomatis berguna dan berjalan di latar tanpa
+menghalangi apa pun. Di layar pembuka ia berarti pengguna menatap logo berputar
+± 2,5 menit sebelum diberi tahu bahwa jaringannya mati. Layar pembuka harus
+cepat berterus terang.
+
+#### Hasil uji perangkat — 19 Agustus 2026, Redmi Note 9
+
+⚠️ **Tidak dapat diuji lewat `flutter test`**; cacatnya hanya muncul saat
+jaringan benar-benar diam.
+
+```
+17:54:39  mulai · isSignedIn=true
+17:54:59  sesi TIMEOUT setelah 20 dtk                 ← sekali saja
+17:54:59  pulihkan sesi GAGAL · AppFailure(network)   ← bukan lagi unknown
+          ……… hening 65 detik ………                    ← tidak mengulang
+17:56:04  mulai · isSignedIn=true                     ← tombol Coba lagi ditekan
+17:56:05  sesi siap · role=owner                      ← masuk, 0,9 detik
+```
+
+Dari 11 percobaan menjadi **2**. Waktu tunggunya 20 detik, bukan 15 seperti
+yang dirancang — coba-lagi Postgrest menambah satu putaran sebelum menyerah.
+Dibiarkan: yang penting ia berujung dan tidak berulang.
+
+#### ⚠️ Prosedur uji yang benar — build ulang menghapus sesi
+
+Pengujian pertama gagal mencapai jalur yang dimaksud dan sempat disimpulkan
+keliru sebagai cacat baru. Sebabnya: **memasang ulang APK menghapus seluruh
+data aplikasi, termasuk sesi login.** Dibuktikan di perangkat — seluruh berkas
+preferensi hilang dan yang tersisa hanya dua berkas plugin bertanggal sama
+dengan waktu pemasangan.
+
+Jebakan 10 di `PROMPT_SESI_BARU.md` selama ini hanya menyebut rekaman mentah;
+sesi login ikut terhapus juga.
+
+Urutan uji yang benar:
+
+1. `.\run.ps1`
+2. **login** — wajib, sesi lama sudah terhapus oleh pemasangan
+3. aktifkan **mode pesawat**
+4. tutup aplikasi dari daftar aplikasi terbuka — **jangan** pasang ulang
+5. buka lagi, tunggu pesannya
+6. matikan mode pesawat, tekan **Coba lagi**
+
+⚠️ Laptop pengembangan memperoleh internet dari HP yang sama (tethering), jadi
+mode pesawat memutus internet laptop juga. `adb` tetap bekerja lewat USB, jadi
+logcat dapat direkam ke berkas selama pengujian dan dibaca setelah internet
+kembali.
+
+⚠️ `adb logcat | findstr …` di PowerShell tampak kosong karena penyangga pipa.
+Rekam ke berkas (`> berkas.log`) atau pakai `-d` sesudah pengujian.
+
+⚠️ Batas waktu serupa **belum** dipasang di jalur lain yang menunggu jaringan
+di luar Supabase. Bila kelak ada layar yang menggantung tanpa pesan, periksa
+apakah ia menunggu `Future` tanpa `timeout`.
+
+### M.14 Halaman Pengaturan (Bab 9.7) — utang L.7 lunas
+
+**Dikerjakan 19–20 Agustus 2026, terbukti di perangkat.**
+
+Sakelar **"unggah lewat data seluler"** akhirnya pindah dari halaman Akun ke
+Pengaturan, rumahnya menurut Bab 9.7. Ia menumpang di Akun sejak 17 Agustus
+2026 karena tanpa layar untuk menyalakannya antrian unggah tidak dapat diuji
+sama sekali (L.7). Nilainya ada di `SharedPreferences`, jadi kepindahan itu
+tidak menghilangkan pilihan yang sudah dibuat pengguna — dikonfirmasi Product
+Owner: seluruh sakelar masih ingat posisinya setelah aplikasi ditutup.
+
+Fondasinya sebagian besar sudah ada sejak bab sebelumnya (`AppPreferences`,
+`UserSettings`, `TenantSettings`, `UploadOnCellular`); halaman ini terutama
+merangkainya.
+
+#### 🔴 `upsert` menuntut izin INSERT — walaupun barisnya sudah ada
+
+**Cacat yang dilaporkan Product Owner 19 Agustus 2026:** menyalakan sakelar
+*"Packer boleh melihat riwayat se-toko"* menghasilkan
+
+> "Anda tidak memiliki akses ke data ini"
+
+padahal ia Owner tenant itu sendiri, dan barisnya sudah ada di database.
+
+Sebabnya: `SettingsRepository.saveTenantSettings` memakai **upsert**, dan
+PostgREST menerjemahkannya menjadi
+
+```sql
+insert into tenant_settings … on conflict (tenant_id) do update …
+```
+
+Bagi PostgreSQL perintah itu tetap **INSERT**, meskipun hasil akhirnya
+memperbarui baris yang sudah ada. RLS karenanya menuntut policy INSERT —
+sedangkan `14_rls.sql` hanya memberi `for update`. Ditolak `42501`.
+
+Dibuktikan langsung sebelum perbaikan ditulis, memakai klaim JWT Owner
+sungguhan di dalam transaksi yang di-rollback:
+
+| Percobaan | Sebelum migrasi 22 | Sesudah |
+|---|---|---|
+| Owner melakukan upsert | ❌ `42501` | ✅ diterima |
+| **Packer** melakukan upsert | — | ✅ **tetap ditolak** |
+
+Baris kedua sama pentingnya: perbaikan ini tidak membuka celah baru.
+
+⚠️ **`user_settings` tidak terkena** karena policy-nya `for all` — satu kata
+yang mencakup INSERT sekaligus. Perbedaan itulah yang membuat tema dan bahasa
+tersimpan ke server sementara pengaturan tenant diam-diam gagal.
+
+🔴 **Pola ini akan terulang.** Setiap tabel yang ditulis lewat `upsert` wajib
+punya policy INSERT, bukan hanya UPDATE. Saat ini hanya `user_settings` dan
+`tenant_settings` yang ditulis dengan upsert; periksa lagi bila ada yang
+ditambahkan.
+
+Migrasi `22_tenant_settings_insert.sql` sengaja **tidak** memakai `for all`:
+itu akan sekalian memberi hak DELETE, dan menghapus baris pengaturan tenant
+bukan sesuatu yang perlu dapat dilakukan dari aplikasi.
+
+#### Menu bawah menjadi lima tab
+
+Keputusan Product Owner 19 Agustus 2026, mengikuti Bab 9.1:
+**Beranda · Toko · Riwayat · Pengaturan · Akun.** Dikonfirmasi di perangkat:
+lima tombol masih nyaman ditekan.
+
+🔴 Pengaturan semula **berbagi cabang dengan Akun** di router. Dua tab yang
+berbagi satu cabang saling menimpa — menekan Pengaturan lalu Akun akan
+menampilkan halaman yang sama dan riwayat navigasi keduanya bercampur. Kini ia
+cabang sendiri (cabang 4).
+
+⚠️ Nomor cabang **tidak** sama dengan urutan tombol, dan menu Toko
+disembunyikan untuk packer sehingga tombol sesudahnya bergeser di layar tetapi
+tidak di router. Pemetaannya dipisah menjadi `MobileShell.branchesFor` dan
+dikunci 10 tes — kesalahan satu angka di sana tidak menimbulkan error apa pun,
+hanya membuat packer yang menekan *Riwayat* mendarat di *Pengaturan*.
+
+#### Sakelar "Rekam dengan suara" — tambahan di luar Bab 9.7
+
+**Diminta Product Owner 20 Agustus 2026.** Dua alasannya, dan keduanya perlu
+dicatat karena berbeda sifat:
+
+1. **Tidak semua Owner olshop membutuhkan suara** pada video buktinya.
+2. **Mengurangi ukuran video** — dan ini alasan berbiaya: tiap megabyte
+   menjadi ongkos penyimpanan R2 sekaligus kuota data packer yang
+   mengunggahnya.
+
+⚠️ Penghematannya **belum diukur**. Bila kelak ingin dipakai untuk
+merencanakan biaya, bandingkan `file_size_bytes` video dengan dan tanpa suara
+pada durasi yang sama.
+
+Disimpan di perangkat (`SharedPreferences`), bukan di server — keputusan
+Product Owner, sejalan dengan sakelar data seluler.
+
+⚠️ Konsekuensi yang ikut disetujui: **packer dapat mematikannya tanpa
+sepengetahuan Owner.** Bila kelak Owner perlu menjamin seluruh buktinya
+bersuara, sakelar ini harus pindah ke `tenant_settings` beserta migrasinya.
+
+Dua hal yang menjaga agar sakelar ini tidak merusak bukti yang sudah ada:
+
+- 🔴 **Bawaannya menyala.** Sebelum sakelar ini ada, seluruh video direkam
+  bersuara selama izin mikrofon diberikan. Bawaan mati akan diam-diam mengubah
+  isi bukti pada perangkat yang sudah dipakai, dan pelanggan baru
+  menyadarinya saat membuka video lama untuk sengketa.
+- **Ia hanya dapat menurunkan kemampuan.** Izin sistem tetap batas atasnya:
+  mikrofon yang ditolak membuat video bisu walaupun sakelarnya menyala —
+  dan itu memang benar (Bab 8.9: video bisu jauh lebih baik daripada tidak ada
+  video).
+
+Nilainya dibaca **saat kamera disiapkan**, bukan saat tombol rekam ditekan,
+jadi perubahannya berlaku pada perekaman berikutnya.
+
+Penyangga jadwal: ± 0,5 jam, dilaporkan sesuai Bab 0.2.
+
+#### Belum dikerjakan
+
+Halaman `/settings/watermark` (logo, posisi, transparansi) masih placeholder.
+Barisnya di Pengaturan hanya terbuka untuk tier Pro; seluruh tenant saat ini
+masih trial/Standar, jadi belum ada yang dapat menemukan halaman kosong itu.
+
+---
+
+### M.15 Kelola Akun Packer (Bab 9.6) — dan tiga cacat yang hanya perangkat dapat menemukannya
+
+**Dikerjakan 19–20 Agustus 2026.** Halaman Akun, Ubah Profil, dan sub-halaman
+Kelola Akun Packer. Bucket `avatars` dibuat lewat migrasi
+`23_avatars_bucket.sql` (publik, batas 2 MB, jpeg/png/webp) dengan empat policy
+yang seluruhnya bersandar pada satu pola jalur: `{userId}/avatar.jpg`. Folder
+teratas adalah pemiliknya, dan itulah yang diperiksa
+`(storage.foldername(name))[1] = auth.uid()::text`. Tanpa pola itu, siapa pun
+yang login dapat menimpa foto profil orang lain.
+
+Nama berkasnya sengaja **tetap**, bukan bertambah tiap unggahan: foto lama
+ditimpa sehingga tidak ada sampah menumpuk. Konsekuensinya URL-nya tidak
+berubah, jadi penanda waktu ditempelkan sebagai query agar gambar lama di cache
+tidak ikut bertahan.
+
+Tiga cacat di bawah ini punya satu kesamaan yang layak dicatat sendiri:
+**tidak satu pun dapat ditemukan oleh `flutter analyze` maupun `flutter test`.**
+Ketiganya lolos seluruh pemeriksaan otomatis dan hanya muncul ketika aplikasi
+dijalankan di perangkat sungguhan oleh orang yang memakainya sebagaimana
+mestinya.
+
+#### 🔴 `temp_password` terbuang diam-diam sejak Bab 6.7
+
+`UserRepository.createPacker` memaksa balasan Edge Function `create-packer`
+menjadi `AppUser`. Balasan itu berisi `temp_password`, dan `AppUser` tidak
+punya kolom untuk menampungnya — jadi ia dibuang tanpa suara.
+
+Password sementara itu dikembalikan server **sekali saja**; sesudahnya ia hanya
+ada dalam bentuk ter-hash dan tidak dapat diminta lagi. Membuangnya berarti
+akun packer yang baru dibuat tidak dapat dipakai siapa pun, dan satu-satunya
+jalan keluar adalah mengirim tautan atur ulang password.
+
+Tidak pernah terlihat karena belum ada layar yang memakainya. Diperbaiki
+dengan kelas `NewPackerCredentials`, dan dialognya sengaja tidak dapat ditutup
+dengan mengetuk di luar.
+
+#### 🔴 Menghapus packer TIDAK mencabut aksesnya
+
+**Dilaporkan Product Owner 20 Agustus 2026.** Akun packer dihapus dari layar,
+lalu:
+
+1. emailnya tidak dapat dipakai lagi (`EMAIL_ALREADY_USED`),
+2. orang yang "sudah dihapus" **masih dapat masuk dengan password lamanya**,
+3. begitu masuk ia terjebak di *"Data tidak ditemukan"* tanpa jalan keluar.
+
+Sebabnya satu. Akun tersimpan di dua tempat: akun masuk (`auth.users`) dan
+profil aplikasi (`public.users`). `deletePacker` menghapus langsung lewat
+PostgREST:
+
+```sql
+delete from public.users where id = …
+```
+
+Itu hanya membuang profilnya. `03_users.sql` baris 9 menyatakan
+
+```sql
+id uuid primary key references auth.users(id) on delete cascade
+```
+
+— cascade-nya berjalan **auth → public**, tidak pernah sebaliknya. Kartu
+aksesnya tidak pernah ditarik.
+
+Poin 2 yang paling berat, dan ia tidak terlihat di layar mana pun: Owner
+mengira akses seorang bekas pegawai sudah dicabut, padahal belum sama sekali.
+
+Menghapus `auth.users` menuntut service-role, dan service-role tidak boleh ada
+di aplikasi (Bab 4.4). Karena itu pekerjaannya pindah ke Edge Function
+**`delete-packer`** — pemanggil harus Owner aktif, sasarannya harus packer
+milik tenant yang sama (diperiksa dengan tangan: service-role mengabaikan
+seluruh RLS), Owner tidak dapat menghapus dirinya sendiri, dan packer yang
+sudah pernah merekam tetap ditolak.
+
+**Katup pengaman menyertainya di `Session.build()`:** sesi sah yang profilnya
+tidak ada (`notFound`) memicu keluar paksa ke halaman login. Sebab utamanya
+sudah diperbaiki, tetapi akun dapat lenyap karena hal lain — dihapus dari
+dasbor, tenant dibersihkan — dan **aplikasi tidak boleh punya keadaan yang
+tidak dapat ditinggalkan penggunanya.** Kemarin bahkan tombol keluar pun tidak
+terjangkau, karena ia berada di layar yang tidak pernah sempat tampil, dan
+menutup paksa aplikasi tidak menolong: sesinya tersimpan.
+
+Hanya `notFound` yang memicunya. PostgREST menjawab sukses dan berkata nol
+baris — bukan jaringan gagal, bukan RLS menolak. Memperlakukan kegagalan
+jaringan dengan cara yang sama akan mengeluarkan orang dari aplikasi setiap
+kali sinyalnya hilang.
+
+#### 🔴 Layar pemotong foto tidak terdaftar — aplikasi mati total
+
+**Dilaporkan Product Owner 20 Agustus 2026.** Memilih foto profil membunuh
+aplikasi. Logcat:
+
+```
+ActivityNotFoundException: Unable to find explicit activity class
+  {id.kamelscan.app/com.yalantis.ucrop.UCropActivity}
+IllegalStateException: Reply already submitted
+```
+
+`image_cropper` menuntut `com.yalantis.ucrop.UCropActivity` dideklarasikan di
+`AndroidManifest.xml`; ia tidak pernah ada di sana. Android menolak membuka
+layar yang tidak terdaftar, lalu pluginnya membalas Flutter dua kali dan proses
+dimatikan.
+
+Temanya wajib AppCompat (`Theme.AppCompat.Light.NoActionBar`) karena UCrop
+mewarisi `AppCompatActivity`.
+
+**Pelajaran yang lebih penting daripada perbaikannya:** cacat ini ada di berkas
+konfigurasi Android, bukan di kode Dart. Tidak ada jumlah tes Dart yang dapat
+menemukannya.
+
+---
+
+### M.16 🔴 Jebakan: `messageKey` baru yang lupa disambungkan berubah jadi "Terjadi kesalahan"
+
+**Terjadi 20 Agustus 2026 — pada perbaikan yang justru dibuat untuk menghapus
+kalimat itu.**
+
+Product Owner melaporkan bahwa menambah packer dengan email yang sudah terpakai
+menampilkan *"Terjadi kesalahan. Coba lagi beberapa saat."* Logcat menunjukkan
+server sudah menjelaskannya dengan sangat jelas:
+
+```
+FunctionsHttpException(status: 400, details: {error: EMAIL_ALREADY_USED, …})
+```
+
+Dua cacat terpisah bersembunyi di balik satu kalimat yang sama.
+
+**Cacat pertama — `mapError` tidak mengenal Edge Function sama sekali.**
+Seluruh fungsi di `supabase/functions/` sepakat membalas
+`{ "error": "KODE_HURUF_BESAR" }`, tetapi kodenya ada di **badan balasan**,
+bukan di pesannya — sehingga `_mapByMessage` tidak pernah melihatnya dan setiap
+penolakan Edge Function jatuh ke `unknown`. Diperbaiki dengan `_mapFunctions`.
+
+Kelas dasarnya `FunctionException` (tanpa `s`), bukan `FunctionsException`.
+`FunctionsFetchException` ditangani terpisah sebagai kegagalan **jaringan**:
+statusnya 0 karena tidak ada balasan sama sekali.
+
+**Cacat kedua — sambungannya lupa dipasang.** Menambah kegagalan baru menuntut
+tiga tempat disentuh berurutan:
+
+1. `AppFailure` — kunci pesannya
+2. `app_id.arb` / `app_en.arb` — kalimatnya
+3. `failure_messages.dart` — sambungan antara keduanya
+
+Langkah 3 terlewat. Akibatnya `packersEmailTaken` sudah ada di ARB, sudah
+dipetakan dari kode server, dan tetap tidak pernah sampai ke layar — ia jatuh
+ke cabang `_` dan berubah kembali menjadi *"Terjadi kesalahan"*.
+
+**Melewatkan langkah 3 tidak menimbulkan gejala apa pun:** `analyze` bersih,
+seluruh tes hijau, aplikasi berjalan normal. Satu-satunya gejalanya adalah
+kalimat yang salah di layar — dan kalimat itu justru menyuruh penggunanya
+mencoba lagi hal yang tidak akan pernah berhasil.
+
+Karena kekeliruannya tidak dapat dilihat, penjagaannya tidak boleh mengandalkan
+penglihatan. `test/core/failure_message_keys_test.dart` membaca `AppFailure`
+langsung dari berkas sumbernya, mengumpulkan seluruh `messageKey`, dan menolak
+yang belum punya cabang di `failure_messages.dart`. `errorUnknown` dikecualikan
+— ia justru cabang cadangan itu sendiri.
+
+Tesnya juga memeriksa bahwa ia benar-benar membaca sesuatu (`length > 10`);
+tanpa itu, berkas yang berpindah tempat akan membuatnya "lulus" atas nol kunci
+— penjagaan yang hilang tanpa suara, jenis kegagalan yang sama persis dengan
+yang sedang dijaga.
+
+---
+
+### M.17 🔴 Penugasan toko tidak pernah membatasi perekaman
+
+**Dilaporkan Product Owner 20 Agustus 2026.** Seorang packer ditugaskan ke 2
+dari 3 toko. Ia tetap melihat ketiga toko di layar Pilih Toko, memilih toko
+yang bukan tugasnya, merekam — dan server menerimanya. Videonya lalu muncul di
+Riwayat atas nama toko yang tidak pernah ia pegang.
+
+Panduan §8.2 baris 1697 sudah tegas: *"Pilih toko — bagi packer, hanya toko
+yang ditugaskan kepadanya (`shop_packers`)."*
+
+Yang membuat ini layak dicatat bukan cacatnya, melainkan **komentar yang
+menutupinya**. `recording_setup_view_model.dart` memanggil `fetchShops` tanpa
+penyaringan apa pun sambil menuliskan:
+
+> *"Packer hanya melihat toko yang ditugaskan kepadanya (Bab 8.2). Filter
+> sesungguhnya ada di RLS; di sini hanya menampilkan apa yang boleh dilihat."*
+
+Filter itu tidak pernah ada. `shops_select` di `14_rls.sql` memberi seluruh
+anggota tenant hak baca atas semua toko, dan `videos_insert` hanya memastikan
+tokonya milik tenant yang sama dan berstatus aktif — ia tidak pernah menyentuh
+`shop_packers`. Penugasan selama ini hanya mengatur **apa yang terlihat di
+Riwayat** (`videos_select`), bukan **apa yang boleh direkam**.
+
+Komentar yang menyatakan penjagaan ada di tempat lain lebih berbahaya daripada
+tidak ada komentar sama sekali: ia menghentikan pembaca berikutnya dari
+memeriksa.
+
+**Diperbaiki dua lapis, dan keduanya perlu:**
+
+| Lapis | Gunanya |
+|---|---|
+| `fetchShops(assignedOnly:)` — PostgREST `shop_packers!inner` | Pilihan yang pasti ditolak tidak pernah muncul di layar |
+| Policy `videos_insert` (migrasi `24_videos_insert_assignment.sql`) | Penjagaan sesungguhnya — berlaku juga bagi yang memanggil API langsung |
+
+Menyaring di layar saja bukan penjagaan (Bab 2.3). Menjaga di server saja
+membuat packer memilih toko lalu ditolak tanpa mengerti sebabnya.
+
+Tanda `!inner` wajib: tanpanya PostgREST tetap mengembalikan tokonya dengan
+daftar penugasan kosong, dan penyaringannya tidak terjadi sama sekali.
+
+**`shops_select` sengaja TIDAK diperketat.** Menyempitkan hak baca toko untuk
+packer terasa lebih rapi, tetapi merusak hal lain: packer berhak melihat
+rekamannya sendiri selamanya (Bab 2.2 catatan 3), termasuk video dari toko yang
+penugasannya kemudian dicabut Owner. Bila tokonya tak lagi terbaca, baris
+riwayat itu kehilangan namanya dan berubah menjadi bukti tanpa identitas toko —
+justru pada berkas yang gunanya menjadi bukti. Yang perlu dijaga adalah
+**perbuatannya** (merekam), bukan **pengetahuannya** (nama toko milik tenant
+sendiri).
+
+⚠️ Perbaikan ini menyentuh
+`lib/pages/recording/setup/recording_setup_view_model.dart`, folder yang
+dikerjakan worktree kamera. Perubahannya satu pemanggilan, tetapi berpotensi
+bentrok saat digabung.
+
+#### Belum terpecahkan: Beranda kosong pada packer
+
+Product Owner melaporkan 20 Agustus 2026: sesudah packer masuk, badan Beranda
+kosong sama sekali; menekan menu lain lalu kembali membuat isinya muncul.
+Owner tidak terpengaruh.
+
+**Sebabnya belum diketahui.** Yang sudah terbukti dari jejak perangkat:
+
+- `KAMELSCAN_SHELL cabang=0 tab=0` — lapisan navigasi **tidak bersalah**;
+  dugaan awal tentang cabang yang belum dikunjungi terbukti salah.
+- `KAMELSCAN_HOME bangun` tercetak, jadi halamannya memang dibangun.
+- Datanya pun sampai: percobaan pada 20 Agustus mencatat `statistik OK`,
+  tetapi layarnya tidak digambar ulang sesudahnya.
+- Halamannya kadang terisi dan kadang tidak pada langkah yang sama persis —
+  jadi ini **balapan waktu**, bukan kegagalan yang tetap.
+
+⚠️ **Empat percobaan perbaikan dibatalkan seluruhnya atas keputusan Product
+Owner, 21 Agustus 2026**, sesudah percobaan keempat masih gagal *dan* merusak
+layar splash yang sudah beres di M.13 (tombol *Coba lagi* tidak berfungsi, lalu
+terlempar ke halaman login). Yang dibatalkan:
+
+1. `sessionProvider.future` menggantikan `.value` di kedelapan ViewModel
+2. Pencocokan `hasError` menggantikan tipe `AsyncError` di tujuh halaman
+3. Pembantu `sessionForBuild`
+4. Provider turunan `currentSession` untuk meredam pembangunan ganda
+
+Pelajaran yang layak dibawa: **percobaan ketiga dan keempat seharusnya tidak
+pernah ada.** Sesudah percobaan kedua gagal dan gejalanya berubah menjadi lebih
+buruk, yang benar adalah berhenti, mengembalikan keadaan, lalu memeriksa dari
+sisi yang belum pernah diukur sama sekali — bukan menumpuk perbaikan di atas
+perbaikan yang belum terbukti. Setiap ronde memakan satu siklus build dan satu
+pengujian di perangkat milik Product Owner, dan biaya itu ditanggung orang lain.
+
+Jejak `KAMELSCAN_SHELL` dan `KAMELSCAN_HOME bangun` sengaja **dibiarkan
+terpasang** untuk penyelidikan berikutnya. Yang belum pernah diukur sama
+sekali: bagian dalam `Session.build()`, dan apakah `Shimmer` (yang dipakai
+`_HomeSkeleton`) benar-benar tergambar di bawah Impeller/Vulkan — kerangka yang
+tidak terlihat akan tampak persis seperti halaman kosong.
+
+#### Belum dikerjakan / diputuskan
+
+- **Email ke packer baru.** Aplikasi tidak pernah mengirim email saat akun
+  packer dibuat; `email_confirm: true` menandainya terkonfirmasi, bukan
+  mengirim apa pun. Itu sesuai Bab 6.7 — password diserahkan Owner langsung.
+  Product Owner menanyakannya 20 Agustus 2026; belum ada keputusan, dan
+  penambahannya akan dilaporkan sebagai penambahan lingkup (Bab 0.2).

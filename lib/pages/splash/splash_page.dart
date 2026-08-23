@@ -25,7 +25,10 @@ class SplashPage extends ConsumerWidget {
         loading: () => const _SplashBranding(),
         error: (e, _) => AppErrorView(
           failure: e,
-          onRetry: () => ref.invalidate(splashViewModelProvider),
+          // Bukan sekadar `ref.invalidate` layar ini — `retry()` juga membuang
+          // sesi yang tersimpan gagal. Tanpa itu tombolnya tidak melakukan
+          // apa pun; alasannya di `SplashViewModel.retry`.
+          onRetry: ref.read(splashViewModelProvider.notifier).retry,
         ),
         // Navigasi ditangani listener di atas; branding tetap tampil sampai
         // rute berganti agar tidak ada kedipan layar kosong.

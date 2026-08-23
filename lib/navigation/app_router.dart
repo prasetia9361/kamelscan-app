@@ -6,6 +6,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../core/config/env.dart';
 import '../core/models/enums.dart';
 import '../pages/account/account_page.dart';
+import '../pages/account/edit_profile/edit_profile_page.dart';
 import '../pages/account/packers/packers_page.dart';
 import '../pages/admin/dashboard/admin_dashboard_page.dart';
 import '../pages/admin/payments/admin_payments_page.dart';
@@ -22,6 +23,7 @@ import '../pages/home/home_page.dart';
 import '../pages/not_found_page.dart';
 import '../pages/payment/checkout/checkout_page.dart';
 import '../pages/payment/plan_page.dart';
+import '../pages/public/public_video_page.dart';
 import '../pages/recording/camera/recording_camera_page.dart';
 import '../pages/recording/result/recording_result_page.dart';
 import '../pages/recording/setup/recording_setup_page.dart';
@@ -90,6 +92,17 @@ GoRouter appRouter(Ref ref) {
         builder: (_, _) => const CompleteProfilePage(),
       ),
 
+      // Halaman bukti publik — dibuka tanpa login oleh pusat resolusi
+      // marketplace (Bab 10.6). `RouteGuards.isPublic` sudah mengizinkan
+      // seluruh alamat berawalan `/v/`, jadi ia tidak pernah dialihkan ke
+      // layar masuk.
+      GoRoute(
+        path: Routes.publicVideo,
+        builder: (_, state) => PublicVideoPage(
+          token: state.pathParameters['token'] ?? '',
+        ),
+      ),
+
       // ---------- Perekaman — mobile saja ----------
       //
       // Bab 10.1: menu perekaman tidak boleh sekadar disembunyikan lewat CSS;
@@ -98,7 +111,10 @@ GoRouter appRouter(Ref ref) {
         GoRoute(
           path: Routes.recordSetup,
           parentNavigatorKey: _rootNavigatorKey,
-          builder: (_, _) => const RecordingSetupPage(),
+          builder: (_, state) => RecordingSetupPage(
+            typeWire:
+                state.uri.queryParameters['type'] ?? VideoType.packing.wire,
+          ),
           routes: [
             GoRoute(
               path: 'camera',
@@ -109,6 +125,10 @@ GoRouter appRouter(Ref ref) {
                   cameraName: q['camera'] ?? '',
                   triggerWire: q['mode'] ?? TriggerMode.qrCode.wire,
                   shopId: q['shop'] ?? '',
+                  // Tanpa tipe, `fromWire` jatuh ke `packing` — bawaan yang
+                  // sama dengan layar setup, sehingga rute lama tanpa parameter
+                  // ini tetap berperilaku seperti sebelumnya.
+                  typeWire: q['type'] ?? VideoType.packing.wire,
                   shopName: q['shop_name'] ?? '',
                 );
               },
@@ -163,12 +183,18 @@ GoRouter appRouter(Ref ref) {
             routes: [
               GoRoute(
                 path: Routes.history,
-                builder: (_, _) => const HistoryPage(),
+                // Filter jenis dibawa di query oleh kartu Beranda yang
+                // ditekan (Bab 9.2). Kosong berarti tanpa penyaringan.
+                builder: (_, state) => HistoryPage(
+                  typeWire: state.uri.queryParameters['type'] ?? '',
+                ),
                 routes: [
                   GoRoute(
                     path: ':id',
                     parentNavigatorKey: _rootNavigatorKey,
-                    builder: (_, _) => const VideoDetailPage(),
+                    builder: (_, state) => VideoDetailPage(
+                      videoId: state.pathParameters['id'] ?? '',
+                    ),
                   ),
                 ],
               ),
@@ -185,12 +211,15 @@ GoRouter appRouter(Ref ref) {
                   GoRoute(
                     path: 'form',
                     parentNavigatorKey: _rootNavigatorKey,
+                    // Tanpa `:id` berarti menambah toko baru.
                     builder: (_, _) => const ShopFormPage(),
                     routes: [
                       GoRoute(
                         path: ':id',
                         parentNavigatorKey: _rootNavigatorKey,
-                        builder: (_, _) => const ShopFormPage(),
+                        builder: (_, state) => ShopFormPage(
+                          shopId: state.pathParameters['id'] ?? '',
+                        ),
                       ),
                     ],
                   ),
@@ -199,7 +228,11 @@ GoRouter appRouter(Ref ref) {
             ],
           ),
 
-          // Branch 3 — Akun, Pengaturan, Pembayaran
+          // Branch 3 — Akun & Pembayaran
+          //
+          // Pembayaran sengaja menumpang di sini, bukan menjadi tab sendiri:
+          // ia dicapai dari kartu token di Beranda dan dari baris Pro di
+          // Pengaturan, bukan sebagai tempat yang dikunjungi rutin.
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -207,20 +240,14 @@ GoRouter appRouter(Ref ref) {
                 builder: (_, _) => const AccountPage(),
                 routes: [
                   GoRoute(
+                    path: 'edit',
+                    parentNavigatorKey: _rootNavigatorKey,
+                    builder: (_, _) => const EditProfilePage(),
+                  ),
+                  GoRoute(
                     path: 'packers',
                     parentNavigatorKey: _rootNavigatorKey,
                     builder: (_, _) => const PackersPage(),
-                  ),
-                ],
-              ),
-              GoRoute(
-                path: Routes.settings,
-                builder: (_, _) => const SettingsPage(),
-                routes: [
-                  GoRoute(
-                    path: 'watermark',
-                    parentNavigatorKey: _rootNavigatorKey,
-                    builder: (_, _) => const WatermarkPage(),
                   ),
                 ],
               ),
@@ -232,6 +259,28 @@ GoRouter appRouter(Ref ref) {
                     path: 'checkout',
                     parentNavigatorKey: _rootNavigatorKey,
                     builder: (_, _) => const CheckoutPage(),
+                  ),
+                ],
+              ),
+            ],
+          ),
+
+          // Branch 4 — Pengaturan
+          //
+          // 🔴 Harus berdiri sebagai cabang **sendiri**, bukan menumpang di
+          // cabang Akun seperti sebelumnya. Dua tab yang berbagi satu cabang
+          // saling menimpa: menekan Pengaturan lalu Akun akan menampilkan
+          // halaman yang sama, dan riwayat navigasi keduanya bercampur.
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: Routes.settings,
+                builder: (_, _) => const SettingsPage(),
+                routes: [
+                  GoRoute(
+                    path: 'watermark',
+                    parentNavigatorKey: _rootNavigatorKey,
+                    builder: (_, _) => const WatermarkPage(),
                   ),
                 ],
               ),

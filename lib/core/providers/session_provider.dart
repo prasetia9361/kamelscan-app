@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../config/tier_config.dart';
@@ -7,6 +8,7 @@ import '../models/enums.dart';
 import '../models/tenant.dart';
 import '../models/token_wallet.dart';
 import '../utils/app_failure.dart';
+import '../utils/result.dart';
 import 'auth_provider.dart';
 import 'repository_providers.dart';
 
@@ -114,8 +116,39 @@ class Session extends _$Session {
     final signedIn = ref.watch(isSignedInProvider);
     if (!signedIn) return null;
 
-    final user = (await ref.read(userRepositoryProvider).fetchCurrentUser())
-        .unwrap();
+    final hasilProfil =
+        await ref.read(userRepositoryProvider).fetchCurrentUser();
+
+    // 🔴 Sesi sah, tetapi profilnya sudah tidak ada.
+    //
+    // Ditemukan 20 Agustus 2026: seorang packer yang sudah dihapus Owner
+    // masih dapat masuk, lalu **terjebak** di layar *"Data tidak ditemukan"*.
+    // Setiap layar bergantung pada sesi ini, sesi ini bergantung pada baris
+    // `users` yang sudah tidak ada, dan tombol *Coba lagi* hanya mengulangi
+    // pertanyaan yang sama ke server yang jawabannya tidak akan berubah.
+    // Bahkan tombol keluar pun tidak terjangkau, karena ia berada di layar
+    // yang tidak pernah sempat tampil. Menutup paksa aplikasi tidak menolong:
+    // sesinya tersimpan, jadi pembukaan berikutnya mendarat di jebakan yang
+    // sama.
+    //
+    // Sebab utamanya sudah diperbaiki di Edge Function `delete-packer`, tetapi
+    // penjagaan ini tetap perlu: akun dapat lenyap karena sebab lain (dihapus
+    // dari dasbor Supabase, tenant dibersihkan), dan aplikasi tidak boleh
+    // punya keadaan yang tidak dapat ditinggalkan penggunanya.
+    //
+    // `notFound` cukup untuk memutuskan: PostgREST menjawab dengan sukses dan
+    // berkata nol baris — bukan jaringan yang gagal, bukan RLS yang menolak.
+    // Karena itu keluar paksa di sini aman; melakukan hal yang sama untuk
+    // kegagalan jaringan justru akan mengeluarkan orang dari aplikasi setiap
+    // kali sinyalnya hilang.
+    if (hasilProfil case Err(:final failure)
+        when failure.kind == FailureKind.notFound) {
+      debugPrint('KAMELSCAN_SESI profil tidak ada · keluar paksa ke login');
+      await ref.read(authRepositoryProvider).signOut();
+      return null;
+    }
+
+    final user = hasilProfil.unwrap();
     final tenant =
         (await ref.read(userRepositoryProvider).fetchTenant(user.tenantId))
             .unwrap();

@@ -5,17 +5,20 @@ import '../../../core/providers/pipeline_providers.dart';
 import '../../../core/providers/upload_queue_provider.dart';
 import '../../../core/widgets/failure_messages.dart';
 
-/// Sakelar **"Unggah lewat data seluler"** (Bab 8.7 langkah 1).
+/// Sakelar **"Unggah lewat data seluler"** (Bab 8.7 langkah 1 / Bab 9.7).
 ///
-/// Tempatnya menurut rencana adalah halaman Pengaturan (Bab 9.7), yang masih
-/// berupa penanda. Dipasang lebih awal di halaman Akun atas keputusan Product
-/// Owner 17 Agustus 2026: tanpa layar untuk menyalakannya, nilainya terkunci
-/// mati dan antrian unggah **tidak pernah dapat diuji** di perangkat yang hanya
-/// punya sinyal seluler — enam video menumpuk tanpa ada cara mengeluarkannya.
+/// Sempat menumpang di halaman Akun sejak 17 Agustus 2026, karena tanpa layar
+/// untuk menyalakannya nilainya terkunci mati dan antrian unggah tidak pernah
+/// dapat diuji di perangkat yang hanya punya sinyal seluler — enam video
+/// menumpuk tanpa ada cara mengeluarkannya (L.7).
 ///
-/// Pindahkan ke Pengaturan begitu Bab 9.7 dikerjakan; nilainya sendiri ada di
-/// `SharedPreferences`, jadi kepindahan itu tidak menghilangkan pilihan
-/// pengguna.
+/// **Dipindahkan ke Pengaturan 19 Agustus 2026**, rumahnya menurut Bab 9.7.
+/// Nilainya ada di `SharedPreferences`, jadi kepindahan ini tidak
+/// menghilangkan pilihan yang sudah dibuat pengguna.
+///
+/// 🔴 Disimpan di perangkat, **bukan** di `user_settings`. Keputusan Product
+/// Owner 17 Agustus 2026: ini preferensi milik satu HP, dan packer berkuota
+/// terbatas tidak seharusnya terikat pilihan packer yang memakai HP kantor.
 class CellularUploadSwitch extends ConsumerWidget {
   const CellularUploadSwitch({super.key});
 

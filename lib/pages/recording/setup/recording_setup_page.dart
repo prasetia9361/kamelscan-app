@@ -19,16 +19,27 @@ import 'recording_setup_view_model.dart';
 /// Tiga pilihan: kamera, mode pemicu, toko. Tombol Mulai aktif hanya bila
 /// ketiganya terisi **dan** saldo token > 0.
 class RecordingSetupPage extends ConsumerWidget {
-  const RecordingSetupPage({super.key});
+  const RecordingSetupPage({super.key, required this.typeWire});
+
+  /// Pilihan awal Packing/Return, dibawa dari menu Beranda (Bab 9.2).
+  final String typeWire;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = context.l10n;
-    final async = ref.watch(recordingSetupViewModelProvider);
+    final async = ref.watch(recordingSetupViewModelProvider(typeWire));
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(t.recordSetupTitle),
+        // Judulnya menyatakan jenis yang sedang berlaku — "Perekaman packing"
+        // atau "Perekaman return" (`arahan.json`, 18 Agustus 2026). Karena
+        // pilihannya sudah tidak ada di layar ini, judul inilah satu-satunya
+        // yang memberi tahu packer bahwa menu tadi memang berlaku.
+        title: Text(
+          VideoType.fromWire(typeWire) == VideoType.returned
+              ? t.recordSetupTitleReturn
+              : t.recordSetupTitlePacking,
+        ),
         actions: [
           // ⚠️ Alat verifikasi sementara (Bab 8.1). Membuktikan perangkat
           // sanggup menjalankan pratinjau + rekam + analisis frame sekaligus —
@@ -59,23 +70,25 @@ class RecordingSetupPage extends ConsumerWidget {
         loading: () => const AppListSkeleton(),
         error: (e, _) => AppErrorView(
           failure: e,
-          onRetry: () => ref.invalidate(recordingSetupViewModelProvider),
+          onRetry: () =>
+              ref.invalidate(recordingSetupViewModelProvider(typeWire)),
         ),
-        data: (data) => _SetupBody(data: data),
+        data: (data) => _SetupBody(data: data, typeWire: typeWire),
       ),
     );
   }
 }
 
 class _SetupBody extends ConsumerWidget {
-  const _SetupBody({required this.data});
+  const _SetupBody({required this.data, required this.typeWire});
 
   final RecordingSetupData data;
+  final String typeWire;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = context.l10n;
-    final vm = ref.read(recordingSetupViewModelProvider.notifier);
+    final vm = ref.read(recordingSetupViewModelProvider(typeWire).notifier);
     final setup = data.setup;
 
     // Tanpa toko sama sekali, tidak ada yang bisa dipilih. Menampilkan daftar
@@ -96,6 +109,15 @@ class _SetupBody extends ConsumerWidget {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             children: [
+              // 🔴 TIDAK ADA pemilih jenis paket di sini — keputusan Product
+              // Owner 18 Agustus 2026 (`arahan.json`).
+              //
+              // Jenis ditentukan sepenuhnya oleh menu yang ditekan di Beranda,
+              // dan layar ini hanya menyatakannya kembali lewat judulnya.
+              // Menyediakan pilihan kedua di sini berarti dua sumber kebenaran
+              // untuk satu hal: packer yang menekan "Rekam Paket Return" lalu
+              // menemukan chip Packing masih dapat dipilih akan wajar mengira
+              // menu tadi belum berlaku.
               _Section(
                 number: 1,
                 title: t.recordPickCamera,
@@ -379,6 +401,7 @@ class _StartBar extends StatelessWidget {
                             cameraName: setup.cameraId!,
                             triggerWire: setup.triggerMode!.wire,
                             shopId: setup.shopId!,
+                            typeWire: setup.type.wire,
                             // "Shopee · Toko Kamel" — Bab 8.5 menampilkan
                             // marketplace beserta nama tokonya di watermark.
                             shopName: shops

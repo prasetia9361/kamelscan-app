@@ -120,6 +120,16 @@ class AppConstants {
   /// lain yang memakai HP kantor.
   static const String prefUploadOnCellular = 'pref_upload_on_cellular';
 
+  /// Bab 9.7 — "Rekam dengan suara". Diminta Product Owner 19 Agustus 2026.
+  ///
+  /// Disimpan di perangkat, bukan di server: keputusan Product Owner pada hari
+  /// yang sama, sejalan dengan sakelar data seluler di atas.
+  ///
+  /// ⚠️ Bawaannya **menyala**. Sampai sakelar ini ada, seluruh video direkam
+  /// bersuara selama izin mikrofon diberikan; bawaan mati akan diam-diam
+  /// mengubah isi bukti pada perangkat yang sudah dipakai.
+  static const String prefMicEnabled = 'pref_mic_enabled';
+
   /// Salinan lokal `tenant_settings` agar watermark tetap sesuai pengaturan
   /// pelanggan walaupun videonya diproses saat perangkat tanpa sinyal.
   static const String prefTenantSettings = 'pref_tenant_settings';
@@ -145,11 +155,26 @@ class AppConstants {
   static const String tblTutorials = 'tutorials';
   static const String tblAuditLogs = 'audit_logs';
 
+  // ---------- Bucket Supabase Storage ----------
+  //
+  // ⚠️ Hanya foto profil. Video bukti TIDAK pernah masuk Supabase Storage —
+  // ia langsung ke Cloudflare R2 (Bab 8.7), dan bucket ini publik.
+  static const String bucketAvatars = 'avatars';
+
+  /// Bukti transfer manual (Bab 12.2). **Bucket privat** — isinya tangkapan
+  /// layar mutasi rekening, dibaca hanya lewat URL bertanda tangan.
+  static const String bucketPaymentProofs = 'payment-proofs';
+
   // ---------- Nama Edge Function ----------
   static const String fnGetUploadUrl = 'get-upload-url';
   static const String fnGetVideoUrl = 'get-video-url';
   static const String fnCreatePublicLink = 'create-public-link';
+
+  /// Satu-satunya Edge Function yang sengaja dapat dipanggil tanpa sesi login.
+  /// Yang menjaganya adalah token 160 bit pada tautannya sendiri (Bab 10.6).
+  static const String fnGetPublicVideo = 'get-public-video';
   static const String fnCreatePacker = 'create-packer';
+  static const String fnDeletePacker = 'delete-packer';
   static const String fnResolveUsername = 'resolve-username';
   static const String fnMidtransCharge = 'midtrans-charge';
 

@@ -2,7 +2,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_constants.dart';
 import '../models/enums.dart';
+import '../models/history_item.dart';
 import '../models/package_video.dart';
+import '../models/public_video.dart';
 import '../models/upload_task.dart';
 import '../services/supabase_service.dart';
 import '../utils/result.dart';
@@ -35,6 +37,20 @@ class VideoFilter {
       userId == null &&
       from == null &&
       to == null;
+}
+
+/// Hasil `create-public-link` (Bab 8.8).
+class PublicLink {
+  const PublicLink({required this.url, this.expiresAt, this.reused = false});
+
+  final String url;
+
+  /// Sama dengan `expires_at` videonya — tautan tidak boleh hidup lebih lama
+  /// daripada berkas yang ditunjuknya.
+  final DateTime? expiresAt;
+
+  /// `true` bila tautan lama yang masih berlaku dipakai ulang.
+  final bool reused;
 }
 
 class VideoRepository {
@@ -79,6 +95,71 @@ class VideoRepository {
       return Result.ok(
         rows.map((r) => PackageVideo.fromJson(r)).toList(growable: false),
       );
+    } on Object catch (e, s) {
+      return Result.err(SupabaseService.mapError(e, s));
+    }
+  }
+
+  /// Riwayat beserta nama toko dan nama perekamnya (Bab 9.4).
+  ///
+  /// Sama dengan [fetchVideos], hanya menambahkan **embedding** ke `shops` dan
+  /// `users` supaya daftar dapat menampilkan "Shopee · Toko Kamel" tanpa 20
+  /// permintaan tambahan per halaman.
+  ///
+  /// ⚠️ Embedding tetap tunduk RLS. `shops_select` dan `users_select_self_or_tenant`
+  /// keduanya mengizinkan seluruh anggota tenant membaca barisnya, jadi
+  /// namanya terisi untuk packer maupun Owner. Bila policy itu kelak
+  /// diperketat, yang muncul bukan error melainkan nama yang kosong — periksa
+  /// ke sana lebih dulu sebelum menduga masalahnya di Dart.
+  Future<Result<List<HistoryItem>>> fetchHistory({
+    VideoFilter filter = const VideoFilter(),
+    int page = 0,
+    int pageSize = AppConstants.historyPageSize,
+  }) async {
+    try {
+      var query = _client.from(AppConstants.tblPackageVideos).select(
+            '*, shops(shop_name, market_name), users(full_name)',
+          );
+
+      if (filter.shopId != null) query = query.eq('shop_id', filter.shopId!);
+      if (filter.userId != null) query = query.eq('user_id', filter.userId!);
+      if (filter.type != null) query = query.eq('type', filter.type!.wire);
+      if (filter.status != null) {
+        query = query.eq('status', filter.status!.wire);
+      } else {
+        query = query.neq('status', VideoStatus.deleted.wire);
+      }
+      if (filter.resiQuery != null && filter.resiQuery!.isNotEmpty) {
+        query = query.ilike('resi_code', '%${filter.resiQuery}%');
+      }
+      if (filter.from != null) {
+        query = query.gte('scan_date', filter.from!.toUtc().toIso8601String());
+      }
+      if (filter.to != null) {
+        query = query.lte('scan_date', filter.to!.toUtc().toIso8601String());
+      }
+
+      final rows = await query
+          .order('scan_date', ascending: false)
+          .range(page * pageSize, (page + 1) * pageSize - 1);
+
+      return Result.ok(
+        rows.map((r) => HistoryItem.fromJson(r)).toList(growable: false),
+      );
+    } on Object catch (e, s) {
+      return Result.err(SupabaseService.mapError(e, s));
+    }
+  }
+
+  /// Satu video beserta konteksnya, untuk halaman detail (Bab 9.4).
+  Future<Result<HistoryItem>> fetchHistoryItem(String id) async {
+    try {
+      final row = await _client
+          .from(AppConstants.tblPackageVideos)
+          .select('*, shops(shop_name, market_name), users(full_name)')
+          .eq('id', id)
+          .single();
+      return Result.ok(HistoryItem.fromJson(row));
     } on Object catch (e, s) {
       return Result.err(SupabaseService.mapError(e, s));
     }
@@ -222,11 +303,20 @@ class VideoRepository {
   ///
   /// ⚠️ Bab 2.2 catatan 5 — Edge Function `get-video-url` menolak pemanggil
   /// dengan `app_role = 'admin'`. Admin platform hanya boleh melihat metadata.
-  Future<Result<String>> getPlaybackUrl(String videoId) async {
+  ///
+  /// [forDownload] menentukan bagaimana R2 menyajikan berkasnya. Untuk
+  /// **menonton** ia disajikan apa adanya agar pemutar dapat melompat ke tengah
+  /// video; untuk **mengunduh** ia diberi nama berkas bernomor resi, supaya
+  /// packer yang mengirimkannya ke pusat resolusi marketplace tidak perlu
+  /// membuka satu per satu untuk tahu isinya yang mana.
+  Future<Result<String>> getPlaybackUrl(
+    String videoId, {
+    bool forDownload = false,
+  }) async {
     try {
       final response = await _client.functions.invoke(
         AppConstants.fnGetVideoUrl,
-        body: {'video_id': videoId},
+        body: {'video_id': videoId, 'download': forDownload},
       );
       final url = (response.data as Map?)?['url'] as String?;
       if (url == null) {
@@ -239,17 +329,55 @@ class VideoRepository {
   }
 
   /// Buat tautan publik. Hanya Owner (Bab 2.2).
-  Future<Result<String>> createPublicLink(String videoId) async {
+  ///
+  /// Masa berlakunya ikut dikembalikan karena Bab 9.4 mewajibkan angka itu
+  /// ditampilkan saat tautannya disalin — pusat resolusi marketplace kadang
+  /// baru membukanya beberapa hari kemudian, dan Owner perlu tahu sampai kapan
+  /// tautannya masih hidup sebelum mengirimkannya.
+  ///
+  /// Edge Function-nya **idempoten**: tautan yang masih berlaku dipakai ulang,
+  /// jadi menekan tombolnya dua kali tidak mematikan tautan yang sudah
+  /// terkirim.
+  Future<Result<PublicLink>> createPublicLink(String videoId) async {
     try {
       final response = await _client.functions.invoke(
         AppConstants.fnCreatePublicLink,
         body: {'video_id': videoId},
       );
-      final url = (response.data as Map?)?['public_url'] as String?;
+      final data = response.data as Map?;
+      final url = data?['public_url'] as String?;
       if (url == null) {
         return Result.err(SupabaseService.mapError('Tautan tidak diterima'));
       }
-      return Result.ok(url);
+      return Result.ok(
+        PublicLink(
+          url: url,
+          expiresAt: DateTime.tryParse((data?['expires_at'] ?? '') as String),
+          reused: data?['reused'] == true,
+        ),
+      );
+    } on Object catch (e, s) {
+      return Result.err(SupabaseService.mapError(e, s));
+    }
+  }
+
+  /// Isi halaman bukti publik `/v/{token}` (Bab 10.6).
+  ///
+  /// 🔴 Dipanggil **tanpa sesi login** — ini satu-satunya jalur seperti itu di
+  /// aplikasi. Yang menjaganya token 160 bit pada tautannya, dan Edge Function
+  /// `get-public-video` hanya mengembalikan isi bukti: tidak ada `tenant_id`,
+  /// `user_id`, maupun `storage_key`.
+  Future<Result<PublicVideo>> fetchPublicVideo(String token) async {
+    try {
+      final response = await _client.functions.invoke(
+        AppConstants.fnGetPublicVideo,
+        body: {'token': token},
+      );
+      final data = response.data as Map?;
+      if (data == null || data['url'] == null) {
+        return Result.err(SupabaseService.mapError('Tautan tidak berlaku'));
+      }
+      return Result.ok(PublicVideo.fromJson(Map<String, dynamic>.from(data)));
     } on Object catch (e, s) {
       return Result.err(SupabaseService.mapError(e, s));
     }

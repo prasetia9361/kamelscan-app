@@ -176,4 +176,67 @@ void main() {
       expect(full.blockedReasonKey, isNull);
     });
   });
+
+  /// Bab 9.2 — jenis paket ditambahkan 18 Agustus 2026. Sebelumnya seluruh
+  /// alur rekam memaku `packing`, sehingga video return tersimpan dengan tipe
+  /// yang salah dan menabrak indeks `uq_resi_per_tenant_type`.
+  group('Jenis paket di layar setup (Bab 9.2)', () {
+    test('bawaannya packing — pekerjaan sehari-hari, bukan yang jarang', () {
+      expect(const RecordingSetup().type, VideoType.packing);
+    });
+
+    test('jenis paket TIDAK ikut menentukan kelengkapan pilihan', () {
+      // Berbeda dari kamera/pemicu/toko, ia selalu punya nilai. Bila ia ikut
+      // dihitung, tombol Mulai akan mati tanpa alasan yang dapat dijelaskan.
+      const s = RecordingSetup(
+        cameraId: 'back',
+        triggerMode: TriggerMode.qrCode,
+        shopId: 'shop-1',
+        hasTokens: true,
+      );
+      expect(s.isComplete, isTrue);
+      expect(s.copyWith(type: VideoType.returned).isComplete, isTrue);
+      expect(s.copyWith(type: VideoType.returned).canStart, isTrue);
+      expect(s.copyWith(type: VideoType.returned).blockedReasonKey, isNull);
+    });
+
+    test('copyWith mengganti jenis tanpa menyentuh pilihan lain', () {
+      const s = RecordingSetup(
+        cameraId: 'back',
+        triggerMode: TriggerMode.manual,
+        shopId: 'shop-9',
+        hasTokens: true,
+      );
+      final r = s.copyWith(type: VideoType.returned);
+
+      expect(r.type, VideoType.returned);
+      expect(r.cameraId, 'back');
+      expect(r.triggerMode, TriggerMode.manual);
+      expect(r.shopId, 'shop-9');
+      expect(r.hasTokens, isTrue);
+    });
+
+    test('copyWith tanpa jenis mempertahankan yang sedang dipakai', () {
+      const r = RecordingSetup(type: VideoType.returned);
+      expect(r.copyWith(cameraId: 'front').type, VideoType.returned);
+    });
+
+    test('nilai wire cocok dengan enum database', () {
+      // Nilai inilah yang dikirim lewat query rute dan disimpan ke kolom
+      // `package_videos.type`. `return` adalah kata kunci Dart, jadi nama
+      // Dart-nya `returned` sementara nilai databasenya tetap `return`.
+      expect(VideoType.packing.wire, 'packing');
+      expect(VideoType.returned.wire, 'return');
+      expect(VideoType.fromWire('return'), VideoType.returned);
+      expect(VideoType.fromWire('packing'), VideoType.packing);
+    });
+
+    test('wire yang tidak dikenal jatuh ke packing, bukan mogok', () {
+      // Rute yang dipulihkan tanpa parameter tipe harus tetap berjalan seperti
+      // sebelum Bab 9.2 — bukan melempar di tengah layar kamera.
+      expect(VideoType.fromWire(null), VideoType.packing);
+      expect(VideoType.fromWire(''), VideoType.packing);
+      expect(VideoType.fromWire('retur'), VideoType.packing);
+    });
+  });
 }

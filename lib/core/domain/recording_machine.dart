@@ -203,12 +203,22 @@ class RecordingSetup {
     this.cameraId,
     this.triggerMode,
     this.shopId,
+    this.type = VideoType.packing,
     this.hasTokens = false,
   });
 
   final String? cameraId;
   final TriggerMode? triggerMode;
   final String? shopId;
+
+  /// Packing atau Return (Bab 9.2).
+  ///
+  /// Berbeda dari tiga pilihan di atas, ini **tidak pernah kosong**: selalu
+  /// ada nilai bawaan, jadi ia tidak ikut menentukan [isComplete]. Packing
+  /// dipilih sebagai bawaan karena itulah pekerjaan sehari-hari; merekam
+  /// paket kembali jauh lebih jarang.
+  final VideoType type;
+
   final bool hasTokens;
 
   bool get isComplete =>
@@ -230,12 +240,14 @@ class RecordingSetup {
     String? cameraId,
     TriggerMode? triggerMode,
     String? shopId,
+    VideoType? type,
     bool? hasTokens,
   }) =>
       RecordingSetup(
         cameraId: cameraId ?? this.cameraId,
         triggerMode: triggerMode ?? this.triggerMode,
         shopId: shopId ?? this.shopId,
+        type: type ?? this.type,
         hasTokens: hasTokens ?? this.hasTokens,
       );
 }

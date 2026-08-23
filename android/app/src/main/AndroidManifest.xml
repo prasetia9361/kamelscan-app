@@ -87,6 +87,28 @@
                 <data android:scheme="id.kamelscan.app"/>
             </intent-filter>
         </activity>
+        <!-- Layar pemotong foto milik image_cropper (Bab 9.6).
+
+             🔴 WAJIB dideklarasikan di sini. Tanpa baris ini aplikasi
+             **mati total** begitu Owner memilih foto profil: Android menolak
+             membuka layar yang tidak terdaftar
+             (ActivityNotFoundException: com.yalantis.ucrop.UCropActivity),
+             lalu plugin-nya membalas Flutter dua kali dan proses dimatikan
+             (IllegalStateException: Reply already submitted).
+
+             Terbukti di Redmi Note 9, 20 Agustus 2026. Tidak terdeteksi oleh
+             `flutter analyze` maupun `flutter test` karena ini berkas
+             konfigurasi Android, bukan kode Dart — satu-satunya cara
+             menemukannya adalah menjalankannya di perangkat sungguhan.
+
+             Temanya memakai AppCompat karena UCrop mewarisi
+             AppCompatActivity; tema aplikasi biasa akan membuatnya menolak
+             mulai. -->
+        <activity
+            android:name="com.yalantis.ucrop.UCropActivity"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.AppCompat.Light.NoActionBar"/>
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

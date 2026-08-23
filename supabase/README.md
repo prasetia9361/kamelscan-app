@@ -31,6 +31,7 @@ pada yang sebelumnya.
 | 18 | `migrations/17_username_check.sql` | RPC ketersediaan username (Bab 6.2) |
 | 19 | `migrations/18_terms_consent.sql` | Catatan persetujuan S&K (Bab 6.2) |
 | 20 | `migrations/19_server_time.sql` | `server_now()` + `package_videos.time_verified` (Bab 8.5) |
+| 21 | `migrations/20_home_stats.sql` | `get_home_stats()` — kartu monitoring Home (Bab 9.2) |
 
 Cara termudah: buka **Dashboard → SQL Editor**, tempel isi tiap berkas satu per
 satu, jalankan, pastikan sukses sebelum lanjut ke berikutnya.
@@ -316,6 +317,43 @@ curl -X POST "https://<ref>.supabase.co/functions/v1/resolve-username" `
   -H "apikey: <anon>" -H "Content-Type: application/json" `
   -d '{\"username\":\"tidakada\"}'
 ```
+
+---
+
+## `get_home_stats()` — kartu monitoring Home (Bab 9.2)
+
+Terpasang 18 Agustus 2026 lewat `migrations/20_home_stats.sql`. Satu panggilan
+mengisi seluruh kartu di halaman Home.
+
+**Dua penyimpangan disengaja dari contoh SQL di Bab 9.2**, alasan lengkapnya di
+kepala berkas migrasinya:
+
+1. Periode dihitung sejak `token_wallets.period_start`, **bukan** awal bulan
+   kalender — keputusan Product Owner 18 Agustus 2026, agar angka video selalu
+   sejalan dengan sisa token. Masa uji coba tidak pernah di-reset, sehingga cara
+   bulan kalender akan menampilkan "0 video" di sebelah "27 token terpakai".
+   Analisis harian/bulanan tetap ada rumahnya sendiri: grafik dashboard web
+   (Bab 10.4, `get_daily_stats`).
+2. `security invoker`, **bukan** `security definer` — supaya cakupannya tunduk
+   pada policy `videos_select` dan packer tidak melihat hitungan video rekan
+   sekerjanya di Home padahal Riwayatnya sudah ditutup (Bab 2.2 catatan 3).
+
+### Hasil uji dengan klaim JWT sungguhan — 18 Agustus 2026
+
+Dijalankan lewat `bin/sql.dart` dengan `set role authenticated` +
+`set_config('request.jwt.claims', …)`, jadi RLS benar-benar berlaku (koneksi
+`postgres` sendiri mengabaikan RLS dan tidak membuktikan apa pun):
+
+| Sebagai | Hasil | Penilaian |
+|---|---|---|
+| Owner "Sarang sarung" | 27 packing · 0 return · saldo 73/100 · periode sejak 13 Agu | ✅ 27 + 73 = 100 |
+| Owner "Toko Uji" | 1 packing · saldo 99/100 | ✅ isolasi tenant: tidak melihat 27 video tenant lain |
+| Packer, **bukan** perekamnya | **0** packing | ✅ tidak menembus RLS |
+| Packer, perekamnya sendiri | 27 packing | ✅ rekaman sendiri tetap terhitung |
+| Tamu (`anon`) | ditolak `42501 permission denied` | ✅ bukan mengembalikan 0 diam-diam |
+
+Baris ketiga adalah yang paling penting: dengan `security definer` seperti
+contoh di panduan, angka itu akan keluar **27**.
 
 ---
 

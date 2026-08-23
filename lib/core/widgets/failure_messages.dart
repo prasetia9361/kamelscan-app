@@ -18,6 +18,18 @@ extension FailureMessages on BuildContext {
 
   /// Kunci yang tidak dikenal jatuh ke pesan umum, bukan menampilkan kuncinya
   /// mentah-mentah ke pengguna.
+  ///
+  /// 🔴 **Setiap `messageKey` baru WAJIB didaftarkan di bawah ini.** Lupa
+  /// mendaftarkannya tidak menimbulkan error apa pun — tidak saat `analyze`,
+  /// tidak saat `test`, tidak saat dijalankan. Yang terjadi hanya pesannya
+  /// diam-diam berubah menjadi *"Terjadi kesalahan. Coba lagi beberapa saat."*
+  ///
+  /// Terjadi 20 Agustus 2026, dan ironisnya justru pada perbaikan yang dibuat
+  /// untuk menghapus kalimat itu: `packersEmailTaken` sudah ada di ARB, sudah
+  /// dipetakan dari kode Edge Function, dan tetap tidak pernah sampai ke layar
+  /// karena berhenti di daftar ini. Dijaga sekarang oleh
+  /// `test/core/failure_message_keys_test.dart`, yang membaca `AppFailure`
+  /// langsung dari sumbernya dan menolak kunci yang belum terdaftar.
   String messageForKey(String key) {
     final t = l10n;
     return switch (key) {
@@ -73,6 +85,8 @@ extension FailureMessages on BuildContext {
       'errorAccountDisabled' => t.errorAccountDisabled,
       'errorTenantSuspended' => t.errorTenantSuspended,
       'errorWatermarkFontMissing' => t.errorWatermarkFontMissing,
+      'packersEmailTaken' => t.packersEmailTaken,
+      'packersCannotDeleteTitle' => t.packersCannotDeleteTitle,
       _ => t.errorUnknown,
     };
   }

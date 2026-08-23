@@ -1,12 +1,33 @@
+import 'dart:typed_data';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_constants.dart';
 import '../models/app_user.dart';
 import '../models/enums.dart';
+import '../models/packer_summary.dart';
 import '../models/tenant.dart';
 import '../services/supabase_service.dart';
 import '../utils/app_failure.dart';
 import '../utils/result.dart';
+
+/// Kredensial akun packer yang baru dibuat (Bab 6.7).
+///
+/// 🔴 [tempPassword] hanya ada di memori, sekali, tepat setelah akunnya dibuat.
+/// Server menyimpannya dalam bentuk ter-hash dan tidak dapat mengembalikannya
+/// lagi. Owner **wajib** diberi kesempatan menyalinnya sebelum dialognya
+/// ditutup.
+class NewPackerCredentials {
+  const NewPackerCredentials({
+    required this.userId,
+    required this.email,
+    required this.tempPassword,
+  });
+
+  final String userId;
+  final String email;
+  final String tempPassword;
+}
 
 class UserRepository {
   const UserRepository(this._client);
@@ -61,6 +82,72 @@ class UserRepository {
     }
   }
 
+  /// Daftar packer beserta jumlah video dan toko yang ditugaskan (Bab 9.6).
+  ///
+  /// Sama dengan [fetchPackers], hanya menambahkan embedding agar tiap baris
+  /// dapat menjawab dua pertanyaan yang selalu muncul bersamaan: *"dia sudah
+  /// merekam berapa?"* dan *"dia ditugaskan di toko mana?"*.
+  Future<Result<List<PackerSummary>>> fetchPackerSummaries() async {
+    try {
+      final rows = await _client
+          .from(AppConstants.tblUsers)
+          .select(
+            '*, ${AppConstants.tblPackageVideos}(count), '
+            '${AppConstants.tblShopPackers}(${AppConstants.tblShops}(shop_name))',
+          )
+          .eq('role', UserRole.packer.wire)
+          .order('created_at', ascending: false);
+
+      return Result.ok(
+        rows.map((r) => PackerSummary.fromJson(r)).toList(growable: false),
+      );
+    } on Object catch (e, s) {
+      return Result.err(SupabaseService.mapError(e, s));
+    }
+  }
+
+  /// Hapus akun packer beserta akun masuknya.
+  ///
+  /// 🔴 WAJIB lewat Edge Function `delete-packer`, jangan pernah kembali ke
+  /// `delete from users`.
+  ///
+  /// Sampai 20 Agustus 2026 metode ini menghapus baris `public.users` langsung
+  /// dari aplikasi. Itu hanya membuang **profilnya**: `public.users.id`
+  /// menunjuk `auth.users(id) on delete cascade`, dan arah cascade-nya
+  /// auth → public, tidak pernah sebaliknya. Akun masuknya tetap hidup.
+  ///
+  /// Akibatnya di perangkat Product Owner: packer yang sudah dihapus dari
+  /// layar **masih dapat masuk dengan password lamanya**, emailnya tidak dapat
+  /// dipakai lagi untuk membuat packer baru (`EMAIL_ALREADY_USED`), dan begitu
+  /// ia masuk ia terjebak di *"Data tidak ditemukan"* karena profilnya sudah
+  /// tidak ada. Yang paling berat bukan yang terlihat di layar, melainkan yang
+  /// tidak: Owner mengira akses seorang bekas pegawai sudah dicabut, padahal
+  /// belum.
+  ///
+  /// ⚠️ Tetap hanya mungkin bila packer itu belum pernah merekam.
+  /// `package_videos.user_id` memakai `on delete restrict` (Bab 5.2) supaya
+  /// video tetap menunjuk orang yang merekamnya — menghapus perekamnya akan
+  /// memutus rantai bukti tepat di titik yang paling dipertanyakan saat
+  /// sengketa. Untuk packer yang sudah tidak bekerja lagi, pakai
+  /// [setPackerActive] dengan `false`.
+  Future<Result<void>> deletePacker(String userId) async {
+    try {
+      final response = await _client.functions.invoke(
+        AppConstants.fnDeletePacker,
+        body: {'user_id': userId},
+      );
+
+      final data = response.data;
+      if (data is Map && data['deleted'] == true) return okVoid;
+
+      return Result.err(
+        AppFailure.unknown('Balasan delete-packer tidak sah: $data'),
+      );
+    } on Object catch (e, s) {
+      return Result.err(SupabaseService.mapError(e, s));
+    }
+  }
+
   Future<Result<AppUser>> updateProfile(
     String id, {
     String? fullName,
@@ -87,16 +174,60 @@ class UserRepository {
     }
   }
 
+  /// Unggah foto profil ke bucket `avatars` (Bab 9.6).
+  ///
+  /// Jalurnya selalu `{userId}/avatar.jpg` — folder teratas adalah pemiliknya,
+  /// dan itulah yang diperiksa policy `avatars_insert_own`
+  /// (migrasi `23_avatars_bucket.sql`). Tanpa pola itu, siapa pun yang login
+  /// dapat menimpa foto profil orang lain.
+  ///
+  /// Nama berkasnya sengaja **tetap**, bukan bertambah tiap unggahan: foto
+  /// lama ditimpa sehingga tidak ada sampah yang menumpuk di penyimpanan.
+  /// Konsekuensinya URL-nya tidak berubah, jadi penanda waktu ditempelkan
+  /// sebagai query agar gambar lama di cache tidak ikut bertahan.
+  Future<Result<String>> uploadAvatar({
+    required String userId,
+    required Uint8List bytes,
+  }) async {
+    try {
+      const path = 'avatar.jpg';
+      final key = '$userId/$path';
+
+      await _client.storage.from(AppConstants.bucketAvatars).uploadBinary(
+            key,
+            bytes,
+            fileOptions: const FileOptions(
+              contentType: 'image/jpeg',
+              upsert: true,
+            ),
+          );
+
+      final url = _client.storage.from(AppConstants.bucketAvatars).getPublicUrl(key);
+      return Result.ok('$url?v=${DateTime.now().millisecondsSinceEpoch}');
+    } on Object catch (e, s) {
+      return Result.err(SupabaseService.mapError(e, s));
+    }
+  }
+
   /// Pembuatan akun packer **wajib** lewat Edge Function service-role.
   ///
   /// Bab 5.4 sengaja tidak memberi policy INSERT pada `public.users` untuk
   /// peran `authenticated`, dan batas jumlah packer ditegakkan trigger
   /// `check_packer_limit()` (Bab 7.4). Jangan pernah membuat jalur insert
   /// langsung dari klien.
-  Future<Result<AppUser>> createPacker({
+  /// 🔴 Password sementaranya dikembalikan **sekali saja** oleh Edge Function
+  /// dan tidak pernah dapat dibaca lagi — ia disimpan server dalam bentuk
+  /// ter-hash. Pemanggil wajib menampilkannya ke Owner saat itu juga
+  /// (Bab 6.7); membuangnya berarti akun packer yang baru dibuat tidak dapat
+  /// dipakai siapa pun, dan satu-satunya jalan keluar adalah reset password.
+  ///
+  /// ⚠️ Sebelum 20 Agustus 2026 balasannya dipaksa menjadi `AppUser`, sehingga
+  /// `temp_password` terbuang diam-diam. Kekeliruan itu tidak pernah terlihat
+  /// karena layar Kelola Packer belum ada yang memakainya.
+  Future<Result<NewPackerCredentials>> createPacker({
     required String email,
-    required String password,
     required String fullName,
+    String? password,
     List<String> shopIds = const [],
   }) async {
     try {
@@ -104,8 +235,8 @@ class UserRepository {
         AppConstants.fnCreatePacker,
         body: {
           'email': email,
-          'password': password,
           'full_name': fullName,
+          'password': ?password,
           'shop_ids': shopIds,
         },
       );
@@ -113,7 +244,21 @@ class UserRepository {
       if (data is! Map) {
         return Result.err(AppFailure.unknown('Balasan Edge Function tidak sah'));
       }
-      return Result.ok(AppUser.fromJson(Map<String, dynamic>.from(data)));
+
+      final tempPassword = data['temp_password'] as String?;
+      if (tempPassword == null) {
+        return Result.err(
+          AppFailure.unknown('Password sementara tidak diterima'),
+        );
+      }
+
+      return Result.ok(
+        NewPackerCredentials(
+          userId: (data['user_id'] as String?) ?? '',
+          email: (data['email'] as String?) ?? email,
+          tempPassword: tempPassword,
+        ),
+      );
     } on Object catch (e, s) {
       return Result.err(SupabaseService.mapError(e, s));
     }

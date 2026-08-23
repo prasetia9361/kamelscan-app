@@ -45,20 +45,42 @@ class RecordingSetupData {
 /// kenyamanan: satu toko biasanya memakai satu marketplace dengan format resi
 /// yang sama setiap hari, sehingga menanyakan ulang tiap kali hanya menambah
 /// tiga ketukan pada pekerjaan yang diulang ratusan kali sehari.
+///
+/// [typeWire] membawa jenis paket dari menu yang ditekan di Beranda
+/// (`arahan.json`, keputusan Product Owner 18 Agustus 2026). Ia **tidak dapat
+/// diganti di layar ini** — jenis punya satu sumber saja, yaitu menunya.
+///
+/// Nilainya juga tidak disimpan ke `SharedPreferences`, berbeda dari mode
+/// pemicu dan toko. Keduanya sama sepanjang hari; jenis paket berganti per
+/// paket. Karena provider ini dibuang begitu layarnya ditutup, jenisnya
+/// otomatis kembali kosong saat keluar — persis `keluar: jenis_paket.none`.
 @riverpod
 class RecordingSetupViewModel extends _$RecordingSetupViewModel {
   @override
-  Future<RecordingSetupData> build() async {
+  Future<RecordingSetupData> build(String typeWire) async {
     final session = ref.watch(sessionProvider).value;
     final prefs = await SharedPreferences.getInstance();
 
     final cameras = await _cameras();
 
-    // Packer hanya melihat toko yang ditugaskan kepadanya (Bab 8.2). Filter
-    // sesungguhnya ada di RLS; di sini hanya menampilkan apa yang boleh dilihat.
-    final shops = (await ref
-            .read(shopRepositoryProvider)
-            .fetchShops(activeOnly: true))
+    // Packer hanya boleh memilih toko yang ditugaskan kepadanya (panduan
+    // §8.2). Owner melihat seluruh tokonya.
+    //
+    // 🔴 Sebelum 20 Agustus 2026 baris ini memanggil `fetchShops` tanpa
+    // penyaringan, disertai komentar bahwa "filter sesungguhnya ada di RLS".
+    // Filter itu tidak pernah ada: `shops_select` memberi seluruh anggota
+    // tenant hak baca atas semua toko. Product Owner membuktikannya di
+    // perangkat — packer yang ditugaskan ke 2 dari 3 toko tetap melihat
+    // ketiganya di sini, memilih toko yang bukan tugasnya, dan rekamannya
+    // diterima server.
+    //
+    // Penjagaan sesungguhnya sekarang ada di policy `videos_insert`
+    // (migrasi 24). Penyaringan di sini gunanya berbeda dan tetap perlu:
+    // pilihan yang akan ditolak server tidak boleh pernah muncul di layar.
+    final shops = (await ref.read(shopRepositoryProvider).fetchShops(
+              activeOnly: true,
+              assignedOnly: session?.isPacker ?? false,
+            ))
         .getOrElse((_) => const []);
 
     final savedShop = prefs.getString(AppConstants.prefLastShopId);
@@ -77,6 +99,7 @@ class RecordingSetupViewModel extends _$RecordingSetupViewModel {
         shopId: shops.any((s) => s.id == savedShop)
             ? savedShop
             : (shops.length == 1 ? shops.first.id : null),
+        type: VideoType.fromWire(typeWire),
         hasTokens: !(session?.quota.isExhausted ?? true),
       ),
     );

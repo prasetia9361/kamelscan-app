@@ -5,10 +5,12 @@ import 'enums.dart';
 part 'subscription.freezed.dart';
 part 'subscription.g.dart';
 
-/// Tabel `public.subscriptions` (Bab 5.2).
+/// Satu upaya pembayaran langganan (Bab 12.2). Cerminan tabel
+/// `public.subscriptions`.
 ///
-/// Fase 1 memakai alur pembayaran **semi-manual** (Bab 12): `payment_method`
-/// bernilai `manual_transfer` dan Admin memverifikasi `proof_url`.
+/// Barisnya dibuat **sebelum** uangnya berpindah, berstatus `pending`, dan
+/// baru menjadi `paid` setelah Admin memverifikasi buktinya. Karena itu
+/// keberadaan baris di sini tidak pernah berarti pelanggan sudah membayar.
 @freezed
 abstract class Subscription with _$Subscription {
   const factory Subscription({
@@ -19,13 +21,7 @@ abstract class Subscription with _$Subscription {
     @Default(SubStatus.pending) SubStatus status,
     @Default(0) num discountAmount,
     String? promoCode,
-
-    /// `midtrans` | `manual_transfer`
     String? paymentMethod,
-    String? midtransOrderId,
-    String? midtransTxnId,
-
-    /// Bukti transfer manual, diunggah pelanggan.
     String? proofUrl,
     String? verifiedBy,
     DateTime? periodStart,
@@ -39,16 +35,39 @@ abstract class Subscription with _$Subscription {
   factory Subscription.fromJson(Map<String, dynamic> json) =>
       _$SubscriptionFromJson(json);
 
-  num get netAmount => (amount - discountAmount).clamp(0, amount);
-
-  bool get isPaid => status == SubStatus.paid;
   bool get isPending => status == SubStatus.pending;
-  bool get isManualTransfer => paymentMethod == PaymentMethods.manualTransfer;
-  bool get awaitingVerification => isPending && proofUrl != null;
-}
+  bool get isPaid => status == SubStatus.paid;
 
-class PaymentMethods {
-  const PaymentMethods._();
-  static const String midtrans = 'midtrans';
-  static const String manualTransfer = 'manual_transfer';
+  /// Bukti sudah diunggah, tinggal menunggu Admin.
+  ///
+  /// Dibedakan dari [isPending] karena dua keadaan ini terasa sangat berbeda
+  /// bagi Owner: yang satu "giliran saya", yang lain "giliran mereka". Layar
+  /// yang menyamakan keduanya akan menyuruh orang mentransfer ulang uang yang
+  /// sudah ia kirim.
+  bool get isWaitingVerification => isPending && (proofUrl?.isNotEmpty ?? false);
+
+  /// Batas waktu transfer — 24 jam sejak barisnya dibuat (Bab 12.2 langkah 3).
+  ///
+  /// Tidak ada kolomnya di database; batas itu memang turunan dari
+  /// `created_at`. Menyimpannya sebagai kolom tersendiri hanya menciptakan
+  /// kesempatan bagi keduanya untuk berbeda.
+  DateTime? get transferDeadline => createdAt?.add(const Duration(hours: 24));
+
+  /// Sisa waktu transfer terhadap [now]; `Duration.zero` bila sudah lewat.
+  ///
+  /// [now] diminta sebagai parameter, bukan dibaca dari `DateTime.now()` di
+  /// dalam, supaya hitungannya dapat diuji tanpa perangkat.
+  Duration remainingToTransfer(DateTime now) {
+    final batas = transferDeadline;
+    if (batas == null) return Duration.zero;
+    final sisa = batas.difference(now);
+    return sisa.isNegative ? Duration.zero : sisa;
+  }
+
+  /// Tagihan ini sudah kedaluwarsa dan tidak layak ditampilkan sebagai
+  /// "menunggu pembayaran" lagi.
+  bool isStale(DateTime now) =>
+      isPending &&
+      !isWaitingVerification &&
+      remainingToTransfer(now) == Duration.zero;
 }

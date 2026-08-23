@@ -123,6 +123,36 @@ class UploadOnCellular extends _$UploadOnCellular {
   }
 }
 
+/// Sakelar **"Rekam dengan suara"** (Bab 9.7, diminta Product Owner
+/// 19 Agustus 2026).
+///
+/// Disimpan di perangkat, sejajar dengan [UploadOnCellular] — keputusan
+/// Product Owner: tiap HP boleh punya pilihannya sendiri.
+///
+/// 🔴 Bawaannya **menyala**, dan itu disengaja. Sebelum sakelar ini ada,
+/// seluruh video direkam bersuara selama izin mikrofon diberikan. Bawaan mati
+/// akan diam-diam mengubah isi bukti pada perangkat yang sudah dipakai —
+/// pelanggan baru menyadarinya saat membuka video lama untuk sengketa dan
+/// menemukannya bisu.
+///
+/// ⚠️ Sakelar ini hanya **menurunkan** kemampuan: bila izin mikrofon ditolak
+/// sistem, video tetap bisu walaupun sakelarnya menyala (Bab 8.9 — video bisu
+/// jauh lebih baik daripada tidak ada video).
+@Riverpod(keepAlive: true)
+class MicEnabled extends _$MicEnabled {
+  @override
+  Future<bool> build() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(AppConstants.prefMicEnabled) ?? true;
+  }
+
+  Future<void> set(bool value) async {
+    state = AsyncData(value);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(AppConstants.prefMicEnabled, value);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Antrian unggah
 // ---------------------------------------------------------------------------
