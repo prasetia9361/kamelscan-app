@@ -22,6 +22,17 @@ class Routes {
   /// dapat dicapai setelah login, dan tidak dapat dilewati.
   static const String completeProfile = '/complete-profile';
 
+  /// Bab 6.8 — layar tujuan tautan *Lupa password*.
+  ///
+  /// 🔴 Ini yang selama ini tidak ada. Tautan reset menghasilkan sesi yang sah
+  /// tetapi tidak ada satu pun layar yang meminta password baru, sehingga
+  /// pengguna hanya "tiba-tiba masuk" — atau, bila penukaran tautannya gagal,
+  /// terdampar di layar Masuk tanpa pesan apa pun.
+  ///
+  /// Sama seperti [completeProfile], **tidak** masuk daftar [public]: tautannya
+  /// sudah membentuk sesi sebelum layar ini dibuka.
+  static const String resetPassword = '/reset-password';
+
   /// Halaman bukti publik yang dibuka pihak marketplace tanpa login.
   static const String publicVideo = '/v/:token';
 

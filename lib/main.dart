@@ -7,6 +7,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'app.dart';
 import 'core/config/env.dart';
+import 'core/services/auth_service.dart';
 import 'core/services/camera_capability_check.dart';
 import 'core/services/ffmpeg_capability_check.dart';
 import 'core/services/local_db_service.dart';
@@ -118,6 +119,15 @@ Future<void> _bootstrap() async {
   log.i('Bootstrap selesai (${Env.appEnv.name}, web=$kIsWeb)');
 
   runApp(const ProviderScope(child: KamelScanApp()));
+
+  // Pemanasan `google_sign_in` (Bab 6.5).
+  //
+  // 🔴 Sengaja SESUDAH `runApp` dan tanpa ditunggu: ia tidak boleh menunda
+  // layar pertama. Yang dihemat adalah waktu tunggu setelah tombol
+  // *Lanjutkan dengan Google* ditekan — di v7, `initialize()` yang menyiapkan
+  // Credential Manager, dan sebelumnya seluruh biayanya dibayar saat itu juga
+  // sehingga pemilih akun terasa lama sekali muncul.
+  unawaited(const AuthService().warmUpGoogleSignIn());
 
   // Verifikasi kemampuan FFmpeg (DEVIASI_LIBRARY.md butir D.4). Hanya di debug,
   // dijalankan setelah runApp agar tidak menahan tampilnya layar pertama, dan

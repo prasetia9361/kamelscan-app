@@ -18,8 +18,15 @@ class LoginIdle extends LoginState {
   const LoginIdle();
 }
 
+/// Sedang mencoba masuk.
+///
+/// [viaGoogle] membedakan tombol mana yang ditekan. Tanpa pembeda ini kedua
+/// tombol menunjukkan keadaan sibuk yang sama, dan menekan *Masuk* akan
+/// membuat tombol Google ikut berputar — memberi tahu hal yang tidak benar.
 class LoginBusy extends LoginState {
-  const LoginBusy();
+  const LoginBusy({this.viaGoogle = false});
+
+  final bool viaGoogle;
 }
 
 class LoginFailed extends LoginState {
@@ -61,7 +68,17 @@ class LoginViewModel extends _$LoginViewModel {
 
   Future<void> signInWithGoogle() async {
     if (state is LoginBusy) return;
-    state = const LoginBusy();
+    // Bab 6.5 — pemilih akun Google butuh ± 3 detik untuk muncul, dan hampir
+    // seluruhnya dikerjakan Google Play Services di luar aplikasi ini.
+    // Terukur di Redmi Note 9, 24 Agustus 2026: ketukan → pemilih akun siap
+    // = 3,17 detik, hanya 0,36 detik di antaranya milik aplikasi kita.
+    //
+    // Waktunya tidak dapat dipersingkat dari sini, tetapi keheningannya bisa
+    // dihapus. Sebelum ini tombolnya hanya berubah abu-abu tanpa tanda apa
+    // pun selama tiga detik — dan itulah yang dilaporkan sebagai "lama
+    // banget". Tiga detik yang diakui terasa berbeda dari tiga detik yang
+    // didiamkan.
+    state = const LoginBusy(viaGoogle: true);
 
     final repo = ref.read(authRepositoryProvider);
     final result = await repo.signInWithGoogle();

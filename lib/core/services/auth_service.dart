@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -91,12 +91,26 @@ class AuthService {
       );
 
   /// Lengkapi nomor HP yang tidak pernah diberikan Google (Bab 6.2).
-  Future<Result<void>> updatePhone(String phone) => _guard(
-        () => SupabaseService.client
-            .from(AppConstants.tblUsers)
-            .update({'phone': Validators.normalizePhone(phone)})
-            .eq('id', SupabaseService.currentUser!.id),
-      );
+  ///
+  /// 🔴 `.select()` di ujungnya bukan hiasan. Tanpa itu PostgREST menjawab
+  /// **sukses** walaupun tidak ada satu baris pun yang berubah — baris yang
+  /// tersaring RLS tidak menghasilkan error, ia hanya menghasilkan nol baris.
+  /// Akibatnya layar *Lengkapi Profil* melapor berhasil, memuat ulang sesi,
+  /// lalu menemukan nomor HP masih kosong dan mengunci pengguna di layar yang
+  /// sama tanpa satu pun pesan yang menjelaskan apa pun.
+  Future<Result<void>> updatePhone(String phone) async {
+    final id = SupabaseService.currentUser?.id;
+    if (id == null) return const Result.err(AppFailure.sessionExpired);
+
+    return _guard(() async {
+      final rows = await SupabaseService.client
+          .from(AppConstants.tblUsers)
+          .update({'phone': Validators.normalizePhone(phone)})
+          .eq('id', id)
+          .select('id');
+      if (rows.isEmpty) throw AppFailure.permissionDenied;
+    });
+  }
 
   /// Bab 6.2 — apakah username masih bebas.
   ///
@@ -152,6 +166,56 @@ class AuthService {
     }
   }
 
+  /// Inisialisasi `google_sign_in` v7, dikerjakan **sekali** dan dibagikan.
+  ///
+  /// 🔴 Sebelumnya `initialize()` dipanggil di dalam [signInWithGoogle], yaitu
+  /// tepat setelah tombol ditekan. Di Android v7 langkah itulah yang menyiapkan
+  /// Credential Manager dan mengambil konfigurasi akun perangkat — pekerjaan
+  /// yang memakan waktu, dan seluruhnya terjadi sementara pengguna menatap
+  /// tombol yang belum memunculkan apa pun. Dipindahkan ke awal aplikasi
+  /// ([warmUpGoogleSignIn]), sehingga saat tombolnya ditekan yang tersisa
+  /// hanya memunculkan pemilih akun.
+  ///
+  /// Bila gagal, hasilnya **tidak** disimpan — percobaan berikutnya harus
+  /// benar-benar mencoba lagi, bukan mewarisi kegagalan lama selamanya.
+  static Future<void>? _googleReady;
+
+  Future<void> _ensureGoogleReady() async {
+    final pending = _googleReady;
+    if (pending != null) return pending;
+
+    final started = Future<void>(() async {
+      try {
+        await GoogleSignIn.instance.initialize(
+          serverClientId: Env.googleWebClientId,
+          clientId:
+              Env.googleIosClientId.isEmpty ? null : Env.googleIosClientId,
+        );
+      } on Object {
+        _googleReady = null;
+        rethrow;
+      }
+    });
+    _googleReady = started;
+    return started;
+  }
+
+  /// Dipanggil dari `main()` agar tombol *Lanjutkan dengan Google* tidak
+  /// menanggung biaya inisialisasi.
+  ///
+  /// Sengaja menelan kegagalannya: gagal memanaskan bukan alasan untuk
+  /// menggagalkan peluncuran aplikasi, dan percobaan sungguhan lewat tombol
+  /// akan mencoba lagi beserta pesan errornya sendiri.
+  Future<void> warmUpGoogleSignIn() async {
+    if (kIsWeb || !Env.googleSignInConfigured) return;
+    try {
+      await _ensureGoogleReady();
+      debugPrint('KAMELSCAN_GOOGLE siap dipakai');
+    } on Object catch (e) {
+      debugPrint('KAMELSCAN_GOOGLE pemanasan GAGAL · $e');
+    }
+  }
+
   /// Login Google (Bab 6.5).
   ///
   /// Web memakai alur OAuth lewat browser; mobile memakai `google_sign_in`
@@ -159,7 +223,8 @@ class AuthService {
   ///
   /// ⚠️ `google_sign_in` v7 memakai singleton `GoogleSignIn.instance` dan wajib
   /// `initialize()` lebih dulu; berbeda total dari v6 yang ditulis di Bab 4.2
-  /// (lihat DEVIASI_LIBRARY.md bagian B).
+  /// (lihat DEVIASI_LIBRARY.md bagian B). Inisialisasi itu kini sudah
+  /// dikerjakan lebih awal — lihat [warmUpGoogleSignIn].
   ///
   /// ⚠️ Di Android, alur ini **hanya berfungsi setelah SHA-1 dan SHA-256
   /// keystore debug DAN release didaftarkan di Google Cloud Console**. Bila
@@ -184,13 +249,8 @@ class AuthService {
     }
 
     try {
-      final google = GoogleSignIn.instance;
-      await google.initialize(
-        serverClientId: Env.googleWebClientId,
-        clientId: Env.googleIosClientId.isEmpty ? null : Env.googleIosClientId,
-      );
-
-      final account = await google.authenticate();
+      await _ensureGoogleReady();
+      final account = await GoogleSignIn.instance.authenticate();
       final idToken = account.authentication.idToken;
       if (idToken == null || idToken.isEmpty) {
         return const Result.err(

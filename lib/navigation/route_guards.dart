@@ -40,6 +40,29 @@ class RouteGuards {
       return null;
     }
 
+    // Bab 6.8 — pemulihan password mendahului segalanya.
+    //
+    // Tautan dari email menghasilkan sesi yang sah, jadi tanpa penjagaan ini
+    // pengguna langsung mendarat di Beranda dalam keadaan "masuk" — password
+    // lamanya masih berlaku dan ia tidak pernah diminta membuat yang baru.
+    // Yang ia minta justru itu.
+    //
+    // Diletakkan sebelum aturan halaman publik karena tautannya biasa tiba
+    // ketika pengguna masih berdiri di layar Masuk atau Lupa Password; aturan
+    // di bawah akan melemparnya ke layar pembuka lebih dulu.
+    if (_ref.read(passwordResetPendingProvider)) {
+      if (location != Routes.resetPassword) {
+        debugPrint('KAMELSCAN_RESET → layar password baru · dari=$location');
+        return Routes.resetPassword;
+      }
+      return null;
+    }
+
+    // Pemulihan sudah selesai atau dibatalkan — layar itu tidak punya isi lagi.
+    if (location == Routes.resetPassword) {
+      return _homeFor(_ref.read(currentRoleProvider));
+    }
+
     // Sudah login tetapi membuka halaman auth — lempar ke beranda.
     //
     // 🔴 …kecuali bila perannya BELUM diketahui. Saat itu tujuannya layar
@@ -153,10 +176,47 @@ class RouteGuards {
 /// Jembatan agar GoRouter ikut menghitung ulang `redirect` saat status login
 /// berubah. Tanpa ini, pengguna yang sesinya kedaluwarsa tetap melihat layar
 /// terlindungi sampai ia menekan sesuatu.
+/// 🔴 **Aturannya satu kalimat: apa pun yang dibaca `redirect` di atas WAJIB
+/// ikut disimak di sini.**
+///
+/// GoRouter tidak mengintip provider. Ia hanya menghitung ulang tujuan ketika
+/// sesuatu memberitahunya, dan satu-satunya yang memberitahu adalah kelas ini.
+/// Setiap nilai yang dibaca guard tetapi tidak disimak di sini menghasilkan
+/// cacat berbentuk sama: **layar yang seharusnya berpindah, diam di tempat.**
+///
+/// Terbukti di perangkat Product Owner 24 Agustus 2026, pada pendaftaran lewat
+/// Google. `needsProfileCompletion` dibaca guard tetapi tidak disimak di sini:
+///
+///     KAMELSCAN_PROFIL bangun · butuhHp=true butuhSetuju=true   <- kolom tampil
+///     (nomor HP diisi, centang ditekan, Simpan ditekan)
+///     KAMELSCAN_PROFIL simpan BERHASIL · butuhLengkap=false     <- data tersimpan
+///     (…tidak terjadi apa-apa)
+///
+/// Datanya benar-benar tersimpan — `phone` dan `terms_accepted_at` terisi di
+/// `public.users`. Yang tidak terjadi hanyalah pemberitahuan: status login
+/// tidak berubah, peran tetap `owner`, jadi tidak ada satu pun pemicu yang
+/// menghitung ulang tujuan. Layar Lengkapi Profil pun bertahan — kini tanpa
+/// kolom apa pun, karena semuanya sudah terisi — dengan tombol kembali yang
+/// sengaja dimatikan. Aplikasi harus ditutup paksa.
+///
+/// Product Owner menekan Simpan berulang kali tanpa reaksi; jejaknya tertinggal
+/// di basis data sebagai `terms_accepted_at` yang tertulis ulang beberapa
+/// menit sesudah akunnya dibuat.
 class GoRouterRefreshNotifier extends ChangeNotifier {
   GoRouterRefreshNotifier(this._ref) {
     _ref.listen(isSignedInProvider, (_, _) => notifyListeners());
     _ref.listen(currentRoleProvider, (_, _) => notifyListeners());
+
+    // Bab 6.7 — packer selesai mengganti password sementara.
+    _ref.listen(mustChangePasswordProvider, (_, _) => notifyListeners());
+
+    // Bab 6.2 — profil selesai dilengkapi. Inilah yang hilang sampai
+    // 24 Agustus 2026; uraiannya di atas.
+    _ref.listen(needsProfileCompletionProvider, (_, _) => notifyListeners());
+
+    // Bab 6.8 — tautan reset tiba saat aplikasi sedang terbuka. Sesinya
+    // berubah tanpa mengubah status login maupun peran.
+    _ref.listen(passwordResetPendingProvider, (_, _) => notifyListeners());
   }
 
   final Ref _ref;

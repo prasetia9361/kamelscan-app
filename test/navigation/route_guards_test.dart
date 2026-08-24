@@ -39,6 +39,7 @@ void main() {
     UserRole? role,
     bool mustChangePassword = false,
     bool needsProfile = false,
+    bool resetPending = false,
   }) =>
       ProviderContainer(
         overrides: [
@@ -46,6 +47,9 @@ void main() {
           currentRoleProvider.overrideWithValue(role),
           mustChangePasswordProvider.overrideWithValue(mustChangePassword),
           needsProfileCompletionProvider.overrideWithValue(needsProfile),
+          passwordResetPendingProvider.overrideWith(
+            () => _PemulihanPalsu(resetPending),
+          ),
         ],
       );
 
@@ -137,7 +141,141 @@ void main() {
       expect(tujuan(c, Routes.payment), Routes.home);
     });
   });
+
+  /// Bab 6.8 — tautan *Lupa password* menghasilkan sesi yang sah, jadi tanpa
+  /// penjagaan ini pengguna mendarat di Beranda dalam keadaan sudah masuk dan
+  /// tidak pernah diminta membuat password baru. Persis itulah yang dilaporkan
+  /// 24 Agustus 2026: tautan diklik, aplikasi terbuka, tidak ada apa-apa.
+  group('Tautan Lupa password', () {
+    test('dari mana pun dilempar ke layar password baru', () {
+      final c = wadah(signedIn: true, role: UserRole.owner, resetPending: true);
+      addTearDown(c.dispose);
+
+      expect(tujuan(c, Routes.home), Routes.resetPassword);
+      expect(tujuan(c, Routes.login), Routes.resetPassword);
+      expect(tujuan(c, Routes.forgotPassword), Routes.resetPassword);
+    });
+
+    test('layar password baru sendiri tidak dialihkan -- tidak ada putaran', () {
+      final c = wadah(signedIn: true, role: UserRole.owner, resetPending: true);
+      addTearDown(c.dispose);
+
+      expect(tujuan(c, Routes.resetPassword), isNull);
+    });
+
+    test('mendahului paksaan ganti password dan lengkapi profil', () {
+      final c = wadah(
+        signedIn: true,
+        role: UserRole.owner,
+        mustChangePassword: true,
+        needsProfile: true,
+        resetPending: true,
+      );
+      addTearDown(c.dispose);
+
+      expect(tujuan(c, Routes.home), Routes.resetPassword);
+    });
+
+    test('sesudah selesai, layarnya tidak dapat dibuka lagi', () {
+      final c = wadah(signedIn: true, role: UserRole.owner);
+      addTearDown(c.dispose);
+
+      expect(tujuan(c, Routes.resetPassword), Routes.home);
+    });
+
+    test('belum login tetap dilempar ke Masuk, bukan ke layar password baru',
+        () {
+      final c = wadah(signedIn: false, resetPending: true);
+      addTearDown(c.dispose);
+
+      expect(tujuan(c, Routes.home), Routes.login);
+    });
+  });
+
+  /// 🔴 Cacat 24 Agustus 2026: Lengkapi Profil tidak pernah ditinggalkan.
+  ///
+  /// Guard-nya sendiri sudah benar — beri ia nilai yang segar dan ia menjawab
+  /// `/home`. Yang rusak adalah **tidak ada yang menyuruhnya menghitung
+  /// ulang**. Karena itu tes ini tidak memeriksa jawaban guard, melainkan
+  /// memeriksa apakah GoRouter diberi tahu.
+  ///
+  /// Tanpa `_ref.listen(needsProfileCompletionProvider, ...)`, tes ini gagal
+  /// dan aplikasinya membeku di layar itu sampai ditutup paksa.
+  group('GoRouter diberi tahu saat penjagaan berubah', () {
+    Future<int> hitungPemberitahuan(
+      ProviderContainer c,
+      NotifierProvider<_Saklar, bool> saklar,
+    ) async {
+      final refresh = GoRouterRefreshNotifier(c.read(_refProvider));
+      addTearDown(refresh.dispose);
+
+      var jumlah = 0;
+      refresh.addListener(() => jumlah++);
+
+      c.read(saklar.notifier).ubah(false);
+      // Riverpod menyampaikan perubahan lewat penjadwalnya, bukan seketika.
+      await Future<void>.delayed(Duration.zero);
+      return jumlah;
+    }
+
+    test('profil selesai dilengkapi memicu perhitungan ulang', () async {
+      final c = ProviderContainer(
+        overrides: [
+          isSignedInProvider.overrideWithValue(true),
+          currentRoleProvider.overrideWithValue(UserRole.owner),
+          mustChangePasswordProvider.overrideWithValue(false),
+          passwordResetPendingProvider.overrideWith(() => _PemulihanPalsu(false)),
+          needsProfileCompletionProvider
+              .overrideWith((ref) => ref.watch(_saklarProfil)),
+        ],
+      );
+      addTearDown(c.dispose);
+
+      expect(await hitungPemberitahuan(c, _saklarProfil), greaterThan(0));
+    });
+
+    test('password sementara selesai diganti memicu perhitungan ulang',
+        () async {
+      final c = ProviderContainer(
+        overrides: [
+          isSignedInProvider.overrideWithValue(true),
+          currentRoleProvider.overrideWithValue(UserRole.packer),
+          needsProfileCompletionProvider.overrideWithValue(false),
+          passwordResetPendingProvider.overrideWith(() => _PemulihanPalsu(false)),
+          mustChangePasswordProvider
+              .overrideWith((ref) => ref.watch(_saklarPassword)),
+        ],
+      );
+      addTearDown(c.dispose);
+
+      expect(await hitungPemberitahuan(c, _saklarPassword), greaterThan(0));
+    });
+  });
 }
+
+/// Saklar yang dapat dibalik dari tes, menggantikan provider sungguhan yang
+/// nilainya berasal dari sesi.
+class _Saklar extends Notifier<bool> {
+  @override
+  bool build() => true;
+
+  void ubah(bool nilai) => state = nilai;
+}
+
+final _saklarProfil = NotifierProvider<_Saklar, bool>(_Saklar.new);
+final _saklarPassword = NotifierProvider<_Saklar, bool>(_Saklar.new);
 
 /// Penyedia sekali pakai untuk memperoleh `Ref` yang sah.
 final _refProvider = Provider<Ref>((ref) => ref);
+
+/// `passwordResetPendingProvider` sungguhan membaca `ValueNotifier` global di
+/// `SupabaseService`. Menyetelnya dari tes berarti meninggalkan keadaan yang
+/// bocor ke berkas tes lain, jadi di sini ia diganti seluruhnya.
+class _PemulihanPalsu extends PasswordResetPending {
+  _PemulihanPalsu(this._nilai);
+
+  final bool _nilai;
+
+  @override
+  bool build() => _nilai;
+}

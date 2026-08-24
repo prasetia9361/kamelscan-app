@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/config/app_constants.dart';
+import '../../../core/providers/repository_providers.dart';
 import '../../../core/providers/session_provider.dart';
 import '../../../core/utils/validators.dart';
 import '../../../core/widgets/failure_messages.dart';
@@ -52,6 +53,8 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
     if (needsPhone && !(_formKey.currentState?.validate() ?? false)) return;
     if (needsTerms && !_agreed) return;
 
+    debugPrint('KAMELSCAN_PROFIL simpan · kirimHp=$needsPhone'
+        ' kirimSetuju=$needsTerms');
     ref.read(completeProfileViewModelProvider.notifier).submit(
           phone: needsPhone ? _phone.text : null,
         );
@@ -66,6 +69,20 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
     final needsPhone = user?.needsPhoneInput ?? true;
     final needsTerms = user?.needsTermsAcceptance ?? true;
     final busy = state is CompleteProfileBusy;
+
+    // 🔴 Jejak diagnosis — jangan dihapus tanpa penggantinya.
+    //
+    // 24 Agustus 2026 layar ini tampil **tanpa satu pun kolom**: hanya judul
+    // dan tombol Simpan, dan aplikasi harus ditutup paksa. Keadaan itu hanya
+    // mungkin bila `needsPhone` dan `needsTerms` sama-sama padam — dan bila
+    // keduanya padam, route guard seharusnya sudah memindahkan layar ini.
+    // Satu di antara dua anggapan itu keliru, dan tidak ada cara memilihnya
+    // dari tangkapan layar. Baris ini yang akan memilihnya.
+    debugPrint('KAMELSCAN_PROFIL bangun · sesiAda=${user != null}'
+        ' peran=${user?.role.wire} hp=${user?.phone ?? '-'}'
+        ' setuju=${user?.termsAcceptedAt ?? '-'}'
+        ' butuhHp=$needsPhone butuhSetuju=$needsTerms'
+        ' butuhLengkap=${user?.needsProfileCompletion}');
 
     // Route guard yang memindahkan halaman setelah selesai; layar ini tidak
     // menavigasi sendiri agar tidak ada dua pihak yang mengatur tujuan.
@@ -115,6 +132,23 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
                   // Tombol mati sampai persetujuan diberikan — persetujuan
                   // yang dapat dilewati bukan persetujuan.
                   onPressed: (needsTerms && !_agreed) || busy ? null : _submit,
+                ),
+                const SizedBox(height: 4),
+                // 🔴 Jalan keluar, bukan jalan pintas.
+                //
+                // Layar ini tetap tidak boleh dilewati — menekan tombol ini
+                // MENGELUARKAN pengguna, bukan meloloskannya. Yang diperbaiki
+                // adalah keadaan tanpa jalan keluar sama sekali: 24 Agustus
+                // 2026 pengguna terjebak di sini dengan tombol kembali mati,
+                // dan satu-satunya cara pergi adalah menutup paksa aplikasi.
+                // Aplikasi tidak boleh punya keadaan yang tidak dapat
+                // ditinggalkan penggunanya.
+                TextButton(
+                  onPressed: busy
+                      ? null
+                      : () =>
+                          ref.read(authRepositoryProvider).signOut(),
+                  child: Text(t.accountLogout),
                 ),
               ],
             ),

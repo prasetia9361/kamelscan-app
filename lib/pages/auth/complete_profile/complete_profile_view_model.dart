@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/providers/repository_providers.dart';
@@ -44,12 +45,19 @@ class CompleteProfileViewModel extends _$CompleteProfileViewModel {
 
     switch (result) {
       case Err(:final failure):
+        debugPrint('KAMELSCAN_PROFIL simpan GAGAL · ${failure.messageKey}'
+            ' · ${failure.debugMessage ?? '-'}');
         state = CompleteProfileFailed(failure);
       case Ok():
         // Muat ulang sesi lebih dulu. Tanpa ini `needsProfileCompletion` masih
         // bernilai lama dan route guard langsung melempar pengguna kembali ke
         // layar yang baru saja ia selesaikan.
         await ref.read(sessionProvider.notifier).reload();
+        final user = ref.read(sessionProvider).value?.user;
+        debugPrint('KAMELSCAN_PROFIL simpan BERHASIL · sesi dimuat ulang'
+            ' · hp=${user?.phone ?? '-'}'
+            ' setuju=${user?.termsAcceptedAt ?? '-'}'
+            ' butuhLengkap=${user?.needsProfileCompletion}');
         state = const CompleteProfileDone();
     }
   }

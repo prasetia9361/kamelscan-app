@@ -16,6 +16,7 @@ import '../pages/auth/complete_profile/complete_profile_page.dart';
 import '../pages/auth/forgot_password/forgot_password_page.dart';
 import '../pages/auth/login/login_page.dart';
 import '../pages/auth/register/register_page.dart';
+import '../pages/auth/reset_password/reset_password_page.dart';
 import '../pages/auth/verify_email/verify_email_page.dart';
 import '../pages/history/detail/video_detail_page.dart';
 import '../pages/history/history_page.dart';
@@ -90,6 +91,10 @@ GoRouter appRouter(Ref ref) {
       GoRoute(
         path: Routes.completeProfile,
         builder: (_, _) => const CompleteProfilePage(),
+      ),
+      GoRoute(
+        path: Routes.resetPassword,
+        builder: (_, _) => const ResetPasswordPage(),
       ),
 
       // Halaman bukti publik — dibuka tanpa login oleh pusat resolusi

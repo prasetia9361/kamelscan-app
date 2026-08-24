@@ -79,6 +79,7 @@ extension FailureMessages on BuildContext {
       'errorEmailNotConfirmed' => t.errorEmailNotConfirmed,
       'errorEmailAlreadyUsed' => t.errorEmailAlreadyUsed,
       'errorEmailRateLimited' => t.errorEmailRateLimited,
+      'errorResetLinkInvalid' => t.errorResetLinkInvalid,
       'errorSamePassword' => t.errorSamePassword,
       'errorAuthGeneric' => t.errorAuthGeneric,
       'errorSignUpConflict' => t.errorSignUpConflict,

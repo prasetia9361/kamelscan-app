@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/config/env.dart';
+import '../../../core/providers/auth_provider.dart';
 import '../../../core/utils/validators.dart';
 import '../../../core/widgets/failure_messages.dart';
 import '../../../navigation/route_names.dart';
@@ -43,6 +44,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     final t = context.l10n;
     final state = ref.watch(loginViewModelProvider);
     final busy = state is LoginBusy;
+    final busyGoogle = state is LoginBusy && state.viaGoogle;
 
     // Navigasi dilakukan di listener, bukan di build — membangun ulang widget
     // tidak boleh punya efek samping.
@@ -54,13 +56,21 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       }
     });
 
+    // 🔴 Kegagalan tautan email tidak datang lewat tombol mana pun, jadi tidak
+    // ada satu pun keadaan ViewModel yang membawanya. Tanpa kotak ini, tautan
+    // reset yang kedaluwarsa terlihat persis seperti tautan yang tidak
+    // melakukan apa-apa: aplikasi terbuka di layar Masuk, tanpa sepatah kata.
+    final linkFailure = ref.watch(authLinkFailureProvider);
+
     return AuthScaffold(
       showBack: false,
       title: t.authSignInTitle,
       subtitle: t.authSignInSubtitle,
       children: [
         if (state is LoginFailed)
-          AuthErrorBox(message: context.failureMessage(state.failure)),
+          AuthErrorBox(message: context.failureMessage(state.failure))
+        else if (linkFailure != null)
+          AuthErrorBox(message: context.failureMessage(linkFailure)),
         Form(
           key: _formKey,
           child: Column(
@@ -71,8 +81,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 keyboardType: TextInputType.emailAddress,
                 textInputAction: TextInputAction.next,
                 autofillHints: const [AutofillHints.username],
-                onChanged: (_) =>
-                    ref.read(loginViewModelProvider.notifier).clearError(),
+                onChanged: (_) {
+                  ref.read(loginViewModelProvider.notifier).clearError();
+                  ref.read(authLinkFailureProvider.notifier).clear();
+                },
                 decoration: InputDecoration(
                   labelText: t.authIdentifier,
                   hintText: t.authIdentifierHint,
@@ -96,15 +108,20 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
-                  onPressed: () => context.push(Routes.forgotPassword),
+                  onPressed: () {
+                    ref.read(authLinkFailureProvider.notifier).clear();
+                    context.push(Routes.forgotPassword);
+                  },
                   child: Text(t.authForgotPassword),
                 ),
               ),
               const SizedBox(height: 8),
               AuthPrimaryButton(
                 label: t.authLogin,
-                busy: busy,
-                onPressed: _submit,
+                // Berputar hanya bila tombol INI yang ditekan; saat Google
+                // sedang berjalan ia cukup mati, tidak ikut berputar.
+                busy: busy && !busyGoogle,
+                onPressed: busy ? null : _submit,
               ),
             ],
           ),
@@ -131,7 +148,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 : () => ref
                     .read(loginViewModelProvider.notifier)
                     .signInWithGoogle(),
-            icon: const Icon(Icons.g_mobiledata, size: 28),
+            // 🔴 Putaran ini menggantikan tiga detik yang sebelumnya hening.
+            // Alasannya beserta angka ukurannya ada di `LoginViewModel`.
+            icon: busyGoogle
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2.5),
+                  )
+                : const Icon(Icons.g_mobiledata, size: 28),
             label: Text(t.authContinueWithGoogle),
           ),
         ],

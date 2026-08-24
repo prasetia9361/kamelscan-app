@@ -40,6 +40,33 @@ class VerifyEmailPage extends ConsumerWidget {
           t.authVerifyBody(email),
           style: const TextStyle(fontSize: 15, height: 1.5),
         ),
+        const SizedBox(height: 12),
+
+        // 🔴 Kalimat ini menutup jalan buntu, bukan sekadar basa-basi.
+        //
+        // Terbukti di perangkat Product Owner 24 Agustus 2026: mendaftar
+        // memakai email yang sudah terpakai sebagai packer membawa pengguna ke
+        // layar ini juga, lengkap dengan *"Menunggu verifikasi…"* yang berputar
+        // selamanya — padahal Supabase tidak pernah mengirim email apa pun dan
+        // tidak pernah membuat akun baru.
+        //
+        // Supabase sengaja menyamarkan penolakannya agar tidak ada yang bisa
+        // menebak-nebak email siapa saja yang menjadi pelanggan. Penyamaran itu
+        // BENAR dan tidak boleh dilucuti — pilihan yang sama sudah diambil di
+        // layar Lupa Password ("Jika email tersebut terdaftar…"). Yang keliru
+        // hanyalah layar ini yang berlagak seolah emailnya pasti terkirim.
+        //
+        // Karena itu perbaikannya di kalimatnya, bukan di mekanismenya:
+        // katakan kemungkinan itu ada, tanpa memastikan yang mana — dan beri
+        // jalan keluarnya.
+        Text(
+          t.authVerifyMaybeRegistered,
+          style: TextStyle(
+            fontSize: 14,
+            height: 1.5,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
         const SizedBox(height: 24),
 
         if (state.failure != null)
@@ -76,6 +103,13 @@ class VerifyEmailPage extends ConsumerWidget {
             if (context.mounted) context.go(Routes.register);
           },
           child: Text(t.authChangeEmail),
+        ),
+        TextButton(
+          onPressed: () async {
+            await ref.read(vm.notifier).cancelAndSignOut();
+            if (context.mounted) context.go(Routes.login);
+          },
+          child: Text(t.authLogin),
         ),
 
         const SizedBox(height: 24),

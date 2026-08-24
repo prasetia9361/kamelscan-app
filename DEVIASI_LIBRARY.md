@@ -2388,3 +2388,182 @@ tidak terlihat akan tampak persis seperti halaman kosong.
   mengirim apa pun. Itu sesuai Bab 6.7 — password diserahkan Owner langsung.
   Product Owner menanyakannya 20 Agustus 2026; belum ada keputusan, dan
   penambahannya akan dilaporkan sebagai penambahan lingkup (Bab 0.2).
+
+---
+
+## N. Bab 6: alur masuk & pendaftaran
+
+Empat temuan dari pengujian Product Owner **24 Agustus 2026**. Tidak satu pun
+terdeteksi `flutter analyze` maupun 295 tes yang ada — semuanya baru terlihat
+ketika aplikasinya dijalankan di Redmi Note 9 dan logcat-nya dibaca langsung.
+
+### N.1 🔴 GoRouter tidak pernah diberi tahu — Lengkapi Profil jadi jebakan
+
+**Ini temuan terpenting berkas ini untuk navigasi.** Aturannya satu kalimat:
+
+> **Apa pun yang dibaca `RouteGuards.redirect` WAJIB ikut disimak
+> `GoRouterRefreshNotifier`.**
+
+GoRouter tidak mengintip provider. Ia hanya menghitung ulang tujuan ketika ada
+yang memberitahunya, dan satu-satunya pemberi tahu adalah `refreshListenable`.
+Setiap nilai yang dibaca guard tetapi tidak disimak di sana menghasilkan cacat
+berbentuk sama: **layar yang seharusnya berpindah, diam di tempat.**
+
+**Gejalanya.** Mendaftar lewat "Lanjutkan dengan Google" membawa pengguna ke
+layar *Lengkapi Profil*. Ia mengisi nomor HP, mencentang S&K, menekan *Simpan &
+lanjutkan* — dan tidak terjadi apa-apa. Tombol kembali di layar itu sengaja
+dimatikan, jadi satu-satunya jalan keluar adalah menutup paksa aplikasi.
+
+**Yang menyesatkan.** Tangkapan layar yang dikirim memperlihatkan layar itu
+**tanpa satu pun kolom** — hanya judul dan tombol. Membaca kode, keadaan itu
+mustahil: bila kedua kolom padam berarti profilnya sudah lengkap, dan bila sudah
+lengkap guard seharusnya sudah memindahkannya. Salah satu dari dua anggapan itu
+keliru, dan tidak ada cara memilihnya dari gambar.
+
+**Yang memecahkan: basis data, bukan kode.** Kueri ke `public.users` menunjukkan
+`phone` dan `terms_accepted_at` **terisi**. Penekanan tombolnya berhasil
+sepenuhnya. Lebih jauh, `terms_accepted_at` tercatat **sembilan menit sesudah**
+akunnya dibuat — jejak Product Owner menekan tombol itu berulang kali;
+`accept_terms()` menulis ulang `now()` setiap panggilan, jadi yang tersimpan
+adalah tekanan terakhirnya sebelum menyerah.
+
+Jadi kolomnya bukan tidak pernah muncul: ia **hilang sesudah tersimpan**, karena
+`needsPhoneInput` dan `needsTermsAcceptance` ikut padam. Tangkapan layar itu
+keadaan sesudah berhasil, bukan sebelum.
+
+**Sebabnya.** `GoRouterRefreshNotifier` hanya menyimak `isSignedIn` dan
+`currentRole`. Melengkapi profil tidak mengubah keduanya — penggunanya tetap
+masuk, tetap `owner`. Tidak ada pemicu, tidak ada perhitungan ulang.
+
+`CompleteProfilePage` sendiri sengaja tidak menavigasi, dengan alasan yang masuk
+akal ("agar tidak ada dua pihak yang mengatur tujuan"). Keputusan itu benar;
+yang kurang adalah pihak yang **satu-satunya** itu tidak pernah dibangunkan.
+
+**Diperbaiki** dengan menambahkan `mustChangePassword`, `needsProfileCompletion`,
+dan `passwordResetPending` ke daftar simakan.
+
+**Dijaga** `test/navigation/route_guards_test.dart` — dan penjagaannya sudah
+dibuktikan: dengan simakan itu dilepas, jumlah pemberitahuan ke GoRouter = **0**
+dan tesnya gagal. Tes yang tidak pernah dilihat gagal tidak membuktikan apa pun.
+
+**Terbukti di perangkat 24 Agustus 2026:**
+
+```
+KAMELSCAN_PROFIL bangun · butuhHp=true  butuhSetuju=true  butuhLengkap=true
+KAMELSCAN_PROFIL simpan · kirimHp=true kirimSetuju=true
+KAMELSCAN_PROFIL simpan BERHASIL · hp=628… setuju=…14:00:42 butuhLengkap=false
+KAMELSCAN_PROFIL bangun · butuhHp=false butuhSetuju=false butuhLengkap=false  <- *
+(pindah ke Beranda)
+```
+
+Baris bertanda `*` itulah keadaan tangkapan layar yang membingungkan. Dulu di
+situ berhenti selamanya; sekarang ia satu kedipan yang terlewati.
+
+**Dua penambalan yang lahir dari penyelidikan yang sama:**
+
+1. `AuthService.updatePhone` memakai `.update()` tanpa `.select()`. PostgREST
+   menjawab **sukses** walaupun nol baris berubah — baris yang tersaring RLS
+   tidak menghasilkan error, ia hanya menghasilkan nol baris. Kegagalan
+   penyimpanan akan tampak persis seperti keberhasilan. Sekarang nol baris =
+   gagal.
+2. Layar Lengkapi Profil diberi tombol **Keluar**. Ia tetap tidak boleh
+   dilewati — menekannya MENGELUARKAN pengguna, bukan meloloskannya. Yang
+   diperbaiki adalah keadaan tanpa jalan keluar sama sekali. **Aplikasi tidak
+   boleh punya keadaan yang tidak dapat ditinggalkan penggunanya** — aturan yang
+   sama sudah lahir sekali di `Session.build()` (packer terhapus yang terjebak,
+   20 Agustus 2026).
+
+### N.2 🔴 Lupa Password tidak punya layar tujuan sama sekali
+
+**Dilaporkan Product Owner 24 Agustus 2026:** email reset masuk, tautannya
+diketuk, aplikasi terbuka — di **halaman Masuk**, tanpa pesan apa pun.
+
+Penelusuran seluruh `lib/` tidak menemukan satu baris pun yang menangani
+`AuthChangeEvent.passwordRecovery`, dan tidak ada layar yang meminta password
+baru. `/change-password` yang ada justru **menanyakan password lama** — padahal
+orang sampai ke sana karena tidak mengingatnya.
+
+Alur itu punya dua kemungkinan akhir, dan **keduanya buntu**:
+
+| Bila penukaran tautan | Akibatnya |
+|---|---|
+| berhasil | pengguna langsung "masuk" ke Beranda, tidak pernah diminta password baru — dan password lamanya masih berlaku |
+| gagal | `gotrue` melempar galatnya ke aliran `onAuthStateChange` lewat `notifyException`, dan satu-satunya pembacanya adalah `isSignedInProvider` yang diam-diam jatuh ke sesi lama. **Dari layar, tautan kedaluwarsa tampak persis seperti tautan yang tidak melakukan apa-apa.** |
+
+**Diperbaiki** dengan layar `/reset-password`, penanda pemulihan, dan pemetaan
+galat tautan ke `errorResetLinkInvalid`.
+
+⚠️ Penandanya disimpan sebagai `ValueNotifier` di `SupabaseService`, **bukan** di
+provider. Alasannya bukan gaya: `supabase_flutter` mulai menyimak deep link di
+dalam `Supabase.initialize()`, yang berjalan **sebelum `runApp()`**. Provider
+yang baru lahir saat layar pertama dibangun akan melewatkan peristiwanya, dan
+gejalanya persis seperti tautan yang tidak berfungsi.
+
+**Akibat sampingan yang penting bagi produk:** akun yang lahir dari tombol
+Google **tidak punya password sama sekali** — Google tidak pernah memberikan
+password pemiliknya kepada aplikasi mana pun. Satu-satunya cara akun semacam itu
+memperoleh password adalah lewat alur ini. Selama alurnya buntu, pertanyaan
+Product Owner *"kok tidak bisa masuk pakai email dan password?"* tidak punya
+jawaban yang dapat dikerjakan. Terbukti tuntas di perangkat 24 Agustus 2026.
+
+### N.3 Tombol Google terasa lambat — 2,8 dari 3,17 detik bukan milik kita
+
+**Terukur di Redmi Note 9, 24 Agustus 2026**, dengan penanda disisipkan ke
+logcat (`adb shell log -t KAMELSCAN_UJI`) tepat sebelum ketukan:
+
+| Waktu | Kejadian | Selisih |
+|---|---|---|
+| 20:56:50.704 | ketukan | — |
+| 20:56:51.065 | aplikasi melempar ke Google | **+0,36 dtk** |
+| 20:56:52.687 | `SignInCredentialChooserActivity` tampil | +1,62 dtk |
+| 20:56:53.875 | `GoogleSignInActivity` siap ditekan | +0,87 dtk |
+
+**Dugaan awal keliru dan perlu dicatat sebagai peringatan.** Diduga
+`GoogleSignIn.initialize()` yang mahal, lalu dipindahkan ke awal aplikasi.
+Pengukuran menunjukkan ia hanya butuh **±40 ms** (`KAMELSCAN_GOOGLE siap
+dipakai` muncul 43 ms sesudah Supabase siap). Pemanasannya tetap dipertahankan —
+ia benar dan menghilangkan biaya itu dari jalur ketukan — tetapi **bukan itu
+sebab lambatnya.**
+
+2,8 detik sisanya milik Google Play Services, di luar proses aplikasi. Dari
+Flutter tidak ada yang dapat mempercepatnya.
+
+**Yang justru dapat diperbaiki adalah keheningannya.** Selama tiga detik itu
+tombolnya hanya berubah abu-abu tanpa tanda apa pun — dan itulah yang dilaporkan
+sebagai "lama banget". Tiga detik yang diakui terasa berbeda dari tiga detik
+yang didiamkan.
+
+`LoginBusy` kini membawa `viaGoogle`, supaya menekan *Masuk* tidak membuat
+tombol Google ikut berputar — memberi tahu hal yang tidak benar sama buruknya
+dengan tidak memberi tahu apa pun.
+
+### N.4 Email yang sudah terdaftar: penolakannya BENAR, kalimatnya yang salah
+
+**Diuji Product Owner 24 Agustus 2026** atas pertanyaannya sendiri: apakah email
+yang sudah dipakai packer bisa dipakai mendaftar sebagai owner?
+
+**Tidak bisa, dan terkunci rangkap tiga:** `auth.users.email` unik (bawaan
+Supabase), `users.email` unik (`citext`, jadi huruf besar/kecil sama), dan
+`users.email_normalized` unik — yang terakhir membuang alias `+` dan titik Gmail
+lewat `normalize_email()`, sehingga `budi+owner@gmail.com` dan
+`b.u.d.i@gmail.com` ikut tertolak. Penjagaannya di basis data, jadi tetap
+berlaku bagi penyerang yang memanggil API langsung (Bab 2.3).
+
+**Tetapi layarnya berbohong.** Supabase sengaja menyamarkan penolakan ini agar
+tidak ada yang dapat memetakan daftar email pelanggan dengan mencoba mendaftar
+satu per satu. Ia menjawab seolah normal: tidak membuat akun, tidak mengirim
+email. Aplikasi menerjemahkannya menjadi janji pasti — *"Kami mengirim tautan
+verifikasi ke …"* — lalu *"Menunggu verifikasi…"* berputar untuk sesuatu yang
+tidak akan pernah datang.
+
+🔴 **Perbaikannya sengaja di kalimatnya, BUKAN di mekanismenya.** Menambahkan
+pengecekan email di depan akan membongkar perlindungan itu dan mengubah formulir
+Daftar menjadi alat pemeriksa siapa pelanggan KamelScan. Garis itu sudah ditarik
+dua kali di proyek ini: `17_username_check.sql` sengaja hanya membuka
+**username**, dan `ForgotPasswordViewModel` sudah memakai pola *"Jika email
+tersebut terdaftar…"*. Layar verifikasi kini memakai pola yang sama, ditambah
+tombol **Masuk** sebagai jalan keluar.
+
+Kalau suatu saat kejelasan dinilai lebih berharga daripada kerahasiaan daftar
+pelanggan, RPC `is_email_available` dapat dibuat — tetapi itu **keputusan
+produk, bukan keputusan teknis**, dan harus diambil sadar-sadar.

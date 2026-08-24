@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show ValueNotifier, debugPrint;
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -17,6 +18,29 @@ class SupabaseService {
   const SupabaseService._();
 
   static const AppLogger _log = AppLogger('SupabaseService');
+
+  /// Bab 6.8 — menyala begitu tautan *Lupa password* berhasil ditukar menjadi
+  /// sesi, dan padam setelah password barunya disimpan.
+  ///
+  /// 🔴 Ditaruh di sini, bukan di provider, karena tautannya dapat tiba
+  /// **sebelum** aplikasi sempat menggambar apa pun. `supabase_flutter` mulai
+  /// menyimak deep link di dalam `Supabase.initialize()`, yang dijalankan
+  /// `_bootstrap()` sebelum `runApp()`. Sebuah provider yang baru lahir saat
+  /// layar pertama dibangun akan melewatkan peristiwanya begitu saja, dan
+  /// gejalanya persis seperti tautan yang tidak berfungsi.
+  static final ValueNotifier<bool> passwordResetPending = ValueNotifier(false);
+
+  /// Kegagalan yang datang dari tautan email, bukan dari tombol yang ditekan
+  /// pengguna.
+  ///
+  /// 🔴 Tanpa ini kegagalannya **tidak terlihat sama sekali**: `gotrue`
+  /// melemparkan galat penukaran tautan ke aliran `onAuthStateChange` lewat
+  /// `notifyException`, dan satu-satunya pembacanya selama ini adalah
+  /// `isSignedInProvider` yang diam-diam jatuh ke sesi lama. Dari layar,
+  /// tautan yang kedaluwarsa tampak sama saja dengan tautan yang tidak
+  /// melakukan apa-apa.
+  static final ValueNotifier<AppFailure?> authLinkFailure =
+      ValueNotifier<AppFailure?>(null);
 
   static Future<void> init() async {
     Env.assertConfigured();
@@ -38,7 +62,49 @@ class SupabaseService {
       httpClient: TimeoutHttpClient(),
       debug: Env.isDev,
     );
+    _watchAuthLinks();
     _log.i('Supabase siap (${Env.appEnv.name})');
+  }
+
+  /// Menyimak aliran autentikasi sejak sebelum `runApp()`.
+  ///
+  /// Dua hal yang ditangkap di sini dan tidak ditangkap di tempat lain:
+  ///
+  /// 1. `AuthChangeEvent.passwordRecovery` — satu-satunya penanda bahwa sesi
+  ///    yang baru terbentuk berasal dari tautan *Lupa password*, bukan dari
+  ///    tombol Masuk. Tanpa penanda ini pengguna hanya "tiba-tiba masuk" dan
+  ///    tidak pernah diminta membuat password baru.
+  /// 2. Galat penukaran tautan, yang oleh `gotrue` dikirim sebagai **error
+  ///    pada aliran**, bukan sebagai peristiwa.
+  ///
+  /// 🔴 Jejak `KAMELSCAN_RESET` memakai `debugPrint`, bukan `AppLogger` —
+  /// `dart:developer` tidak pernah sampai ke logcat (DEVIASI butir 8). Jalur
+  /// gagalnya ikut dicetak, sesuai aturan yang sama.
+  static void _watchAuthLinks() {
+    auth.onAuthStateChange.listen(
+      (state) {
+        switch (state.event) {
+          case AuthChangeEvent.passwordRecovery:
+            debugPrint('KAMELSCAN_RESET tautan diterima · sesi pemulihan aktif');
+            authLinkFailure.value = null;
+            passwordResetPending.value = true;
+          case AuthChangeEvent.signedIn:
+          case AuthChangeEvent.signedOut:
+            // Masuk biasa maupun keluar mengakhiri pemulihan. Tanpa ini
+            // penandanya dapat tersangkut menyala dan melempar pengguna
+            // berikutnya ke layar password baru tanpa sebab.
+            passwordResetPending.value = false;
+          case _:
+            break;
+        }
+      },
+      onError: (Object error, StackTrace stack) {
+        final failure = mapError(error, stack);
+        debugPrint('KAMELSCAN_RESET tautan GAGAL ditukar · '
+            '${failure.messageKey} · ${failure.debugMessage ?? error}');
+        authLinkFailure.value = failure;
+      },
+    );
   }
 
   static SupabaseClient get client => Supabase.instance.client;
@@ -158,6 +224,22 @@ class SupabaseService {
 
       _ when has('invalid_credentials') || has('invalid login credentials') =>
         (FailureKind.auth, 'errorInvalidCredentials'),
+
+      // Bab 6.8 — tautan reset password yang sudah terpakai, kedaluwarsa, atau
+      // dibuka di perangkat lain.
+      //
+      // Tiga bentuk yang semuanya berarti hal yang sama bagi pengguna:
+      // `otp_expired`/`access_denied` dari server, dan dua galat PKCE dari
+      // sisi klien — `no code detected` (tautan tidak membawa kode) serta
+      // `code verifier could not be found` (permintaan reset dikirim dari
+      // perangkat lain, atau data aplikasi sudah dibersihkan).
+      _ when has('otp_expired') ||
+              has('access_denied') ||
+              has('flow_state') ||
+              has('code verifier') ||
+              has('no code detected') ||
+              has('is invalid or has expired') =>
+        (FailureKind.auth, 'errorResetLinkInvalid'),
 
       _ when has('email_not_confirmed') || has('not confirmed') =>
         (FailureKind.auth, 'errorEmailNotConfirmed'),
