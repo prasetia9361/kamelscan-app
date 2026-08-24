@@ -36,12 +36,21 @@ class CompleteProfileViewModel extends _$CompleteProfileViewModel {
   @override
   CompleteProfileState build() => const CompleteProfileIdle();
 
-  Future<void> submit({String? phone}) async {
+  Future<void> submit({
+    String? phone,
+    String? username,
+    String? businessName,
+    String? password,
+  }) async {
     if (state is CompleteProfileBusy) return;
     state = const CompleteProfileBusy();
 
-    final result =
-        await ref.read(authRepositoryProvider).completeProfile(phone: phone);
+    final result = await ref.read(authRepositoryProvider).completeProfile(
+          phone: phone,
+          username: username,
+          businessName: businessName,
+          password: password,
+        );
 
     switch (result) {
       case Err(:final failure):

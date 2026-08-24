@@ -101,14 +101,47 @@ class AuthRepository {
 
   /// Bab 6.2 — lengkapi profil yang tidak terisi saat masuk lewat Google.
   ///
-  /// Nomor HP disimpan lebih dulu; bila itu gagal, persetujuan **tidak** ikut
-  /// dicatat. Mencatat persetujuan pada profil yang belum lengkap akan membuat
-  /// pengguna lolos dari layar Lengkapi Profil dengan data yang masih kurang.
-  Future<Result<void>> completeProfile({String? phone}) async {
-    if (phone != null && phone.trim().isNotEmpty) {
-      final saved = await _auth.updatePhone(phone);
+  /// 🔴 **Persetujuan S&K dicatat PALING AKHIR, dan urutan itu bukan selera.**
+  /// `terms_accepted_at` adalah separuh syarat yang dibaca
+  /// `needsProfileCompletion`. Mencatatnya lebih dulu berarti sebuah kegagalan
+  /// di tengah jalan tetap meloloskan pengguna dari layar ini dengan data yang
+  /// masih kurang — dan tidak ada layar lain yang akan menanyakannya lagi.
+  ///
+  /// [username], [businessName], dan [password] bersifat **opsional**:
+  /// pendaftaran lewat formulir pun tidak mewajibkan dua yang pertama, dan
+  /// mewajibkan password akan menghapus satu-satunya keuntungan tombol Google.
+  /// Yang kosong dilewati tanpa menyentuh server.
+  Future<Result<void>> completeProfile({
+    String? phone,
+    String? username,
+    String? businessName,
+    String? password,
+  }) async {
+    bool ada(String? v) => v != null && v.trim().isNotEmpty;
+
+    if (ada(phone)) {
+      final saved = await _auth.updatePhone(phone!);
       if (saved case Err(:final failure)) return Result.err(failure);
     }
+
+    if (ada(username)) {
+      final saved = await _auth.updateUsername(username!);
+      if (saved case Err(:final failure)) return Result.err(failure);
+    }
+
+    if (ada(businessName)) {
+      final saved = await _auth.updateBusinessName(businessName!);
+      if (saved case Err(:final failure)) return Result.err(failure);
+    }
+
+    // Password terakhir sebelum persetujuan: ia yang paling mungkin ditolak
+    // server (terlalu lemah, sama dengan yang lama), dan menolaknya sesudah
+    // persetujuan tercatat akan meloloskan pengguna keluar dari layar ini.
+    if (ada(password)) {
+      final saved = await _auth.updatePassword(password!);
+      if (saved case Err(:final failure)) return Result.err(failure);
+    }
+
     return _auth.acceptTerms();
   }
 

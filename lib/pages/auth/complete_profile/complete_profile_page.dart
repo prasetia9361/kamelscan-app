@@ -30,11 +30,23 @@ class CompleteProfilePage extends ConsumerStatefulWidget {
 class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
   final _formKey = GlobalKey<FormState>();
   final _phone = TextEditingController();
+  final _username = TextEditingController();
+  final _businessName = TextEditingController();
+  final _password = TextEditingController();
+  final _confirmPassword = TextEditingController();
   bool _agreed = false;
 
   @override
   void dispose() {
-    _phone.dispose();
+    for (final c in [
+      _phone,
+      _username,
+      _businessName,
+      _password,
+      _confirmPassword,
+    ]) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -50,13 +62,21 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
     final needsPhone = user?.needsPhoneInput ?? true;
     final needsTerms = user?.needsTermsAcceptance ?? true;
 
-    if (needsPhone && !(_formKey.currentState?.validate() ?? false)) return;
+    // Seluruh formulir divalidasi, bukan hanya bagian yang wajib: kolom
+    // opsional yang diisi keliru tetap harus ditolak sebelum dikirim.
+    if (!(_formKey.currentState?.validate() ?? false)) return;
     if (needsTerms && !_agreed) return;
 
     debugPrint('KAMELSCAN_PROFIL simpan · kirimHp=$needsPhone'
-        ' kirimSetuju=$needsTerms');
+        ' kirimSetuju=$needsTerms'
+        ' adaUsername=${_username.text.trim().isNotEmpty}'
+        ' adaUsaha=${_businessName.text.trim().isNotEmpty}'
+        ' adaPassword=${_password.text.isNotEmpty}');
     ref.read(completeProfileViewModelProvider.notifier).submit(
           phone: needsPhone ? _phone.text : null,
+          username: _username.text,
+          businessName: _businessName.text,
+          password: _password.text,
         );
   }
 
@@ -117,6 +137,85 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
                   ),
                   const SizedBox(height: 20),
                 ],
+                // 🔴 Bab 6.2 — kolom di bawah ini ADA di formulir pendaftaran
+                // manual tetapi tidak pernah ditanyakan kepada pendaftar lewat
+                // Google, dan sesudahnya tidak ada layar mana pun yang dapat
+                // mengisinya:
+                //
+                // - `username`  : masih bisa lewat Edit Profil, tetapi tidak
+                //                 wajar baru ditemukan belakangan.
+                // - `nama usaha`: TIDAK ADA di mana pun. Ia tampil di bilah
+                //                 atas aplikasi dan akan kosong selamanya.
+                // - `password`  : "Ganti Password" menanyakan password lama,
+                //                 yang tidak pernah dimiliki akun Google.
+                //
+                // Dilaporkan Product Owner 24 Agustus 2026.
+                TextFormField(
+                  controller: _username,
+                  enabled: !busy,
+                  textInputAction: TextInputAction.next,
+                  decoration: InputDecoration(
+                    labelText: t.authUsername,
+                    prefixIcon: const Icon(Icons.alternate_email),
+                    helperText: t.authUsernameHelp,
+                  ),
+                  validator: (v) {
+                    if ((v ?? '').trim().isEmpty) return null;
+                    final key = Validators.username(v);
+                    return key == null ? null : context.messageForKey(key);
+                  },
+                ),
+                const SizedBox(height: 20),
+                TextFormField(
+                  controller: _businessName,
+                  enabled: !busy,
+                  textInputAction: TextInputAction.next,
+                  decoration: InputDecoration(
+                    labelText: t.authBusinessName,
+                    prefixIcon: const Icon(Icons.storefront_outlined),
+                    helperText: t.completeProfileBusinessHelper,
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Password sengaja OPSIONAL. Mewajibkannya menghapus
+                // satu-satunya keuntungan tombol Google — satu ketukan lalu
+                // masuk. Yang ditutup di sini adalah kebingungan yang nyata:
+                // tanpa password, akun kelahiran Google hanya dapat masuk
+                // lewat Google, dan itu tidak pernah dikatakan kepada siapa
+                // pun.
+                PasswordField(
+                  controller: _password,
+                  label: t.completeProfilePasswordOptional,
+                  validator: (v) {
+                    if ((v ?? '').isEmpty) return null;
+                    final key = Validators.password(v);
+                    return key == null ? null : context.messageForKey(key);
+                  },
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+                  child: Text(
+                    t.completeProfilePasswordHelper,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                PasswordField(
+                  controller: _confirmPassword,
+                  label: t.authConfirmPassword,
+                  textInputAction: TextInputAction.done,
+                  validator: (v) {
+                    if (_password.text.isEmpty) return null;
+                    final key = Validators.confirmPassword(v, _password.text);
+                    return key == null ? null : context.messageForKey(key);
+                  },
+                ),
+                const SizedBox(height: 20),
+
                 if (needsTerms)
                   _TermsCheckbox(
                     value: _agreed,

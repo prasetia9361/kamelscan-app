@@ -112,6 +112,53 @@ class AuthService {
     });
   }
 
+  /// Bab 6.2 — username yang tidak pernah ditanyakan saat masuk lewat Google.
+  ///
+  /// Ketersediaannya diperiksa lebih dulu lewat RPC, dengan alasan yang sama
+  /// seperti di formulir pendaftaran: tabrakan yang dibiarkan sampai server
+  /// hanya menghasilkan pelanggaran `users_username_key` tanpa pesan yang
+  /// menyebut username sama sekali.
+  Future<Result<void>> updateUsername(String username) async {
+    final id = SupabaseService.currentUser?.id;
+    if (id == null) return const Result.err(AppFailure.sessionExpired);
+
+    final bebas = await isUsernameAvailable(username);
+    switch (bebas) {
+      case Err(:final failure):
+        return Result.err(failure);
+      case Ok(value: false):
+        return const Result.err(
+          AppFailure(
+            kind: FailureKind.validation,
+            messageKey: 'validationUsernameTaken',
+          ),
+        );
+      case Ok():
+        break;
+    }
+
+    return _guard(() async {
+      final rows = await SupabaseService.client
+          .from(AppConstants.tblUsers)
+          .update({'username': username.trim().toLowerCase()})
+          .eq('id', id)
+          .select('id');
+      if (rows.isEmpty) throw AppFailure.permissionDenied;
+    });
+  }
+
+  /// Bab 6.2 — nama usaha, yang juga tidak pernah ditanyakan lewat Google.
+  ///
+  /// Lewat RPC, bukan UPDATE langsung: `tenants` tertutup rapat bagi Owner
+  /// karena memuat `tier_plan`, `status`, dan `period_end`. Uraiannya di
+  /// `supabase/migrations/26_business_name.sql`.
+  Future<Result<void>> updateBusinessName(String name) => _guard(
+        () => SupabaseService.client.rpc<void>(
+          'set_business_name',
+          params: {'p_name': name.trim()},
+        ),
+      );
+
   /// Bab 6.2 — apakah username masih bebas.
   ///
   /// Dicek sebelum `signUp` dikirim. Bila dibiarkan sampai server, pelanggaran

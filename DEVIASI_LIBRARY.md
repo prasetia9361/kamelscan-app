@@ -2567,3 +2567,63 @@ tombol **Masuk** sebagai jalan keluar.
 Kalau suatu saat kejelasan dinilai lebih berharga daripada kerahasiaan daftar
 pelanggan, RPC `is_email_available` dapat dibuat — tetapi itu **keputusan
 produk, bukan keputusan teknis**, dan harus diambil sadar-sadar.
+
+### N.5 🔴 `tenants` tertutup rapat bagi Owner — nama usaha tidak pernah dapat diisi
+
+**Dilaporkan Product Owner 24 Agustus 2026:** *"pendaftaran lewat Google
+formulirnya tidak sama dengan pendaftaran manual"*. Benar, dan yang paling
+parah bukan yang terlihat.
+
+Pendaftaran lewat formulir mengirim `username` dan `business_name` lewat
+`raw_user_meta_data`, dan `handle_new_user()` menyalinnya. Pendaftaran lewat
+Google tidak pernah mengirim metadata apa pun, sehingga keduanya NULL.
+
+| Kolom | Bisa diisi belakangan? |
+|---|---|
+| nama lengkap | ya — Google memberikannya, dan Edit Profil dapat mengubahnya |
+| nomor HP | ya — Edit Profil |
+| username | ya — Edit Profil |
+| **nama usaha** | 🔴 **TIDAK, di mana pun** |
+| **password** | 🔴 **TIDAK** — "Ganti Password" menuntut password lama |
+
+**Sebab nama usaha:** ia tinggal di `public.tenants`, dan satu-satunya policy
+tulis pada tabel itu adalah `tenants_update_admin` (14_rls.sql) — **hanya
+Admin**. Owner tidak punya izin menyentuh barisnya sendiri. Jadi ini bukan
+"layarnya lupa dibuat"; memang tidak mungkin dibuat. Layar Edit Profil pun
+tidak dapat menolong karena ia menulis ke `users`.
+
+Akibatnya terlihat setiap hari: `mobile_app_bar.dart` menampilkan nama usaha di
+bilah atas, dan bagi pendaftar lewat Google ia kosong selamanya.
+
+🔴 **RLS-nya sengaja TIDAK dilonggarkan.** `tenants` memuat `tier_plan`,
+`status`, `period_end`, dan `trial_used`. Membuka UPDATE bagi Owner demi satu
+kolom berarti membuka jalan menaikkan paketnya sendiri dan memperpanjang masa
+uji cobanya sendiri. Kekhawatiran yang sama sudah melahirkan
+`guard_subscription_owner_update` di migrasi 25.
+
+Gantinya RPC `security definer` yang hanya menyentuh satu kolom, hanya pada
+tenant milik pemanggilnya, dan hanya bila ia benar-benar Owner —
+`26_business_name.sql`. Perannya dibaca dari tabel, **bukan** dari klaim JWT:
+JWT membawa nilai lama sampai disegarkan (Bab 5.3), dan operasi tulis tidak
+boleh bergantung pada itu.
+
+**Aturan yang lahir dari sini:** sebelum menaruh kolom `tenants` mana pun di
+layar mana pun, periksa dulu apakah Owner memang punya izin menulisnya. Jawaban
+bawaannya **tidak**.
+
+**Layar Lengkapi Profil kini menanyakan keempatnya** — nomor HP (wajib),
+username, nama usaha, dan password (ketiganya opsional). Password sengaja tidak
+diwajibkan: mewajibkannya menghapus satu-satunya keuntungan tombol Google.
+Keputusan Product Owner, 24 Agustus 2026.
+
+⚠️ **Urutan penyimpanannya bukan selera.** Persetujuan S&K dicatat **paling
+akhir**, karena `terms_accepted_at` adalah separuh syarat yang dibaca
+`needsProfileCompletion`. Mencatatnya lebih dulu berarti sebuah kegagalan di
+tengah jalan tetap meloloskan pengguna keluar dari layar ini dengan data yang
+masih kurang — dan tidak ada layar lain yang akan menanyakan sisanya. Dijaga
+`test/core/complete_profile_order_test.dart`.
+
+**Masih terbuka:** yang **melewati** kolom nama usaha saat mendaftar tetap tidak
+punya jalan mengisinya belakangan. Fungsi servernya sudah ada; yang kurang
+tinggal satu kolom di layar Edit Profil. Belum dikerjakan atas keputusan
+Product Owner.
