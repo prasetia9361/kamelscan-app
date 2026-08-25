@@ -490,7 +490,11 @@ class _MenuGrid extends ConsumerWidget {
         label: t.navTutorial,
         icon: Icons.school_outlined,
         color: Theme.of(context).colorScheme.primary,
-        onTap: () => context.push(Routes.tutorial),
+        // 🔴 [Routes.homeTutorial], bukan `Routes.tutorial`. Beranda hanya
+        // dibangun di HP, dan di sana Tutorial hidup di bawah `/home`.
+        // Sebelum 25 Agustus 2026 baris ini memakai `/tutorial` dan mendarat
+        // di layar "halaman tidak ditemukan".
+        onTap: () => context.push(Routes.homeTutorial),
       ),
     ];
 

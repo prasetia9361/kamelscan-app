@@ -173,7 +173,7 @@ GoRouter appRouter(Ref ref) {
       // ---------- Rangka utama ----------
       StatefulShellRoute.indexedStack(
         builder: (context, state, shell) => kIsWeb
-            ? WebShell(navigationShell: shell)
+            ? WebShell(navigationShell: shell, location: state.uri.path)
             : MobileShell(navigationShell: shell),
         branches: [
           // Branch 0 — Beranda (mobile) / Dasbor (web)
@@ -184,10 +184,15 @@ GoRouter appRouter(Ref ref) {
                 builder: (_, _) =>
                     kIsWeb ? const WebDashboardPage() : const HomePage(),
                 routes: [
-                  GoRoute(
-                    path: 'tutorial',
-                    builder: (_, _) => const TutorialPage(),
-                  ),
+                  // Tutorial di HP hidup di bawah Beranda: dibuka dari sana,
+                  // punya tombol kembali, dan menu bawah tetap menyala di
+                  // Beranda. Di web ia menjadi cabang tersendiri — lihat
+                  // cabang 5 di bawah dan `Routes.homeTutorial`.
+                  if (!kIsWeb)
+                    GoRoute(
+                      path: 'tutorial',
+                      builder: (_, _) => const TutorialPage(),
+                    ),
                 ],
               ),
             ],
@@ -202,6 +207,9 @@ GoRouter appRouter(Ref ref) {
                 // ditekan (Bab 9.2). Kosong berarti tanpa penyaringan.
                 builder: (_, state) => HistoryPage(
                   typeWire: state.uri.queryParameters['type'] ?? '',
+                  // Bab 10.3 — kolom *Cari resi* di bilah atas web mendarat
+                  // di sini. Kosong berarti dibuka lewat menu biasa.
+                  initialQuery: state.uri.queryParameters['q'] ?? '',
                 ),
                 routes: [
                   GoRoute(
@@ -301,6 +309,25 @@ GoRouter appRouter(Ref ref) {
               ),
             ],
           ),
+
+          // Branch 5 — Tutorial, **web saja** (Bab 10.3).
+          //
+          // 🔴 Sengaja cabang terakhir. `MobileShell.branchesFor` memetakan
+          // tombol menu bawah ke nomor cabang 0–4 secara tetap; menyisipkan
+          // cabang baru di tengah akan menggeser seluruh peta itu, dan
+          // gejalanya packer yang menekan Riwayat mendarat di halaman lain —
+          // kesalahan yang tidak menimbulkan error apa pun.
+          //
+          // Di HP cabang ini tidak ada sama sekali, jadi peta itu tetap utuh.
+          if (kIsWeb)
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: Routes.tutorial,
+                  builder: (_, _) => const TutorialPage(),
+                ),
+              ],
+            ),
         ],
       ),
     ],

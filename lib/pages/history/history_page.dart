@@ -22,9 +22,13 @@ import 'widgets/video_status_chip.dart';
 /// [typeWire] datang dari kartu Beranda yang ditekan — `packing`, `return`,
 /// atau kosong untuk semua.
 class HistoryPage extends ConsumerStatefulWidget {
-  const HistoryPage({super.key, this.typeWire = ''});
+  const HistoryPage({super.key, this.typeWire = '', this.initialQuery = ''});
 
   final String typeWire;
+
+  /// Nomor resi yang sudah diketik di bilah atas web sebelum halaman ini
+  /// dibuka (Bab 10.3). Kosong berarti dibuka lewat menu biasa.
+  final String initialQuery;
 
   @override
   ConsumerState<HistoryPage> createState() => _HistoryPageState();
@@ -41,6 +45,32 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
   void initState() {
     super.initState();
     _scroll.addListener(_onScroll);
+    _applyIncomingQuery();
+  }
+
+  /// Bab 10.3 — pencarian yang datang dari bilah atas web.
+  ///
+  /// Dipisahkan karena harus berjalan dua kali: saat halaman ini lahir, dan
+  /// saat pencarian baru dikirim **selagi halaman ini sudah terbuka**. Yang
+  /// kedua itu jalur yang lazim: petugas menangani satu komplain, lalu
+  /// mengetik nomor resi berikutnya tanpa berpindah halaman. Tanpa
+  /// [didUpdateWidget] di bawah, alamatnya berubah tetapi daftarnya tidak —
+  /// cacat yang tidak menimbulkan error apa pun.
+  void _applyIncomingQuery() {
+    final q = widget.initialQuery.trim();
+    if (q.isEmpty) return;
+    _search.text = q;
+    // ViewModel-nya baru lahir sesudah frame pertama; menyentuhnya di dalam
+    // `initState` berarti mengubah provider selagi widget sedang dibangun.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _vm.search(q);
+    });
+  }
+
+  @override
+  void didUpdateWidget(HistoryPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialQuery != oldWidget.initialQuery) _applyIncomingQuery();
   }
 
   @override

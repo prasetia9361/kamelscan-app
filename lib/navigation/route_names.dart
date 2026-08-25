@@ -71,7 +71,24 @@ class Routes {
   static const String watermark = '/settings/watermark';
   static const String payment = '/payment';
   static const String checkout = '/payment/checkout';
+
+  /// Tutorial versi **web** — menu sidebar tersendiri (Bab 10.3).
+  ///
+  /// 🔴 Di HP alamatnya BUKAN ini, melainkan [homeTutorial]. Tutorial di HP
+  /// dibuka dari Beranda dan hidup di bawahnya, sehingga punya tombol kembali
+  /// dan menu bawah tetap menyala di Beranda. Di web ia sejajar dengan menu
+  /// lain karena Bab 10.3 memintanya begitu.
   static const String tutorial = '/tutorial';
+
+  /// Tutorial versi **HP** — anak dari Beranda.
+  ///
+  /// 🔴 Alamat ini harus ditulis utuh, bukan `'/tutorial'`. GoRouter selalu
+  /// menyambung alamat anak ke induknya (`path_utils.dart:108`), tanpa peduli
+  /// anaknya diawali garis miring atau tidak. Sebelum 25 Agustus 2026 Beranda
+  /// membuka `'/tutorial'` sementara rutenya terdaftar di bawah `/home`,
+  /// sehingga yang menekannya mendarat di layar "halaman tidak ditemukan".
+  /// Tidak ada tes maupun `analyze` yang menangkapnya.
+  static const String homeTutorial = '/home/tutorial';
 
   // ---------- Perekaman (mobile saja) ----------
   static const String recordSetup = '/record';
@@ -131,9 +148,20 @@ class Routes {
   /// [recordCameraOf]: `extra` hilang saat rute dipulihkan, dan Riwayat akan
   /// terbuka tanpa filter tanpa ada yang menyadarinya. [typeWire] menerima
   /// `VideoType.wire` agar berkas ini tidak perlu mengenal model.
-  static String historyOf({String? typeWire}) => typeWire == null
-      ? history
-      : Uri(path: history, queryParameters: {'type': typeWire}).toString();
+  /// [query] dipakai kolom *Cari resi* di bilah atas web (Bab 10.3). Ia ikut
+  /// lewat **query** dengan alasan yang sama seperti [typeWire]: alamat yang
+  /// disegarkan atau dikirim ke rekan kerja harus membuka pencarian yang sama.
+  /// Menangani komplain adalah pekerjaan berdua — pencarian yang tidak dapat
+  /// ditautkan memaksa orang kedua mengetik ulang nomor resinya.
+  static String historyOf({String? typeWire, String? query}) {
+    final q = <String, String>{
+      'type': ?typeWire,
+      if (query != null && query.trim().isNotEmpty) 'q': query.trim(),
+    };
+    return q.isEmpty
+        ? history
+        : Uri(path: history, queryParameters: q).toString();
+  }
 
   static String videoDetailOf(String id) => '/history/$id';
   static String shopEditOf(String id) => '/shops/form/$id';
