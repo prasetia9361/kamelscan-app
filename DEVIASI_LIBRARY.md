@@ -2805,17 +2805,113 @@ cocok.
 
 ### O.9 Yang masih terbuka sesudah sesi ini
 
-🔴 **Alamat web belum didaftarkan di Supabase.** `https://kamelscan.com/app/auth/callback`
-harus masuk Dashboard → Authentication → URL Configuration → Redirect URLs.
-Selama belum, verifikasi email dan reset password lewat web mendarat di Site URL
-**tanpa satu pun pesan galat** — jebakan yang sama dengan 13 Agustus 2026.
+✅ ~~Alamat web belum didaftarkan di Supabase.~~ Beres 25 Agustus 2026 —
+`https://kamelscan.com/app/**` kini terdaftar di Dashboard → Authentication →
+URL Configuration → Redirect URLs, berdampingan dengan `id.kamelscan.app://**`.
+Pola `**` sengaja dipakai supaya rute web baru tidak perlu didaftarkan satu per
+satu; yang terlupa **tidak menghasilkan pesan galat apa pun**, Supabase hanya
+diam-diam memakai Site URL.
 
-🔴 **Rute `/auth/callback` tidak punya halaman.** `env.dart:107` mengirim alamat
-itu sebagai tujuan tautan verifikasi email, tetapi tidak ada rute dengan alamat
-tersebut di seluruh `lib/`. Yang mengklik tautannya akan mendarat di layar
-"halaman tidak ditemukan".
+✅ ~~Rute `/auth/callback` tidak punya halaman.~~ Beres — lihat **O.10**.
 
 🔴 **Login Google di web memakai alamat khusus HP.** `auth_service.dart:293`
 memakai `Env.oauthRedirectUrl`, yang isinya `id.kamelscan.app://login-callback`
 — skema deep link Android. Peramban tidak mengerti alamat semacam itu. Belum
 diuji di peramban; ini pembacaan kode.
+
+⚠️ Perbaikan O.10 **tidak menyentuh** baris 293 itu. Ia mengubah
+`sendPasswordReset` (baris 426), yang cacatnya sebentuk tetapi bukan cacat yang
+sama. Memperbaiki yang 293 menuntut OAuth Client ID jenis Web di Google Cloud
+Console — akun Product Owner.
+
+### O.10 Tautan email di web: tiga cacat yang saling menutupi
+
+**Dikerjakan 25 Agustus 2026, sesudah O.** Ketiganya gagal **tanpa satu pun
+pesan galat**, dan tidak satu pun terdeteksi `analyze` maupun 307 tes yang ada.
+Ketiganya harus benar bersamaan; membetulkan satu saja tidak mengubah apa pun
+yang terlihat di layar.
+
+**1. Rute `/auth/callback` tidak ada.**
+
+`env.dart` sudah mengirim alamat itu sejak Bab 10.2. Akibatnya bukan sekadar
+salah layar. Alamat itu bukan halaman publik, jadi `RouteGuards.redirect`
+menjatuhkannya ke cabang terakhir dan mengembalikan `null` — pengguna yang sudah
+masuk **dibiarkan tetap di sana**, dan GoRouter menyerahkannya ke `errorBuilder`.
+Hasilnya tersangkut permanen di "halaman tidak ditemukan": tidak ada satu pun
+aturan yang memindahkannya, sekarang maupun sesudah sesinya siap.
+
+Perbaikannya karena itu **dua** baris yang harus jalan bersama: mendaftarkan
+rutenya di `app_router.dart`, **dan** memasukkan `authCallback` ke
+`Routes.public`. Yang kedua yang sebenarnya menutup jalan buntunya.
+
+**2. `sendPasswordReset` memakai alamat deep link Android.**
+
+`Env.oauthRedirectUrl` alih-alih `Env.emailVerifyRedirectUrl`. Keduanya bernilai
+sama di HP, sehingga perbedaannya **tidak terlihat sama sekali di sana**. Di web
+ia menentukan segalanya: peramban tidak mengerti `id.kamelscan.app://`, dan yang
+mengklik tautannya berhenti di halaman kosong abu-abu tanpa penjelasan apa pun.
+
+**3. `WEB_APP_BASE_URL` masih `http://localhost:8080`.**
+
+Situs yang **sudah terbit** dibangun dengan nilai itu, sehingga tautan yang
+dikirim ke pengguna sungguhan menunjuk ke komputer pengguna itu sendiri.
+`deploy_web.ps1` sudah memperingatkannya — tetapi sebagai peringatan kuning yang
+tidak menghentikan build, dan peringatan yang tidak menghentikan apa pun mudah
+terlewat di antara ratusan baris keluaran Flutter.
+
+Berkasnya ter-gitignore, jadi perbaikannya tidak ikut commit mana pun.
+**Salinan di `E:\kamelscan\env.dev.json` ikut diperbarui** supaya worktree lain
+tidak memakai nilai lama.
+
+#### Cara membuktikannya — yang akhirnya memecahkan
+
+Tiga ronde pertama berputar di dugaan. Yang memecahkan: **panel Network peramban
+Product Owner**, dibaca baris demi baris.
+
+```
+Navigated to  https://kamelscan.com/app/auth/callback?code=27e3c78e-…   ← kode SAMPAI
+POST  …/auth/v1/token?grant_type=pkce   422 (Unprocessable Content)     ← server MENOLAK
+```
+
+Dua baris itu memisahkan tiga kemungkinan yang sebelumnya menyatu. Kode yang
+sampai membuktikan alamat dan `_redirects` sudah benar. POST yang benar-benar
+terkirim membuktikan kunci PKCE-nya **ada** — `exchangeCodeForSession` melempar
+di laptop dan tidak mengirim apa pun bila kuncinya hilang (gotrue 2.27,
+`gotrue_client.dart:430`). Yang tersisa hanya penolakan server.
+
+🔴 **Aturan yang lahir dari sini: pada cacat web, panel Network lebih menentukan
+daripada Console.** Console hanya memuat apa yang sempat dicetak aplikasi;
+Network memuat apa yang benar-benar terjadi di kabel, termasuk yang gagal
+sebelum kode mana pun sempat bereaksi. Centang **Preserve log** lebih dulu —
+tanpa itu catatannya terhapus begitu halaman berpindah, dan perpindahan halaman
+justru bagian yang sedang diselidiki.
+
+⚠️ Product Owner bukan programmer. Instruksi DevTools yang berbelit gagal
+diikuti sampai selesai, dan langkah-langkah menyalin tautan itu sendiri
+**menciptakan** kegagalan berikutnya (lihat di bawah). Uji yang berhasil justru
+yang paling sederhana: *"klik secepat mungkin, lalu beri tahu saya layar mana
+yang muncul."* Satu kalimat, satu pengamatan, satu jawaban yang menentukan.
+
+#### Utang yang lahir: tautan reset di web cepat basi
+
+Diklik dalam ± 1 menit → layar password baru muncul. Diklik sesudah didiamkan
+beberapa menit → Supabase menolak dengan `422`.
+
+Sebabnya `authFlowType: AuthFlowType.pkce` di `SupabaseService.init()`. PKCE
+menuntut dua hal sekaligus di web: tautannya diklik **cepat**, dan **di peramban
+yang sama** dengan yang memintanya. Di HP keduanya gratis — tautannya langsung
+membuka aplikasi.
+
+⚠️ **Angka batas waktunya belum pernah diukur.** Jangan menuliskannya sebagai
+fakta di dokumen mana pun.
+
+**Keputusan Product Owner 25 Agustus 2026: DIBIARKAN.** Pesan kegagalannya sudah
+benar dan sudah menyuruh meminta tautan baru (`errorResetLinkInvalid`), jadi
+bukan jalan buntu — hanya merepotkan. Penyangga jadwal sudah minus, dan
+± 1 jam itu lebih berharga di Bab 10 yang belum jadi.
+
+Usul yang **sudah ditolak**, jangan diajukan ulang tanpa diminta: memisahkan web
+ke alur implicit sambil HP tetap PKCE. Sudah diperiksa dan layak secara teknis —
+`getSessionFromUrl` menyalakan `passwordRecovery` dari `type=recovery` di
+fragmen alamat (gotrue 2.27, `gotrue_client.dart:1058`), jadi layar password
+baru tetap bekerja. Pemicunya bila suatu saat ada pelanggan yang mengeluh.
