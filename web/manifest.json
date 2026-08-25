@@ -1,12 +1,12 @@
 {
-    "name": "kamelscan",
-    "short_name": "kamelscan",
+    "name": "KamelScan",
+    "short_name": "KamelScan",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "aplikasi scaning untuk pembuatan video bukti paket pengiriman para bos bos olshop",
-    "orientation": "portrait-primary",
+    "background_color": "#F2F5F9",
+    "theme_color": "#0D5EA6",
+    "description": "Bukti video setiap paket, otomatis.",
+    "orientation": "any",
     "prefer_related_applications": false,
     "icons": [
         {

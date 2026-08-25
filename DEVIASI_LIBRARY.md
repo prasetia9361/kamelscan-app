@@ -2627,3 +2627,195 @@ masih kurang — dan tidak ada layar lain yang akan menanyakan sisanya. Dijaga
 punya jalan mengisinya belakangan. Fungsi servernya sudah ada; yang kurang
 tinggal satu kolom di layar Edit Profil. Belum dikerjakan atas keputusan
 Product Owner.
+
+## O. Bab 10: menerbitkan aplikasi web
+
+**Dikerjakan 25 Agustus 2026.** Bab 10.2 — utang tertua proyek ini. Sejak M.10
+(19 Agustus) tautan bukti `https://kamelscan.com/v/{token}` tidak dapat dibuka
+siapa pun; halaman dan Edge Function-nya sudah jadi, yang kurang hanya alamat
+yang dapat dijangkau orang luar. Sekarang lunas.
+
+Hasil akhir yang terbukti:
+
+```
+https://kamelscan.com           -> 302 ke /app/
+https://kamelscan.com/app/*     -> aplikasi Flutter Web
+https://kamelscan.com/v/{token} -> halaman bukti, tanpa login
+```
+
+### O.1 Tanda `#` dibuang dari alamat web
+
+Flutter Web bawaannya menaruh `#` di alamat (`/app/#/login`), sedangkan Bab 10.2
+menetapkan tautan *Masuk* pada landing page mengarah ke `/app/login`. Perbaikan:
+`applyUrlStrategy()` di `main.dart`, dengan pola impor bersyarat yang sudah
+dipakai sembilan kali di proyek ini (`lib/core/utils/url_strategy*.dart`).
+
+🔴 **Konsekuensinya bukan kosmetik.** Tanpa `#`, **server** yang menerima
+`/app/history` — bukan aplikasi. Server yang tidak diberi tahu akan mencari
+berkas bernama `history` dan menjawab 404 begitu halaman disegarkan. Itulah
+sebab seluruh isi O.2 diperlukan.
+
+### O.2 🔴 Dua jebakan `_redirects` yang gagal TANPA pesan apa pun
+
+Keduanya memakan waktu berjam-jam pada 25 Agustus 2026, dan **tidak satu pun
+terdeteksi `analyze`, tes, maupun keluaran `wrangler`** — deployment dilaporkan
+sukses, dan dashboard Cloudflare menampilkan aturannya terdaftar rapi.
+
+**1. Tujuan tidak boleh berakhiran `.html`.**
+
+Cloudflare punya kebiasaan sendiri membuang akhiran `.html` dan mengalihkan
+alamatnya (308). Aturan `/app/*` menuju `/app/index.html` dengan status 200
+karena itu tidak pernah menyajikan apa pun; hasilnya 404 di situs yang sudah
+terbit. Tulis tujuannya sebagai direktori: `/app/`.
+
+**2. Pola `/app/*` menelan berkas aplikasinya sendiri.**
+
+`_redirects` diproses **sebelum** berkas dicari, jadi `/app/*` ikut menangkap
+`main.dart.js`, `flutter.js`, `manifest.json`, dan seluruh `assets/`. Semuanya
+berubah menjadi `text/html` dan aplikasinya jadi halaman putih. Gejalanya halus:
+`/app/login` menjawab 200 dengan benar, sehingga cacat ini mudah dikira beres.
+
+Karena itu rutenya **didaftarkan satu per satu** di `deploy_web.ps1`.
+
+⚠️ **Utang yang lahir dari sini:** setiap rute baru di `route_names.dart` WAJIB
+ditambahkan ke daftar itu. Yang terlupa akan bekerja saat diklik dari dalam
+aplikasi, tetapi menjawab 404 begitu halamannya disegarkan atau alamatnya
+dikirim ke orang lain.
+
+**Cara memeriksa yang benar** — periksa `Content-Type`, bukan hanya kode status:
+
+```bash
+curl -sI https://kamelscan.com/app/main.dart.js | grep -i content-type
+# WAJIB application/javascript. Bila text/html, aturannya terlalu rakus.
+```
+
+### O.3 Yang BUKAN penyebabnya — jangan diulang
+
+Dua dugaan menghabiskan waktu dan keduanya terbantah oleh pengukuran:
+
+- **Akhir baris CRLF pada `_redirects`.** Diuji: Cloudflare memaafkannya. LF
+  tetap dipakai karena itu bentuk yang didokumentasikan, tetapi ia **bukan**
+  sebab kegagalan hari itu.
+- **Cloudflare menolak berkasnya.** Terbantah oleh tangkapan layar dashboard
+  Product Owner: tab *Redirects* menampilkan seluruh aturan tanpa satu pun
+  galat. Itu yang membalik arah penyelidikan.
+
+🔴 **Aturan yang lahir dari sini: alat uji yang lebih pemaaf daripada aslinya
+lebih berbahaya daripada tidak menguji sama sekali.** Server tiruan Cloudflare
+yang dipakai menguji secara lokal memakai `.strip()` Python, yang diam-diam
+membuang `\r` — sehingga berkas CRLF lolos di tiruan padahal ditolak aslinya.
+Tiruannya sudah diperbaiki agar menolak apa yang aslinya tolak.
+
+### O.4 Halaman bukti publik dibuat ulang sebagai HTML ringan
+
+Bab 10.2 mengeluarkan `/v/{token}` dari bundel Flutter agar petugas resolusi
+marketplace tidak mengunduh seluruh aplikasi hanya untuk menonton satu video.
+Diukur: bundel Flutter **4,3 MB**, halaman HTML **15 KB**.
+
+Keputusan Product Owner 25 Agustus 2026, disertai catatan bahwa versi
+Flutter-nya (`lib/pages/public/public_video_page.dart`) sudah jadi dan teruji —
+penambahan lingkup ± 2–3 jam yang disetujui.
+
+⚠️ Versi Flutter **sengaja dibiarkan terdaftar** di `app_router.dart`. Ia tidak
+akan pernah tercapai (Flutter hanya melayani `/app/`), dan mencabutnya berarti
+membuang jaring pengaman tanpa keuntungan apa pun.
+
+**Kredensial diisi saat deploy**, bukan di berkas sumbernya: `web_public/`
+masuk git, `env.dev.json` tidak. `deploy_web.ps1` menolak berjalan bila penanda
+kredensialnya masih tersisa.
+
+### O.5 🔴 Bahasa: `navigator.language` adalah asumsi yang salah
+
+Versi pertama halaman bukti mengikuti bahasa peramban. Diuji di komputer Product
+Owner: **hasilnya bahasa Inggris** — Chrome-nya berbahasa Inggris, seperti
+kebanyakan komputer di Indonesia.
+
+Pembaca halaman ini mayoritas petugas resolusi marketplace Indonesia. Setelan
+peramban mereka tidak memberi tahu apa pun tentang bahasa yang mereka baca.
+
+**Keputusan: bawaan Indonesia, dengan tombol pengalih `EN`** di bilah atas,
+pilihannya diingat lewat `localStorage`.
+
+Ditemukan dari satu tangkapan layar, bukan dari kode maupun tes.
+
+### O.6 Jebakan perkakas yang memakan waktu
+
+**1. `flutter build web` dengan `--base-href` TIDAK BOLEH dijalankan dari Git
+Bash.** Git Bash menerjemahkan `/app/` menjadi `C:/Program Files/Git/app/`
+sebelum Flutter melihatnya — dan perintahnya **tetap melaporkan berhasil**.
+Saudara kandung jebakan `adb install` (butir 17 di prompt serah terima).
+Jalankan dari PowerShell. `deploy_web.ps1` kini menolak berjalan bila
+`base href` hasil build bukan `/app/`.
+
+**2. Jangan menjalankan `deploy_web.ps1` dengan penggabungan stderr.** Flutter
+menulis "Wasm dry run findings" ke stderr; Windows PowerShell 5.1 mengubahnya
+menjadi `NativeCommandError`, dan `ErrorActionPreference = Stop` menghentikan
+skrip di tengah walaupun buildnya baik-baik saja. Panggil apa adanya.
+
+**3. Unggahan lewat dashboard gagal, Wrangler berhasil.** 47 MB lewat tethering:
+50 dari 51 berkas ditolak dengan pesan `unknown`. Wrangler mengulang sendiri
+berkas yang gagal, dan deploy berikutnya hanya mengirim yang berubah — 0,37
+detik untuk perubahan satu berkas.
+
+```powershell
+npx --yes wrangler@latest login
+# klik Authorize di peramban dalam < 1 menit, kalau tidak ia kehabisan waktu
+npx --yes wrangler@latest pages deploy build/deploy --project-name=kamelscan --branch=main --commit-dirty=true
+```
+
+### O.7 Domain dan DNS
+
+`kamelscan.com` sudah dikelola Cloudflare sejak sebelumnya (nameserver
+`paris`/`aaden.ns.cloudflare.com`), tetapi tanpa satu pun A record. Disambungkan
+lewat Pages → Custom domains, yang membuat sendiri CNAME `kamelscan.com` menuju
+`kamelscan.pages.dev` dengan status Proxied.
+
+⚠️ **Propagasi tidak seragam.** Beberapa saat setelah aktif, `1.1.1.1` sudah
+memberi A record sedangkan `8.8.8.8` belum — dan jaringan Product Owner
+(tethering HP) kebetulan bertanya ke Google, sehingga Chrome-nya menjawab
+`DNS_PROBE_FINISHED_NXDOMAIN` padahal situsnya hidup. Cara membuktikan situs
+hidup tanpa bergantung penerjemah nama:
+
+```bash
+curl -sI --resolve "kamelscan.com:443:104.21.2.17" https://kamelscan.com/app/login
+```
+
+**Akar situs dilempar ke `/app/` dengan status 302** selama landing page belum
+diserahkan desainer. Sengaja 302, bukan 301: peramban menyimpan 301 di komputer
+pengunjung dan tetap mematuhinya walaupun aturannya sudah dihapus dari server —
+landing page baru tidak akan pernah terlihat oleh yang sempat membukanya lebih
+dulu. **Hapus baris itu begitu landing page dipasang.**
+
+⚠️ `kamelscan.pages.dev` tetap dapat dibuka dan **tidak dapat dimatikan** —
+Cloudflare selalu memberi setiap proyek satu alamat bawaan. Keduanya pintu
+menuju berkas yang sama, bukan dua situs.
+
+### O.8 Jalur sukses `create-public-link` — teruji pertama kali
+
+M.10 mencatat jalur ini belum pernah diuji karena memerlukan JWT Owner. Pada 25
+Agustus 2026 Product Owner menerbitkan tautan sungguhan dari aplikasi, dan
+`get-public-video` mengembalikan metadata lengkap dengan `tenant_id`, `user_id`,
+`shop_id`, dan `storage_key` **tidak ikut keluar** — sesuai rancangan.
+
+Videonya juga membuktikan jebakan zona waktu itu nyata: `scan_date` tersimpan
+`19 Agustus 17:39 UTC`, yang di Indonesia adalah **20 Agustus 00:39 WIB**. Tanpa
+zona `Asia/Jakarta` yang dipaksa, halaman akan menuliskan tanggal 19 sementara
+watermark videonya menuliskan 20 — dan pembacanya menyimpulkan buktinya tidak
+cocok.
+
+### O.9 Yang masih terbuka sesudah sesi ini
+
+🔴 **Alamat web belum didaftarkan di Supabase.** `https://kamelscan.com/app/auth/callback`
+harus masuk Dashboard → Authentication → URL Configuration → Redirect URLs.
+Selama belum, verifikasi email dan reset password lewat web mendarat di Site URL
+**tanpa satu pun pesan galat** — jebakan yang sama dengan 13 Agustus 2026.
+
+🔴 **Rute `/auth/callback` tidak punya halaman.** `env.dart:107` mengirim alamat
+itu sebagai tujuan tautan verifikasi email, tetapi tidak ada rute dengan alamat
+tersebut di seluruh `lib/`. Yang mengklik tautannya akan mendarat di layar
+"halaman tidak ditemukan".
+
+🔴 **Login Google di web memakai alamat khusus HP.** `auth_service.dart:293`
+memakai `Env.oauthRedirectUrl`, yang isinya `id.kamelscan.app://login-callback`
+— skema deep link Android. Peramban tidak mengerti alamat semacam itu. Belum
+diuji di peramban; ini pembacaan kode.

@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0D5EA6">
+<title>Bukti Video Paket — KamelScan</title>
+<!--
+  Halaman bukti publik /v/{token} — Bab 10.6.
+
+  🔴 Sengaja BUKAN Flutter. Bab 10.2 mengeluarkan rute ini dari bundel aplikasi
+  supaya petugas resolusi marketplace tidak mengunduh 4,3 MB hanya untuk
+  menonton satu video. Halaman ini utuh dalam satu berkas.
+
+  🔴 Dibuka TANPA login. Ia hanya memanggil `get-public-video`, satu-satunya
+  Edge Function di proyek ini yang sengaja tidak memeriksa sesi. Fungsi itu
+  tidak pernah mengembalikan tenant_id, user_id, shop_id, maupun storage_key —
+  jadi tidak ada satu pun identitas pelanggan yang dapat disusun dari sini.
+
+  🔴 Bawaannya bahasa INDONESIA, bukan bahasa peramban. Versi pertama halaman
+  ini mengikuti `navigator.language`, dan pada 25 Agustus 2026 terbukti
+  menyajikan bahasa Inggris kepada Product Owner sendiri — Chrome-nya berbahasa
+  Inggris, seperti kebanyakan komputer di Indonesia. Pembaca halaman ini
+  mayoritas petugas resolusi marketplace Indonesia; setelan peramban mereka
+  tidak memberi tahu apa pun tentang bahasa yang mereka baca.
+
+  ⚠️ Dua penanda kredensial di bawah diisi saat deploy oleh `deploy_web.ps1`
+  dari env.dev.json / env.prod.json. Berkas ini masuk git, kredensialnya TIDAK.
+  Kunci anon memang kunci publik — ia sudah ikut di dalam setiap aplikasi yang
+  dipasang pengguna — tetapi tetap tidak dituliskan ke dalam repositori.
+-->
+<style>
+  :root {
+    --primary: #0D5EA6;
+    --on-primary: #FFFFFF;
+    --surface: #FFFFFF;
+    --surface-container: #F2F5F9;
+    --on-surface: #101828;
+    --on-surface-variant: #4A5567;
+    --outline-variant: #E3E8EF;
+    --packing: #0D5EA6;
+    --packing-container: #D6E6F7;
+    --return: #5B2C87;
+    --return-container: #EDE4F6;
+    --warning: #8A5300;
+    --danger: #C62828;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--surface-container);
+    color: var(--on-surface);
+    line-height: 1.5;
+  }
+  header {
+    background: var(--primary);
+    color: var(--on-primary);
+    padding: 12px 20px;
+    font-weight: 600;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  #alih {
+    background: transparent;
+    color: var(--on-primary);
+    border: 1px solid rgba(255,255,255,.55);
+    border-radius: 999px;
+    padding: 4px 12px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    line-height: 1.4;
+  }
+  #alih:hover { background: rgba(255,255,255,.14); }
+  #alih:focus-visible { outline: 2px solid #FFF; outline-offset: 2px; }
+  main { max-width: 680px; margin: 0 auto; padding: 16px; }
+  .kartu {
+    background: var(--surface);
+    border: 1px solid var(--outline-variant);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  video { width: 100%; border-radius: 12px; background: #000; display: block;
+          margin-bottom: 12px; }
+  h2 { font-size: 15px; margin: 0 0 12px; }
+  dl { margin: 0; }
+  .baris {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--outline-variant);
+  }
+  .baris:last-child { border-bottom: 0; }
+  dt { color: var(--on-surface-variant); font-size: 14px; flex-shrink: 0; }
+  dd { margin: 0; text-align: right; font-size: 14px; word-break: break-word; }
+  .resi { font-family: ui-monospace, Consolas, monospace;
+          font-weight: 600; letter-spacing: .02em; }
+  .lencana {
+    display: inline-block; padding: 2px 10px; border-radius: 999px;
+    font-size: 13px; font-weight: 600;
+  }
+  .lencana-packing { background: var(--packing-container); color: var(--packing); }
+  .lencana-return  { background: var(--return-container);  color: var(--return); }
+  .catatan {
+    display: flex; gap: 8px; align-items: flex-start;
+    font-size: 13px; color: var(--on-surface-variant);
+    margin-top: 12px; padding-top: 12px;
+    border-top: 1px solid var(--outline-variant);
+  }
+  .masa { font-size: 13px; color: var(--warning); padding: 0 4px; }
+  .masa.habis { color: var(--danger); }
+  a.tombol {
+    display: block; text-align: center; text-decoration: none;
+    background: var(--primary); color: var(--on-primary);
+    padding: 12px; border-radius: 10px; font-weight: 600; font-size: 15px;
+  }
+  .pusat { text-align: center; padding: 48px 16px; color: var(--on-surface-variant); }
+  .pusat h2 { font-size: 17px; color: var(--on-surface); margin-bottom: 8px; }
+  .sembunyi { display: none; }
+</style>
+</head>
+<body>
+<header>
+  <span>KamelScan</span>
+  <button id="alih" type="button"></button>
+</header>
+
+<main>
+  <div id="memuat" class="pusat"><p id="teks-memuat"></p></div>
+
+  <div id="galat" class="pusat sembunyi">
+    <h2 id="galat-judul"></h2>
+    <p id="galat-isi"></p>
+  </div>
+
+  <div id="isi" class="sembunyi">
+    <video id="pemutar" controls preload="metadata" playsinline></video>
+    <div class="kartu">
+      <h2 id="judul-rincian"></h2>
+      <dl id="rincian"></dl>
+      <div id="catatan-waktu" class="catatan sembunyi">
+        <span aria-hidden="true">&#9888;</span><span id="catatan-waktu-teks"></span>
+      </div>
+    </div>
+    <p id="masa" class="masa"></p>
+    <a id="unduh" class="tombol" download></a>
+  </div>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  var SUPABASE_URL = '__SUPABASE_URL__';
+  var SUPABASE_ANON_KEY = '__SUPABASE_ANON_KEY__';
+
+  var KAMUS = {
+    id: {
+      kode: 'id-ID',
+      alih: 'EN',
+      alihJudul: 'Switch to English',
+      judul: 'Bukti Video Paket — KamelScan',
+      memuat: 'Memuat bukti…',
+      rincian: 'Rincian Paket',
+      resi: 'Nomor Resi',
+      jenis: 'Jenis',
+      packing: 'Paket Kirim',
+      retur: 'Paket Retur',
+      toko: 'Toko',
+      tanggal: 'Tanggal',
+      waktu: 'Waktu',
+      durasi: 'Durasi',
+      lokasi: 'Lokasi',
+      unduh: 'Unduh video',
+      waktuTakTerverifikasi:
+        'Waktu pada rekaman ini diambil dari jam ponsel karena perangkat sedang ' +
+        'tanpa jaringan saat merekam. Penanda yang sama juga tercetak di gambar videonya.',
+      berlaku: function (tgl, n) {
+        return 'Tautan ini berlaku sampai ' + tgl +
+          (n >= 0 ? ' — ' + n + ' hari lagi.' : '.');
+      },
+      habis: 'Masa berlaku tautan ini sudah berakhir.',
+      galatJudul: 'Bukti tidak dapat ditampilkan',
+      galatIsi:
+        'Tautan ini tidak dikenali atau masa berlakunya sudah berakhir. ' +
+        'Mintalah tautan baru kepada pengirim paket.',
+      galatJaringan:
+        'Bukti tidak dapat dimuat karena sambungan bermasalah. ' +
+        'Coba muat ulang halaman ini.',
+      belumDisiapkan:
+        'Halaman ini belum disiapkan dengan benar oleh pemasangnya ' +
+        '(kredensial belum diisi saat deploy).'
+    },
+    en: {
+      kode: 'en-GB',
+      alih: 'ID',
+      alihJudul: 'Ganti ke bahasa Indonesia',
+      judul: 'Parcel Video Proof — KamelScan',
+      memuat: 'Loading proof…',
+      rincian: 'Parcel Details',
+      resi: 'Tracking Number',
+      jenis: 'Type',
+      packing: 'Outgoing Parcel',
+      retur: 'Returned Parcel',
+      toko: 'Shop',
+      tanggal: 'Date',
+      waktu: 'Time',
+      durasi: 'Duration',
+      lokasi: 'Location',
+      unduh: 'Download video',
+      waktuTakTerverifikasi:
+        'The time on this recording came from the phone clock because the device ' +
+        'was offline while recording. The same notice is burned into the video itself.',
+      berlaku: function (tgl, n) {
+        return 'This link is valid until ' + tgl +
+          (n >= 0 ? ' — ' + n + ' day(s) left.' : '.');
+      },
+      habis: 'This link has expired.',
+      galatJudul: 'Proof cannot be shown',
+      galatIsi:
+        'This link is not recognised, or it has expired. ' +
+        'Please ask the sender for a new link.',
+      galatJaringan:
+        'The proof could not be loaded because of a connection problem. ' +
+        'Please reload this page.',
+      belumDisiapkan:
+        'This page was not set up correctly by whoever deployed it ' +
+        '(credentials are missing).'
+    }
+  };
+
+  // Bawaan Indonesia. Pilihan pembaca diingat supaya petugas yang memeriksa
+  // beberapa tautan berturut-turut tidak perlu menekan tombolnya berulang kali.
+  var bahasa = 'id';
+  try {
+    var tersimpan = window.localStorage.getItem('kamelscan_bahasa');
+    if (tersimpan === 'id' || tersimpan === 'en') bahasa = tersimpan;
+  } catch (e) { /* localStorage diblokir: pakai bawaan */ }
+
+  var T = KAMUS[bahasa];
+
+  var el = {
+    alih: document.getElementById('alih'),
+    memuat: document.getElementById('memuat'),
+    teksMemuat: document.getElementById('teks-memuat'),
+    galat: document.getElementById('galat'),
+    galatJudul: document.getElementById('galat-judul'),
+    galatIsi: document.getElementById('galat-isi'),
+    isi: document.getElementById('isi'),
+    judulRincian: document.getElementById('judul-rincian'),
+    rincian: document.getElementById('rincian'),
+    pemutar: document.getElementById('pemutar'),
+    masa: document.getElementById('masa'),
+    unduh: document.getElementById('unduh'),
+    catatan: document.getElementById('catatan-waktu'),
+    catatanTeks: document.getElementById('catatan-waktu-teks')
+  };
+
+  // Keadaan halaman disimpan, bukan hanya digambar. Tanpa ini, menekan tombol
+  // bahasa setelah bukti termuat akan menghapus isinya - teksnya diterjemahkan
+  // tetapi datanya sudah tidak ada lagi di mana pun.
+  var keadaan = 'memuat';   // 'memuat' | 'galat' | 'isi'
+  var kunciGalat = 'galatIsi';
+  var data = null;
+
+  // 🔴 Zona waktu. scan_date tersimpan timestamptz (UTC). Tanpa timeZone yang
+  // dipaksa, petugas di zona lain membaca tanggal yang bergeser satu hari dari
+  // yang tercetak di videonya — lalu menyimpulkan buktinya tidak cocok.
+  var ZONA = 'Asia/Jakarta';
+
+  function tanggalWIB(iso) {
+    return new Intl.DateTimeFormat(T.kode, {
+      day: '2-digit', month: 'long', year: 'numeric', timeZone: ZONA
+    }).format(new Date(iso));
+  }
+  function jamWIB(iso) {
+    return new Intl.DateTimeFormat(T.kode, {
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+      hour12: false, timeZone: ZONA
+    }).format(new Date(iso)) + ' WIB';
+  }
+  function durasi(detik) {
+    if (detik === null || detik === undefined) return null;
+    var m = Math.floor(detik / 60), s = Math.round(detik % 60);
+    return m + ':' + (s < 10 ? '0' : '') + s;
+  }
+  function sisaHari(iso) {
+    return Math.ceil((new Date(iso) - new Date()) / 86400000);
+  }
+
+  // Seluruh nilai dipasang lewat textContent, tidak pernah innerHTML: isinya
+  // datang dari database dan nomor resi diketik manusia.
+  function baris(label, nilai, kelas) {
+    if (nilai === null || nilai === undefined || nilai === '') return;
+    var d = document.createElement('div'); d.className = 'baris';
+    var dt = document.createElement('dt'); dt.textContent = label;
+    var dd = document.createElement('dd');
+    if (kelas) dd.className = kelas;
+    if (nilai instanceof Node) dd.appendChild(nilai); else dd.textContent = nilai;
+    d.appendChild(dt); d.appendChild(dd); el.rincian.appendChild(d);
+  }
+
+  function gambarRincian() {
+    var v = data;
+    el.rincian.textContent = '';
+
+    el.pemutar.src = v.url;
+    el.unduh.href = v.url;
+    el.unduh.textContent = T.unduh;
+    el.judulRincian.textContent = T.rincian;
+    el.catatanTeks.textContent = T.waktuTakTerverifikasi;
+
+    baris(T.resi, v.resi_code, 'resi');
+
+    var lencana = document.createElement('span');
+    var packing = v.type === 'packing';
+    lencana.className = 'lencana ' + (packing ? 'lencana-packing' : 'lencana-return');
+    lencana.textContent = packing ? T.packing : T.retur;
+    baris(T.jenis, lencana);
+
+    var toko = v.shop_name || '';
+    if (toko && v.market_name) toko += ' · ' + v.market_name;
+    baris(T.toko, toko);
+
+    baris(T.tanggal, tanggalWIB(v.scan_date));
+    baris(T.waktu, jamWIB(v.scan_date));
+    baris(T.durasi, durasi(v.duration_seconds));
+
+    if (v.location_lat != null && v.location_lng != null) {
+      baris(T.lokasi, Number(v.location_lat).toFixed(6) + ', ' +
+                      Number(v.location_lng).toFixed(6));
+    }
+
+    el.catatan.classList.toggle('sembunyi', v.time_verified !== false);
+
+    if (v.link_expires_at) {
+      var n = sisaHari(v.link_expires_at);
+      if (n < 0) {
+        el.masa.textContent = T.habis;
+        el.masa.className = 'masa habis';
+      } else {
+        el.masa.textContent = T.berlaku(tanggalWIB(v.link_expires_at), n);
+        el.masa.className = n <= 3 ? 'masa habis' : 'masa';
+      }
+    } else {
+      el.masa.textContent = '';
+    }
+  }
+
+  function render() {
+    document.documentElement.lang = bahasa;
+    document.title = T.judul;
+    el.alih.textContent = T.alih;
+    el.alih.title = T.alihJudul;
+    el.alih.setAttribute('aria-label', T.alihJudul);
+    el.teksMemuat.textContent = T.memuat;
+    el.galatJudul.textContent = T.galatJudul;
+    el.galatIsi.textContent = T[kunciGalat];
+
+    el.memuat.classList.toggle('sembunyi', keadaan !== 'memuat');
+    el.galat.classList.toggle('sembunyi', keadaan !== 'galat');
+    el.isi.classList.toggle('sembunyi', keadaan !== 'isi');
+
+    if (keadaan === 'isi') gambarRincian();
+  }
+
+  el.alih.addEventListener('click', function () {
+    bahasa = bahasa === 'id' ? 'en' : 'id';
+    T = KAMUS[bahasa];
+    try { window.localStorage.setItem('kamelscan_bahasa', bahasa); } catch (e) {}
+    render();
+  });
+
+  function tampilkanGalat(kunci) {
+    keadaan = 'galat';
+    kunciGalat = kunci || 'galatIsi';
+    render();
+  }
+
+  render();
+
+  // Token diambil dari alamat: /v/{token}
+  var cocok = window.location.pathname.match(/\/v\/([^\/?#]+)/);
+  var token = cocok ? decodeURIComponent(cocok[1]) : '';
+
+  if (SUPABASE_URL.indexOf('__') === 0 || SUPABASE_ANON_KEY.indexOf('__') === 0) {
+    tampilkanGalat('belumDisiapkan');
+    return;
+  }
+  if (!token) { tampilkanGalat('galatIsi'); return; }
+
+  fetch(SUPABASE_URL.replace(/\/+$/, '') + '/functions/v1/get-public-video', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+    },
+    body: JSON.stringify({ token: token })
+  })
+    .then(function (r) {
+      // Token tidak dikenal dan token kedaluwarsa sengaja dijawab sama oleh
+      // Edge Function-nya, dan halaman ini meneruskan kesamaan itu: memberi
+      // tahu mana yang mana akan memberi petunjuk kepada penebak token.
+      if (!r.ok) { tampilkanGalat('galatIsi'); return null; }
+      return r.json();
+    })
+    .then(function (v) {
+      if (!v) return;
+      data = v;
+      keadaan = 'isi';
+      render();
+    })
+    .catch(function () { tampilkanGalat('galatJaringan'); });
+})();
+</script>
+</body>
+</html>

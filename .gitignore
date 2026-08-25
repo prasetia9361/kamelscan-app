@@ -86,3 +86,6 @@ tool/**/.dart_tool/
 
 # Berkas sementara Supabase CLI
 supabase/.temp/
+
+# Cache Wrangler (Cloudflare Pages). Dibuat ulang otomatis tiap deploy.
+.wrangler/

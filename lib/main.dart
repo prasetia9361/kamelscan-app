@@ -14,10 +14,17 @@ import 'core/services/local_db_service.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/supabase_service.dart';
 import 'core/utils/logger.dart';
+import 'core/utils/url_strategy.dart';
 import 'core/workers/upload_worker.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Membuang `#` dari alamat web (Bab 10.2). Dipanggil sebelum apa pun
+  // menggambar: strategi yang diganti setelah rute pertama terbaca akan
+  // membuat alamat awal dan alamat berikutnya memakai bentuk berbeda.
+  // Tidak melakukan apa-apa di Android dan iOS.
+  applyUrlStrategy();
 
   // Gagal cepat bila --dart-define belum diisi.
   //
