@@ -33,6 +33,25 @@ class Routes {
   /// sudah membentuk sesi sebelum layar ini dibuka.
   static const String resetPassword = '/reset-password';
 
+  /// Bab 10 — tempat peramban mendarat sesudah menekan tautan verifikasi email
+  /// atau tautan *Lupa password* di **web**.
+  ///
+  /// 🔴 Ini yang selama ini tidak ada. `Env.emailVerifyRedirectUrl` sudah
+  /// mengirim `$webAppBaseUrl/auth/callback` sejak Bab 10.2, tetapi tidak ada
+  /// satu pun rute dengan alamat itu — sehingga yang menekan tautannya mendarat
+  /// di layar *"halaman tidak ditemukan"* dan **tersangkut di sana selamanya**:
+  /// alamat itu bukan halaman publik, jadi penjagaan rute pun tidak
+  /// memindahkannya ke mana-mana.
+  ///
+  /// Di HP alamat ini tidak pernah dipakai — tautannya memakai deep link
+  /// `id.kamelscan.app://`. Rutenya tetap didaftarkan untuk kedua target
+  /// karena membedakannya hanya menambah cabang yang tidak dapat diuji.
+  ///
+  /// ⚠️ Masuk daftar [public]. Saat peramban mendarat di sini sesi belum tentu
+  /// sudah terbentuk, dan tanpa itu penjagaan rute akan melemparnya ke layar
+  /// Masuk sebelum tautannya sempat ditukar.
+  static const String authCallback = '/auth/callback';
+
   /// Halaman bukti publik yang dibuka pihak marketplace tanpa login.
   static const String publicVideo = '/v/:token';
 
@@ -127,6 +146,7 @@ class Routes {
     register,
     verifyEmail,
     forgotPassword,
+    authCallback,
   };
 
   static bool isPublic(String location) {

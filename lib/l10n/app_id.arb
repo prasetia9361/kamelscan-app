@@ -222,6 +222,8 @@
   "authVerifyMaybeRegistered": "Kalau email ini ternyata sudah pernah terdaftar — termasuk sebagai akun packer — kami sengaja tidak mengirim apa pun, demi melindungi pemilik akunnya. Silakan Masuk, atau pakai Lupa kata sandi bila passwordnya lupa.",
   "authChangeEmail": "Ganti email",
   "authVerifyWaiting": "Menunggu verifikasi…",
+  "authCallbackTitle": "Sebentar…",
+  "authCallbackBody": "Kami sedang menyelesaikan tautan dari email Anda.",
   "authForgotTitle": "Lupa password",
   "authForgotBody": "Masukkan email akun Anda. Kami kirimkan tautan untuk membuat password baru.",
   "authForgotSent": "Jika email tersebut terdaftar, tautan reset sudah dikirim. Cek kotak masuk dan folder spam.",

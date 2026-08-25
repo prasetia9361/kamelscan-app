@@ -219,6 +219,8 @@
   "authVerifyMaybeRegistered": "If this email turns out to be already registered — including as a packer account — we deliberately send nothing, to protect whoever owns it. Sign in instead, or use Forgot password if you do not remember it.",
   "authChangeEmail": "Change email",
   "authVerifyWaiting": "Waiting for verification…",
+  "authCallbackTitle": "One moment…",
+  "authCallbackBody": "We are finishing the link from your email.",
   "authForgotTitle": "Forgot password",
   "authForgotBody": "Enter your account email. We will send a link to set a new password.",
   "authForgotSent": "If that email is registered, a reset link has been sent. Check your inbox and spam folder.",

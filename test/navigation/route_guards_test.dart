@@ -192,6 +192,71 @@ void main() {
     });
   });
 
+  /// 🔴 Bab 10: tempat peramban mendarat sesudah tautan email ditekan di web.
+  ///
+  /// `Env.emailVerifyRedirectUrl` mengirim `.../auth/callback` sejak Bab 10.2,
+  /// tetapi alamat itu tidak pernah punya rute maupun izin. Akibatnya bukan
+  /// sekadar salah layar: karena ia **bukan** halaman publik, guard membiarkan
+  /// pengguna yang sudah masuk tetap di sana (`return null` pada cabang peran),
+  /// dan GoRouter menjatuhkannya ke `errorBuilder`. Pengguna tersangkut di
+  /// "halaman tidak ditemukan" tanpa satu pun jalan keluar.
+  group('Tautan email di web mendarat di /auth/callback', () {
+    test('belum login, dibiarkan menunggu — bukan dilempar ke Masuk', () {
+      final c = wadah(signedIn: false);
+      addTearDown(c.dispose);
+
+      // Inilah baris yang menjaga cacatnya. Bila `authCallback` suatu hari
+      // keluar dari daftar publik, tautannya akan dilempar ke layar Masuk
+      // sebelum sempat ditukar — dan gejalanya tautan yang "tidak melakukan
+      // apa-apa", persis seperti sebelum Bab 10.
+      expect(tujuan(c, Routes.authCallback), isNull);
+    });
+
+    test('tautan Lupa password membawanya ke layar password baru', () {
+      final c = wadah(signedIn: true, role: UserRole.owner, resetPending: true);
+      addTearDown(c.dispose);
+
+      expect(tujuan(c, Routes.authCallback), Routes.resetPassword);
+    });
+
+    test('tautan verifikasi: selagi peran belum diketahui, ke layar pembuka',
+        () {
+      final c = wadah(signedIn: true, role: null);
+      addTearDown(c.dispose);
+
+      expect(tujuan(c, Routes.authCallback), Routes.splash);
+    });
+
+    test('tautan verifikasi: sesudah sesi siap, ke Beranda', () {
+      final c = wadah(signedIn: true, role: UserRole.owner);
+      addTearDown(c.dispose);
+
+      expect(tujuan(c, Routes.authCallback), Routes.home);
+    });
+
+    test('tidak pernah berakhir sebagai halaman tidak ditemukan', () {
+      // Empat keadaan yang mungkin dialami pengguna saat mendarat di sini.
+      // Tidak satu pun boleh berhenti di alamat itu sesudah sesinya jadi —
+      // hanya keadaan "belum login" yang boleh tinggal, karena tautannya
+      // memang sedang ditukar.
+      for (final keadaan in [
+        (signedIn: true, role: UserRole.owner),
+        (signedIn: true, role: UserRole.packer),
+        (signedIn: true, role: UserRole.admin),
+        (signedIn: true, role: null),
+      ]) {
+        final c = wadah(signedIn: keadaan.signedIn, role: keadaan.role);
+        addTearDown(c.dispose);
+
+        expect(
+          tujuan(c, Routes.authCallback),
+          isNotNull,
+          reason: 'peran ${keadaan.role} tertinggal di /auth/callback',
+        );
+      }
+    });
+  });
+
   /// 🔴 Cacat 24 Agustus 2026: Lengkapi Profil tidak pernah ditinggalkan.
   ///
   /// Guard-nya sendiri sudah benar — beri ia nilai yang segar dan ia menjawab

@@ -422,10 +422,23 @@ class AuthService {
     };
   }
 
+  /// 🔴 Tujuannya WAJIB [Env.emailVerifyRedirectUrl], bukan
+  /// [Env.oauthRedirectUrl].
+  ///
+  /// Keduanya bernilai sama di HP — deep link `id.kamelscan.app://` — sehingga
+  /// perbedaannya tidak terlihat sama sekali di sana. Di web ia menentukan
+  /// segalanya: `oauthRedirectUrl` mengirimkan skema deep link Android ke dalam
+  /// email, dan peramban tidak mengerti alamat semacam itu. Yang menekan
+  /// tautannya tidak dibawa ke mana pun, dan tidak ada satu pun pesan yang
+  /// menjelaskan mengapa.
+  ///
+  /// [Env.emailVerifyRedirectUrl] sudah membedakan keduanya sendiri sejak
+  /// Bab 10.2 — di web ia menjadi `.../app/auth/callback`, yang kini punya
+  /// rutenya (`Routes.authCallback`).
   Future<Result<void>> sendPasswordReset(String email) => _guard(
         () => _auth.resetPasswordForEmail(
           email.trim().toLowerCase(),
-          redirectTo: Env.oauthRedirectUrl,
+          redirectTo: Env.emailVerifyRedirectUrl,
         ),
       );
 
