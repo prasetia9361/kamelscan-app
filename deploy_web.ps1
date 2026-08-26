@@ -15,10 +15,12 @@
 # akan ikut terbangun ke `build\web\_redirects` dan berakhir sebagai
 # `/app/_redirects`, tempat Cloudflare tidak pernah membacanya.
 #
-#   .\deploy_web.ps1                          -> pakai env.dev.json
+#   .\deploy_web.ps1                          -> env.dev.json + folder .\landing
 #   .\deploy_web.ps1 -Release                 -> pakai env.prod.json
-#   .\deploy_web.ps1 -Landing ..\landing-page -> ikutkan landing page desainer
+#   .\deploy_web.ps1 -Landing ..\lain         -> pakai folder landing yang LAIN
 #   .\deploy_web.ps1 -SkipBuild               -> susun ulang tanpa membangun
+#
+# Landing page di .\landing ikut OTOMATIS - tidak perlu menyebut -Landing.
 #
 # CATATAN: jalankan dari PowerShell, JANGAN dari terminal Git Bash. Git Bash
 # menerjemahkan argumen `/app/` menjadi `C:/Program Files/Git/app/` sebelum
@@ -107,6 +109,17 @@ Write-Host "Flutter Web disalin ke $out\app" -ForegroundColor Green
 # ---------------------------------------------------------------------------
 # 3. Landing page (opsional, milik desainer)
 # ---------------------------------------------------------------------------
+# 🔴 Bawaan: folder `landing` di dalam repositori ini.
+#
+# Sampai 26 Agustus 2026 landing page hanya ikut bila `-Landing` disebut, dan
+# akibat lupa menyebutnya TIDAK TERLIHAT saat menerbitkan: skripnya berhasil,
+# unggahannya berhasil, dan akar situs diam-diam kembali melempar ke /app/.
+# Sudah terjadi sekali - Product Owner menerbitkan, lalu kamelscan.com tetap
+# mendarat di layar Masuk. Argumennya kini hanya untuk menunjuk folder LAIN.
+if (-not $Landing -and (Test-Path 'landing\index.html')) {
+    $Landing = 'landing'
+}
+
 if ($Landing) {
     if (-not (Test-Path $Landing)) {
         Write-Host "BERHENTI: folder landing '$Landing' tidak ditemukan." -ForegroundColor Red
