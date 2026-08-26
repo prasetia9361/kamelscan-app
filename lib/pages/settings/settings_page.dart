@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -22,8 +23,48 @@ import 'widgets/cellular_upload_switch.dart';
 /// Dikelompokkan seperti di Bab 9.7: Tampilan, Perekaman, Merek, Privasi,
 /// Data, lalu Info. Kelompok Merek dan Privasi hanya tampil untuk Owner —
 /// keduanya mengubah hal yang berlaku bagi seluruh tenant.
+///
+/// 🔴 Di **web**, tiga kelompok itu tidak ditampilkan sama sekali: Perekaman,
+/// Merek, dan Privasi. Keputusan Product Owner 26 Agustus 2026, dengan alasan
+/// yang sama seperti Bab 10.1 menghapus rute perekaman dari web — merekam
+/// hanya terjadi di HP, dan pengaturan yang tidak dapat berpengaruh apa pun di
+/// tempat ia ditampilkan lebih buruk daripada pengaturan yang tidak ada:
+/// ia mengundang orang mengubahnya lalu bertanya-tanya kenapa tidak terjadi
+/// apa-apa.
+///
+/// ⚠️ Yang ikut hilang bersama kelompok Privasi adalah *"Packer boleh melihat
+/// riwayat se-toko"* — satu-satunya isinya, dan satu-satunya yang sebenarnya
+/// **bukan** soal perekaman. Sesudah ini ia hanya dapat diubah dari HP.
+/// Product Owner sudah diberi tahu.
+/// Kelompok pengaturan menurut Bab 9.7.
+enum SettingsGroup { display, recording, brand, privacy, data, info }
+
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
+
+  /// Apakah satu kelompok tampil pada keadaan tertentu.
+  ///
+  /// 🔴 Dipisah sebagai fungsi murni, mengikuti aturan yang lahir dari cacat
+  /// login Google (`DEVIASI_LIBRARY.md` O.14): **percabangan `kIsWeb` yang
+  /// ditulis langsung di dalam kode tidak dapat diuji.** `kIsWeb` adalah
+  /// konstanta waktu kompilasi; pada `flutter test` nilainya selalu `false`,
+  /// sehingga cabang webnya tidak pernah dijalankan satu kali pun dan tidak
+  /// ada yang bisa membantahnya. Di berkas itu, komentarnya menjanjikan
+  /// pemisahan mobile/web selama berminggu-minggu sementara kodenya tidak
+  /// pernah melakukannya.
+  static bool tampil(
+    SettingsGroup group, {
+    required bool isWeb,
+    required bool isOwner,
+  }) =>
+      switch (group) {
+        SettingsGroup.display ||
+        SettingsGroup.data ||
+        SettingsGroup.info =>
+          true,
+        SettingsGroup.recording => !isWeb,
+        SettingsGroup.brand || SettingsGroup.privacy => !isWeb && isOwner,
+      };
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -46,28 +87,33 @@ class SettingsPage extends ConsumerWidget {
             _LanguagePicker(),
           ]),
 
-          _Kelompok(judul: t.settingsGroupRecording, children: const [
-            _MicSwitch(),
-            SizedBox(height: 10),
-            _VoiceOverSwitch(),
-            SizedBox(height: 10),
-            CellularUploadSwitch(),
-          ]),
+          // Ketiganya mengatur apa yang terjadi saat merekam — dan merekam
+          // hanya ada di HP (Bab 10.1).
+          if (tampil(SettingsGroup.recording, isWeb: kIsWeb, isOwner: isOwner))
+            _Kelompok(judul: t.settingsGroupRecording, children: const [
+              _MicSwitch(),
+              SizedBox(height: 10),
+              _VoiceOverSwitch(),
+              SizedBox(height: 10),
+              CellularUploadSwitch(),
+            ]),
 
-          if (isOwner) ...[
+          if (tampil(SettingsGroup.brand, isWeb: kIsWeb, isOwner: isOwner))
             _Kelompok(
               judul: t.settingsGroupBrand,
               children: [
-                _WatermarkRow(canUsePro: session?.canUseCustomWatermark ?? false),
+                _WatermarkRow(
+                    canUsePro: session?.canUseCustomWatermark ?? false),
                 const SizedBox(height: 10),
                 const _GpsSwitch(),
               ],
             ),
+
+          if (tampil(SettingsGroup.privacy, isWeb: kIsWeb, isOwner: isOwner))
             _Kelompok(
               judul: t.settingsGroupPrivacy,
               children: const [_PackerHistorySwitch()],
             ),
-          ],
 
           _Kelompok(judul: t.settingsGroupData, children: const [_ClearCache()]),
           _Kelompok(judul: t.settingsGroupInfo, children: const [_InfoTile()]),
