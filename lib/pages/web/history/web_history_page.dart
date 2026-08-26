@@ -42,9 +42,12 @@ class WebHistoryPage extends ConsumerStatefulWidget {
   /// `packing`, `return`, atau apa pun yang berarti "semua".
   final String typeWire;
 
-  /// Lebar panel samping. Cukup untuk pemutar 16:9 beserta keterangannya
-  /// tanpa memaksa tabelnya menyempit sampai kolomnya berguguran.
-  static const double panelWidth = 420;
+  /// Lebar panel samping.
+  ///
+  /// 440 = 16 padding + 200 pemutar tegak + 16 jarak + 192 keterangan + 16.
+  /// Angka pemutarnya dari rancangan desainer; sisanya mengikuti agar nomor
+  /// resi berukuran besar tetap muat satu baris di sebelahnya.
+  static const double panelWidth = 440;
 
   @override
   ConsumerState<WebHistoryPage> createState() => _WebHistoryPageState();
@@ -979,6 +982,7 @@ class _PanelSamping extends StatelessWidget {
               key: ValueKey(videoId),
               videoId: videoId,
               embedded: true,
+              sideBySide: true,
               onClose: onClose,
             ),
           ),

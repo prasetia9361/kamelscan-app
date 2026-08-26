@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../core/models/enums.dart';
+import '../../../core/models/history_item.dart';
 import '../../../core/providers/session_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -26,6 +27,7 @@ class VideoDetailPage extends ConsumerStatefulWidget {
     required this.videoId,
     this.embedded = false,
     this.onClose,
+    this.sideBySide = false,
   });
 
   final String videoId;
@@ -44,6 +46,19 @@ class VideoDetailPage extends ConsumerStatefulWidget {
   /// di dalam panel tidak ada apa pun untuk di-*pop*, dan memanggilnya akan
   /// melempar pengguna keluar dari seluruh cabang Riwayat.
   final VoidCallback? onClose;
+
+  /// Susunan berdampingan: pemutar tegak di kiri, keterangan terpenting di
+  /// kanannya (rancangan desainer Bab 10.5 butir 8).
+  ///
+  /// 🔴 Hanya menambah satu cabang di bagian atas layar; SELURUH sisanya —
+  /// tombol unduh, tautan publik, kartu keterangan, penghapusan — memakai
+  /// jalur yang sama persis. Jalur HP (`false`) tidak berubah satu baris pun.
+  /// Menyusun ulang layar yang sudah terbukti dipakai di perangkat demi tata
+  /// letak web bukan pertukaran yang sepadan.
+  ///
+  /// Ruang di kanan pemutar memang ada karena videonya tegak 9:16;
+  /// membiarkannya hitam adalah pemborosan.
+  final bool sideBySide;
 
   @override
   ConsumerState<VideoDetailPage> createState() => _VideoDetailPageState();
@@ -72,6 +87,7 @@ class _VideoDetailPageState extends ConsumerState<VideoDetailPage> {
             onUnduh: _unduh,
             onTautan: _buatTautan,
             onHapus: _konfirmasiHapus,
+            sideBySide: widget.sideBySide,
           ),
         AsyncError(:final error) => AppErrorView(
             failure: error,
@@ -239,6 +255,7 @@ class _Body extends ConsumerWidget {
     required this.onUnduh,
     required this.onTautan,
     required this.onHapus,
+    this.sideBySide = false,
   });
 
   final VideoDetailData data;
@@ -247,6 +264,7 @@ class _Body extends ConsumerWidget {
   final Future<void> Function() onUnduh;
   final Future<void> Function() onTautan;
   final Future<void> Function() onHapus;
+  final bool sideBySide;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -260,16 +278,38 @@ class _Body extends ConsumerWidget {
     final adaBerkas = video.status == VideoStatus.uploaded;
     final sisaHari = video.daysUntilExpiry();
 
+    final pemutar = VideoPlayerBox(
+      url: data.playbackUrl,
+      loading: data.loadingUrl,
+      enabled: adaBerkas,
+      disabledReason: _alasanTakBisaDiputar(context, video.status),
+      onPlay: onTonton,
+    );
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       children: [
-        VideoPlayerBox(
-          url: data.playbackUrl,
-          loading: data.loadingUrl,
-          enabled: adaBerkas,
-          disabledReason: _alasanTakBisaDiputar(context, video.status),
-          onPlay: onTonton,
-        ),
+        if (!sideBySide)
+          pemutar
+        else
+          // Pemutar tegak di kiri, keterangan terpenting di kanannya.
+          //
+          // Lebar 200 adalah angka rancangan desainer; pada 9:16 ia menjadi
+          // 356 tinggi. Tombol layar penuh tidak dibuat tersendiri — Chewie
+          // sudah menyediakannya di bilah kendali begitu videonya diputar,
+          // dan dua tombol yang mengerjakan hal sama justru membingungkan.
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(width: 200, child: pemutar),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _RingkasanTegak(item: item, colors: colors),
+                ),
+              ],
+            ),
+          ),
 
         if (data.urlFailure != null) ...[
           const SizedBox(height: 10),
@@ -510,6 +550,119 @@ class _Baris extends StatelessWidget {
                     color: valueColor,
                   ),
                 ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Keterangan di sebelah pemutar tegak (Bab 10.5, susunan berdampingan).
+///
+/// Isinya sengaja **hanya empat** keterangan di bawah nomor resi dan chip.
+/// Ruang ini muncul karena videonya tegak, bukan karena ada yang perlu
+/// ditulis — mengisinya dengan seluruh keterangan hanya memindahkan kartu di
+/// bawah ke atas, dan yang paling dicari saat menjawab komplain justru
+/// tenggelam di antaranya. Keterangan selengkapnya tetap ada di kartu bawah.
+class _RingkasanTegak extends StatelessWidget {
+  const _RingkasanTegak({required this.item, required this.colors});
+
+  final HistoryItem item;
+  final AppColors colors;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.l10n;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final video = item.video;
+    final packing = video.type == VideoType.packing;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // 🔴 Monospace berukuran besar (`resiDisplay`, palet §3.3). Inilah
+        // angka yang dibacakan lewat telepon ke pusat resolusi marketplace,
+        // dan `SelectableText` supaya dapat disalin alih-alih diketik ulang.
+        SelectableText(
+          video.resiCode,
+          style: AppTextStyles.resiDisplay.copyWith(color: scheme.onSurface),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: packing ? colors.packingContainer : Colors.transparent,
+                border: packing
+                    ? null
+                    : Border.all(color: colors.returnColor, width: 1.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    packing
+                        ? Icons.inventory_2_outlined
+                        : Icons.assignment_return_outlined,
+                    size: 13,
+                    color: packing ? colors.packing : colors.returnColor,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    packing ? t.videoTypePacking : t.videoTypeReturn,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: packing ? colors.packing : colors.returnColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            VideoStatusChip(status: video.status),
+          ],
+        ),
+        const SizedBox(height: 14),
+        _Ringkas(label: t.fieldShop, value: item.shopLabel),
+        _Ringkas(label: t.fieldDate, value: Formatters.date(video.scanDate)),
+        _Ringkas(label: t.fieldTime, value: Formatters.time(video.scanDate)),
+        _Ringkas(
+          label: t.fieldDuration,
+          value: Formatters.durationFromSeconds(video.durationSeconds),
+        ),
+      ],
+    );
+  }
+}
+
+class _Ringkas extends StatelessWidget {
+  const _Ringkas({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: theme.textTheme.labelSmall
+                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          ),
+          Text(
+            value.isEmpty ? '—' : value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodyMedium,
           ),
         ],
       ),
