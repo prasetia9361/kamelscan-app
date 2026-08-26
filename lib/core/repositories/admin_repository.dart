@@ -57,8 +57,20 @@ class AdminRepository {
   /// Setujui pembayaran manual.
   ///
   /// ⚠️ Penyesuaian tier, periode langganan, dan reset saldo token dilakukan
-  /// **trigger di server** setelah status menjadi `paid` (Bab 7.2 poin 4).
+  /// **trigger di server** setelah status menjadi `paid` (Bab 7.2 poin 4) —
+  /// `activate_subscription()`, migrasi `28_activate_subscription.sql`.
   /// Jangan menghitung apa pun dari sini.
+  ///
+  /// 🔴 Kalimat di atas sudah tertulis di sini sejak awal padahal triggernya
+  /// **belum pernah dibuat**, dan tidak ada yang menyadarinya selama
+  /// berminggu-minggu: menyetujui pembayaran berhasil tanpa keluhan apa pun,
+  /// lalu tidak terjadi apa-apa. Product Owner mentransfer uang sungguhan
+  /// 22 Agustus 2026 dan layarnya berhenti di "Menunggu verifikasi" empat
+  /// hari. Triggernya baru lahir 26 Agustus 2026.
+  ///
+  /// ⚠️ Bab 5.3 — JWT pelanggan masih membawa `tier_plan` lama sampai
+  /// tokennya disegarkan. Aplikasi pelanggan wajib memanggil `refreshSession()`
+  /// (atau keluar lalu masuk lagi) sebelum batas tier baru terasa.
   Future<Result<void>> approvePayment({
     required String subscriptionId,
     required String verifiedBy,

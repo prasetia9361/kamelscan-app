@@ -3006,3 +3006,150 @@ dan Bab 9.10. Keterangan grafiknya ikut menggambar pola garisnya, supaya
 keterangan dan garis benar-benar terlihat sama.
 
 **358 tes hijau, analyze bersih. Belum diuji di peramban.**
+
+### O.12 Bab 10.5 — tabel Riwayat web
+
+**Dikerjakan 26 Agustus 2026.**
+
+#### Satu alamat, dua halaman — dan itu disengaja
+
+`/history` membangun `WebHistoryPage` di web dan `HistoryPage` di HP.
+Alasannya bukan malas menggabungkan: HP memakai gulir tak berujung dan tidak
+pernah menampilkan jumlah total, sedangkan tabel bernomor **wajib** tahu
+totalnya untuk menggambar halaman terakhir. Satu halaman yang melayani
+keduanya berarti HP ikut menanggung perhitungan `count` pada setiap gulir, di
+jaringan gudang, untuk angka yang tidak pernah ditampilkan di sana.
+
+Penyaringannya tetap satu (`VideoRepository._applyFilter`) supaya keduanya
+tidak dapat menyimpang. Aturan yang disalin akan membuat kedua layar
+menampilkan jumlah baris berbeda untuk pencarian yang sama — dan yang
+melihatnya akan menduga datanya yang hilang.
+
+#### 🔴 Paginasi WAJIB punya pemecah seri
+
+`.order(kolom).order('id')`. Mengurutkan menurut `type` atau `status`
+menghasilkan ribuan baris bernilai sama persis; urutan di antaranya **tidak
+dijamin PostgreSQL** dan boleh berbeda pada setiap permintaan. Akibatnya satu
+video muncul di halaman 2 **dan** halaman 3, sementara video lain tidak muncul
+di mana pun.
+
+Bukti packing yang "hilang" saat dicari adalah kegagalan terburuk aplikasi
+ini, dan ia tidak dapat direproduksi dengan sengaja — hanya muncul sebagai
+keluhan pelanggan yang tidak masuk akal.
+
+#### Kolom tabel tetangga sengaja tidak dapat diurutkan
+
+Toko dan Packer datang dari embedding PostgREST. Sintaks pengurutan pada
+relasi bersarang belum pernah dibuktikan di proyek ini, dan **bila salah
+server mengabaikannya lalu mengembalikan urutan bawaan tanpa satu pun pesan**.
+Judul yang dapat ditekan tetapi diam saja lebih membingungkan daripada judul
+biasa, jadi keduanya tidak dibuat dapat ditekan sama sekali.
+
+#### Kolom dibuang, bukan dipersempit
+
+Tujuh kolom yang dipaksa muat pada 950 px menyisakan ± 100 px per kolom, dan
+nomor resi — satu-satunya isi yang tidak boleh terpotong — berakhir sebagai
+`JX12…`. Packer dan Durasi hilang lebih dulu di bawah 1180 px.
+
+#### Panel samping memakai halaman detail yang sama dengan HP
+
+`VideoDetailPage(embedded: true)` melepas bilah judulnya. Halaman itu sudah
+menangani pemutar, unduh, tautan publik, dan penghapusan beserta seluruh
+keadaan gagalnya. `key: ValueKey(videoId)` **wajib**: tanpa itu memilih baris
+lain memakai ulang `State` yang sama dan panelnya tetap menampilkan video
+sebelumnya.
+
+⚠️ `onClose` juga wajib. Sebagai halaman, penghapusan diakhiri
+`Navigator.pop()`; di dalam panel tidak ada apa pun untuk di-*pop*, dan
+memanggilnya melempar pengguna keluar dari seluruh cabang Riwayat.
+
+---
+
+### O.13 Dua cacat yang lolos 386 tes karena tidak ada yang rusak
+
+**26 Agustus 2026, terlihat pertama kali di peramban Product Owner.**
+
+1. **Dua kolom pencarian berdiri bersamaan.** Bab 10.3 menaruh *Cari nomor
+   resi* di bilah atas; Bab 10.5 memberi tabel saringannya sendiri. Keduanya
+   bekerja, keduanya berisi kata yang sama. Keputusan Product Owner: yang di
+   bilah atas dibuang, diganti judul halaman — yang juga menjadi satu-satunya
+   penanda halaman aktif di bawah 1024 px saat sidebar menjadi laci.
+
+2. **Dasbor berhenti di separuh layar.** Tinggi grafik dulu angka mati 280 px.
+   Kini dihitung dari tinggi jendela, dijepit 260..640 px.
+   ⚠️ `LayoutBuilder`-nya harus berdiri **di luar** `SingleChildScrollView`:
+   di dalamnya tinggi yang tersedia tak terhingga, dan perhitungan apa pun
+   akan selalu jatuh ke batas atas.
+
+🔴 **Pelajaran yang layak diulang:** tes hanya menjawab *"apakah ini bekerja
+seperti yang diperintahkan"*. Yang tidak dapat dijawabnya: *"apakah
+perintahnya masuk akal dilihat manusia"*. Dua cacat di atas lolos 386 tes
+karena tidak ada satu pun yang rusak. Terbitkan dan minta Product Owner
+melihatnya sendiri sebelum menumpuk bab berikutnya.
+
+---
+
+### O.14 Login Google di web — komentar yang berbohong tentang kodenya
+
+**Beres 26 Agustus 2026, terbukti di peramban Product Owner, dua akun.**
+
+`Env.oauthRedirectUrl` selalu mengembalikan `id.kamelscan.app://login-callback`,
+termasuk di web — sementara komentar tepat di atasnya sudah menulis *"mobile
+memakai deep link, web memakai URL halaman"* sejak awal.
+
+Gagalnya diam, seperti dua pendahulunya: alamat yang tidak cocok dengan daftar
+*Redirect URLs* **tidak menghasilkan pesan galat apa pun**, Supabase memakai
+Site URL. Ini kali ketiga jebakan yang sama memakan waktu (13 Agustus,
+25 Agustus, dan di sini).
+
+⚠️ Perkiraan awal ± 1–2 jam **terlalu besar**, dan alasannya layak dicatat:
+utangnya tertulis sebagai *"butuh OAuth Client ID jenis Web di Google Cloud
+Console"*, padahal Client ID itu **sudah ada sejak awal** —
+`GOOGLE_WEB_CLIENT_ID` dipakai Android sebagai `serverClientId` (lihat catatan
+pada `Env.googleWebClientId`). Utang yang ditulis tanpa diperiksa ulang
+menaksir dirinya sendiri terlalu mahal.
+
+#### 🔴 Kenapa tidak ada tes yang menangkapnya selama berminggu-minggu
+
+`Env.kIsWebPlatform` adalah `bool.fromEnvironment('dart.library.js_util')` —
+**konstanta waktu kompilasi**. Pada `flutter test` nilainya selalu `false`,
+jadi cabang web tidak pernah dijalankan satu kali pun dan tidak ada yang bisa
+membantah komentarnya.
+
+Kedua cabang kini berupa `Env.oauthRedirectFor(isWeb:)` yang menerima
+parameter, sehingga keduanya dapat diperiksa dari mesin mana pun.
+
+**Aturan umumnya: percabangan `kIsWeb` di dalam getter tidak dapat diuji.
+Pisahkan sebagai fungsi yang menerima `isWeb`, lalu getter-nya sekadar
+memanggil.** Berlaku untuk setiap `kIsWeb` yang menentukan nilai, bukan hanya
+yang ini.
+
+---
+
+### O.15 Layar putih 30 detik saat aplikasi pertama dibuka
+
+**Terukur 26 Agustus 2026, belum dikerjakan.**
+
+| | |
+|---|---|
+| `main.dart.js` | 4,6 MB mentah · **1,3 MB** setelah dipadatkan |
+| Waktu unduh dari jaringan Product Owner | **± 33 detik** |
+| Isi `web/index.html` sebelum aplikasi hidup | **kosong sama sekali** |
+
+Badan `web/index.html` hanya berisi `<script src="flutter_bootstrap.js">`.
+Selama unduhan berlangsung peramban tidak punya apa pun untuk digambar.
+
+Yang kena hanya pengunjung **pertama kali** — kunjungan berikutnya memakai
+simpanan peramban. Tetapi pengunjung pertama kali itu setiap calon pelanggan,
+dan layar putih 30 detik sulit dibedakan dari situs rusak.
+
+**Keputusan Product Owner 26 Agustus 2026: diserahkan ke desainer**, karena ia
+memang hal pertama yang dilihat pelanggan. Briefnya sudah diberikan, lengkap
+dengan lima batasan yang bila dilanggar justru memperparah keadaan — yang
+terpenting: **layar tunggu tidak boleh memanggil berkas lain** (gambar, CSS,
+huruf), karena pada detik itu tidak ada satu pun dari semuanya yang sudah
+terunduh.
+
+⚠️ Memperkecil 4,6 MB itu sendiri adalah pekerjaan lain (± 3–4 jam, hasil
+belum pasti) dan **belum diputuskan**. Jangan mengerjakannya diam-diam sambil
+memasang layar tunggu.
