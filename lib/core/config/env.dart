@@ -104,15 +104,51 @@ class Env {
   /// Daftar izin kini memakai pola `id.kamelscan.app://**` agar seluruh jalur
   /// pada skema ini tercakup dan ketidakcocokan semacam itu tidak terulang.
   static String get emailVerifyRedirectUrl =>
-      kIsWebPlatform ? '$webAppBaseUrl/auth/callback' : oauthRedirectUrl;
+      emailVerifyRedirectFor(isWeb: kIsWebPlatform);
 
   /// `kIsWeb` tanpa mengimpor Flutter — Env harus tetap bisa diuji tanpa
   /// binding widget.
   static const bool kIsWebPlatform = bool.fromEnvironment('dart.library.js_util');
 
   /// Callback OAuth: mobile memakai deep link, web memakai URL halaman.
-  static String get oauthRedirectUrl =>
-      '$authRedirectScheme://login-callback';
+  ///
+  /// 🔴 Sampai 26 Agustus 2026 baris ini **selalu** mengembalikan deep link,
+  /// termasuk di web — komentarnya sudah menjanjikan pemisahan itu sejak
+  /// awal, implementasinya tidak pernah melakukannya. Akibatnya tombol
+  /// *Lanjutkan dengan Google* di peramban mengirim
+  /// `id.kamelscan.app://login-callback` sebagai tujuan, sebuah skema yang
+  /// tidak dimengerti peramban mana pun.
+  ///
+  /// Gagalnya diam, dan itu bagian terburuknya: alamat yang tidak cocok
+  /// dengan daftar *Redirect URLs* **tidak menghasilkan pesan galat apa pun**
+  /// — Supabase memakai Site URL diam-diam. Jebakan yang sama sudah memakan
+  /// waktu tiga kali di proyek ini (13 Agustus, 25 Agustus, dan di sini).
+  ///
+  /// Tujuannya `$webAppBaseUrl/auth/callback`, sama dengan
+  /// [emailVerifyRedirectUrl] — dan itu memang disengaja. Halaman di alamat
+  /// itu sudah menunggu sesi terbentuk lalu menyerahkan tujuannya kepada
+  /// penjagaan rute, persis yang dibutuhkan sesudah kembali dari Google.
+  /// Keduanya dibiarkan sebagai dua nama karena menjawab dua pertanyaan yang
+  /// berbeda; kebetulan berakhir di halaman yang sama.
+  static String get oauthRedirectUrl => oauthRedirectFor(isWeb: kIsWebPlatform);
+
+  /// 🔴 Kedua cabang dipisah sebagai fungsi murni supaya **dapat diuji**.
+  ///
+  /// [kIsWebPlatform] adalah konstanta waktu kompilasi: pada `flutter test`
+  /// nilainya selalu `false`, sehingga cabang web tidak pernah dijalankan satu
+  /// kali pun. Itulah sebabnya cacat di atas hidup berminggu-minggu dengan
+  /// komentar yang menjanjikan hal yang tidak dikerjakan kodenya — tidak ada
+  /// yang bisa membantahnya.
+  ///
+  /// Dengan `isWeb` sebagai parameter, keduanya dapat diperiksa dari mesin
+  /// mana pun.
+  static String oauthRedirectFor({required bool isWeb}) => isWeb
+      ? '$webAppBaseUrl/auth/callback'
+      : '$authRedirectScheme://login-callback';
+
+  /// Lihat [oauthRedirectFor] untuk alasan bentuknya.
+  static String emailVerifyRedirectFor({required bool isWeb}) =>
+      oauthRedirectFor(isWeb: isWeb);
 
   /// Sentry hanya dipasang bila DSN tersedia.
   static bool get sentryEnabled => sentryDsn.isNotEmpty;
