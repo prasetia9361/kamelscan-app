@@ -2915,3 +2915,94 @@ ke alur implicit sambil HP tetap PKCE. Sudah diperiksa dan layak secara teknis �
 `getSessionFromUrl` menyalakan `passwordRecovery` dari `type=recovery` di
 fragmen alamat (gotrue 2.27, `gotrue_client.dart:1058`), jadi layar password
 baru tetap bekerja. Pemicunya bila suatu saat ada pelanggan yang mengeluh.
+
+### O.11 Bab 10.4 — dasbor web: empat keputusan yang tampak sepele
+
+**Dikerjakan 26 Agustus 2026.** Migrasi `27_daily_stats.sql`, dijalankan
+Product Owner lewat Dashboard → SQL Editor (`Success. No rows returned`).
+
+Keempatnya punya sifat yang sama: bila dibalik, hasilnya **grafik yang salah
+tanpa satu pun galat**. Tidak ada yang merah, tidak ada yang berhenti — hanya
+angka yang keliru dan dipercaya.
+
+**1. Hari dikelompokkan menurut waktu Jakarta, di SERVER.**
+
+`scan_date` bertipe `timestamptz`, disimpan UTC. `scan_date::date` memotong hari
+pada pukul 07:00 WIB, sehingga rekaman lembur pukul 23:30 tercatat di hari
+berikutnya — grafiknya berbohong tepat pada jam tersibuk gudang.
+
+Zona ditulis mati `'Asia/Jakarta'`, **bukan** diambil dari peramban. Owner di
+Jakarta dan packer di Makassar harus melihat grafik yang sama persis saat
+saling menelepon; angka yang berubah mengikuti siapa yang membukanya tidak bisa
+dijadikan bahan pembicaraan.
+
+**2. Penyaringan pada `scan_date` mentah, bukan pada hasil konversinya.**
+
+`where (scan_date at time zone 'Asia/Jakarta')::date >= ...` terbaca lebih rapi
+dan **membuang indeks `idx_videos_tenant_date`**: nilainya harus dihitung dulu
+untuk tiap baris sebelum dapat dibandingkan. Konversi hanya boleh muncul di
+`group by`.
+
+**3. Hari kosong dikirim sebagai nol (`generate_series`).**
+
+Tanpa itu, hari tanpa rekaman hilang dari hasil dan grafik menyambung
+20 Agustus langsung ke 24 Agustus — libur tampak seperti hari kerja biasa.
+
+**4. Perubahan dikirim sebagai angka mentah, bukan persen.**
+
+Naik dari 0 ke 40 bukan "naik 100%" dan bukan "tidak berubah": kenaikannya
+tidak terdefinisi. SQL hanya bisa mengirim NULL; yang tahu cara menuliskannya
+("belum ada pembanding") adalah layar. `DailyStats._change` mengembalikan
+`null` saat pembaginya nol, dan ada tes yang gagal bila suatu hari ada yang
+"memperbaikinya" menjadi 0 atau 1.
+
+#### Dua jebakan di sisi Dart
+
+🔴 **`DailyStats.peak` adalah garis tertinggi, BUKAN `packing + return`.**
+Grafiknya dua garis terpisah, bukan tumpukan. Memakai jumlah keduanya membuat
+batas atas sumbu hampir dua kali lebih tinggi daripada garis tertingginya, dan
+seluruh grafik memipih ke dasar — terlihat seperti "bisnis sedang sepi".
+
+🔴 **`@JsonKey(name: 'return')` wajib, dan melanggar dua aturan sekaligus.**
+`return` kata kunci Dart sehingga field tidak boleh bernama itu, dan
+`field_rename: snake` di `build.yaml` akan mencari `return_count` — kunci yang
+tidak pernah dikirim server. Bila anotasinya hilang, **angka return diam-diam
+menjadi nol**. Ada tes khusus (`daily_stats_test.dart`) yang gagal bila itu
+terjadi.
+
+#### Yang sengaja berbeda dari Beranda, jangan "diseragamkan"
+
+Angka dasbor **tidak akan sama** dengan kartu monitoring Beranda. Beranda
+menghitung sejak `token_wallets.period_start` karena menjawab *"jatah saya
+tinggal berapa"* (keputusan Product Owner 18 Agustus 2026, uraiannya di
+`20_home_stats.sql`); dasbor menghitung per hari kalender karena ia alat
+analisis. Keduanya benar untuk pertanyaannya masing-masing.
+
+#### Kondisi kosong sengaja tidak menyembunyikan pemilih rentang
+
+Sebab tersering dasbor kosong bukan "belum pernah merekam", melainkan rentang
+7 hari yang kebetulan sepi. Layar kosong yang menyembunyikan tombol 30/90 hari
+menghilangkan satu-satunya jalan keluar yang dibutuhkan orang itu. Kartu dan
+pemilih tetap berdiri; hanya grafiknya yang diganti ajakan.
+
+#### fl_chart 1.2.0 — API-nya berbeda dari hampir semua contoh di internet
+
+Proyek ini memakai `fl_chart: ^1.2.0`, sementara Bab 4.2 menulis `^0.68.0`
+(deviasi lama). Yang berubah dan sempat memakan waktu:
+
+| Contoh lama (0.6x) | 1.2.0 |
+|---|---|
+| `LineTouchTooltipData(tooltipBgColor: ...)` | `getTooltipColor: (spot) => ...` |
+| `SideTitleWidget(axisSide: meta.axisSide)` | `SideTitleWidget(meta: meta)` |
+
+Keduanya diperiksa langsung di `~/AppData/Local/Pub/Cache/hosted/pub.dev/fl_chart-1.2.0/`,
+bukan ditebak dari ingatan.
+
+#### Aksesibilitas
+
+Garis return digambar putus-putus (`dashArray: [5, 4]`) dan perubahan memakai
+panah naik/turun, bukan warna saja — `palet_warna_dan_tipografi.md` §7 butir 3
+dan Bab 9.10. Keterangan grafiknya ikut menggambar pola garisnya, supaya
+keterangan dan garis benar-benar terlihat sama.
+
+**358 tes hijau, analyze bersih. Belum diuji di peramban.**

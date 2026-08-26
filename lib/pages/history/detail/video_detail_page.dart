@@ -21,9 +21,29 @@ import 'widgets/video_player_box.dart';
 /// Susunannya mengikuti acuan Product Owner 18 Agustus 2026: pemutar di atas,
 /// tombol unduh, kartu metadata berpasangan label–nilai, lalu tombol hapus.
 class VideoDetailPage extends ConsumerStatefulWidget {
-  const VideoDetailPage({super.key, required this.videoId});
+  const VideoDetailPage({
+    super.key,
+    required this.videoId,
+    this.embedded = false,
+    this.onClose,
+  });
 
   final String videoId;
+
+  /// Dipasang di dalam panel samping tabel Riwayat web (Bab 10.5), bukan
+  /// sebagai halaman tersendiri.
+  ///
+  /// 🔴 Bila `true`, bilah judulnya dilepas — panelnya sudah punya judul dan
+  /// tombol tutup sendiri, dan dua bilah judul bertumpuk terbaca seperti dua
+  /// halaman yang saling menimpa.
+  final bool embedded;
+
+  /// Dipanggil setelah videonya dihapus saat [embedded].
+  ///
+  /// 🔴 Wajib ada. Sebagai halaman, penghapusan diakhiri `Navigator.pop()`;
+  /// di dalam panel tidak ada apa pun untuk di-*pop*, dan memanggilnya akan
+  /// melempar pengguna keluar dari seluruh cabang Riwayat.
+  final VoidCallback? onClose;
 
   @override
   ConsumerState<VideoDetailPage> createState() => _VideoDetailPageState();
@@ -41,7 +61,9 @@ class _VideoDetailPageState extends ConsumerState<VideoDetailPage> {
     final async = ref.watch(videoDetailViewModelProvider(widget.videoId));
 
     return Scaffold(
-      appBar: AppBar(title: Text(t.videoDetailTitle)),
+      appBar: widget.embedded
+          ? null
+          : AppBar(title: Text(t.videoDetailTitle)),
       body: switch (async) {
         AsyncValue(:final value?) => _Body(
             data: value,
@@ -198,6 +220,13 @@ class _VideoDetailPageState extends ConsumerState<VideoDetailPage> {
       return;
     }
     messenger.showSnackBar(SnackBar(content: Text(t.videoDetailDeleted)));
+
+    // Di dalam panel samping tidak ada halaman untuk ditutup — yang harus
+    // ditutup adalah panelnya, dan hanya pemiliknya yang tahu caranya.
+    if (widget.embedded) {
+      widget.onClose?.call();
+      return;
+    }
     navigator.pop();
   }
 }

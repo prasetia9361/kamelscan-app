@@ -39,6 +39,40 @@ class VideoFilter {
       to == null;
 }
 
+/// Kolom yang boleh dipakai mengurutkan tabel Riwayat web (Bab 10.5).
+///
+/// 🔴 Seluruhnya kolom milik `package_videos` sendiri. Nama toko dan nama
+/// packer memang **ditampilkan** di tabel, tetapi keduanya datang dari
+/// embedding PostgREST — mengurutkan berdasarkan kolom tabel tetangga menuntut
+/// sintaks yang belum pernah dibuktikan pada proyek ini, dan bila salah ia
+/// gagal dengan cara yang paling merepotkan: server mengabaikannya dan
+/// mengembalikan urutan bawaan, tanpa satu pun pesan. Kolomnya lebih baik
+/// tidak dapat diurutkan daripada tampak dapat diurutkan tetapi diam saja.
+enum HistorySort {
+  date('scan_date'),
+  resi('resi_code'),
+  type('type'),
+  status('status'),
+  duration('duration_seconds');
+
+  const HistorySort(this.column);
+
+  final String column;
+}
+
+/// Satu halaman tabel Riwayat beserta jumlah seluruh barisnya (Bab 10.5).
+class HistoryPageResult {
+  const HistoryPageResult({required this.items, required this.total});
+
+  final List<HistoryItem> items;
+
+  /// Jumlah baris yang cocok dengan filternya — **seluruhnya**, bukan hanya
+  /// yang ada di halaman ini. Inilah yang membedakan tabel web dari gulir tak
+  /// berujung di HP: tanpa angka ini, nomor halaman terakhir tidak dapat
+  /// dihitung dan tombol "berikutnya" hanya bisa menebak.
+  final int total;
+}
+
 /// Hasil `create-public-link` (Bab 8.8).
 class PublicLink {
   const PublicLink({required this.url, this.expiresAt, this.reused = false});
@@ -117,27 +151,12 @@ class VideoRepository {
     int pageSize = AppConstants.historyPageSize,
   }) async {
     try {
-      var query = _client.from(AppConstants.tblPackageVideos).select(
-            '*, shops(shop_name, market_name), users(full_name)',
-          );
-
-      if (filter.shopId != null) query = query.eq('shop_id', filter.shopId!);
-      if (filter.userId != null) query = query.eq('user_id', filter.userId!);
-      if (filter.type != null) query = query.eq('type', filter.type!.wire);
-      if (filter.status != null) {
-        query = query.eq('status', filter.status!.wire);
-      } else {
-        query = query.neq('status', VideoStatus.deleted.wire);
-      }
-      if (filter.resiQuery != null && filter.resiQuery!.isNotEmpty) {
-        query = query.ilike('resi_code', '%${filter.resiQuery}%');
-      }
-      if (filter.from != null) {
-        query = query.gte('scan_date', filter.from!.toUtc().toIso8601String());
-      }
-      if (filter.to != null) {
-        query = query.lte('scan_date', filter.to!.toUtc().toIso8601String());
-      }
+      final query = _applyFilter(
+        _client.from(AppConstants.tblPackageVideos).select(
+              '*, shops(shop_name, market_name), users(full_name)',
+            ),
+        filter,
+      );
 
       final rows = await query
           .order('scan_date', ascending: false)
@@ -145,6 +164,95 @@ class VideoRepository {
 
       return Result.ok(
         rows.map((r) => HistoryItem.fromJson(r)).toList(growable: false),
+      );
+    } on Object catch (e, s) {
+      return Result.err(SupabaseService.mapError(e, s));
+    }
+  }
+
+  /// Penyaringan yang dipakai bersama [fetchHistory] dan [fetchHistoryPage].
+  ///
+  /// 🔴 Dipisah supaya keduanya tidak bisa menyimpang. Tabel web dan daftar HP
+  /// membaca tabel yang sama dengan filter yang sama; bila aturannya disalin,
+  /// satu perbaikan di salah satu sisi akan membuat kedua layar menampilkan
+  /// jumlah baris yang berbeda untuk pencarian yang sama — dan yang melihatnya
+  /// akan menduga datanya yang hilang.
+  static PostgrestFilterBuilder<T> _applyFilter<T>(
+    PostgrestFilterBuilder<T> source,
+    VideoFilter filter,
+  ) {
+    var query = source;
+    if (filter.shopId != null) query = query.eq('shop_id', filter.shopId!);
+    if (filter.userId != null) query = query.eq('user_id', filter.userId!);
+    if (filter.type != null) query = query.eq('type', filter.type!.wire);
+    if (filter.status != null) {
+      query = query.eq('status', filter.status!.wire);
+    } else {
+      query = query.neq('status', VideoStatus.deleted.wire);
+    }
+    if (filter.resiQuery != null && filter.resiQuery!.isNotEmpty) {
+      query = query.ilike('resi_code', '%${filter.resiQuery}%');
+    }
+    if (filter.from != null) {
+      query = query.gte('scan_date', filter.from!.toUtc().toIso8601String());
+    }
+    if (filter.to != null) {
+      query = query.lte('scan_date', filter.to!.toUtc().toIso8601String());
+    }
+    return query;
+  }
+
+  /// Satu halaman tabel Riwayat web, beserta jumlah seluruh barisnya
+  /// (Bab 10.5).
+  ///
+  /// Dipisahkan dari [fetchHistory] dengan sengaja, bukan karena malas
+  /// menggabungkan. Keduanya menjawab bentuk layar yang berbeda:
+  ///
+  ///   - HP menumpuk halaman demi halaman dan tidak pernah membutuhkan jumlah
+  ///     total. Menghitung `count` di sana berarti satu kerja tambahan di
+  ///     server pada setiap gulir, di jaringan gudang, untuk angka yang tidak
+  ///     pernah ditampilkan.
+  ///   - Web menampilkan satu halaman utuh dan **wajib** tahu totalnya untuk
+  ///     menggambar nomor halaman terakhir.
+  Future<Result<HistoryPageResult>> fetchHistoryPage({
+    VideoFilter filter = const VideoFilter(),
+    int page = 0,
+    int pageSize = AppConstants.webHistoryPageSize,
+    HistorySort sort = HistorySort.date,
+    bool ascending = false,
+  }) async {
+    try {
+      final query = _applyFilter(
+        _client.from(AppConstants.tblPackageVideos).select(
+              '*, shops(shop_name, market_name), users(full_name)',
+            ),
+        filter,
+      );
+
+      final response = await query
+          .order(sort.column, ascending: ascending)
+          // 🔴 Pemecah seri yang WAJIB ada, dan alasannya tidak kelihatan
+          // sampai ada yang mengeluh.
+          //
+          // Mengurutkan menurut `type` atau `status` menghasilkan ribuan baris
+          // yang nilainya sama persis. Urutan di antara baris-baris itu tidak
+          // dijamin PostgreSQL dan boleh berbeda pada setiap permintaan —
+          // sehingga satu video dapat muncul di halaman 2 **dan** halaman 3,
+          // sementara video lain tidak muncul di mana pun. Bukti packing yang
+          // "hilang" saat dicari adalah kegagalan terburuk aplikasi ini.
+          //
+          // `id` unik, jadi urutannya menjadi pasti.
+          .order('id', ascending: true)
+          .range(page * pageSize, (page + 1) * pageSize - 1)
+          .count(CountOption.exact);
+
+      return Result.ok(
+        HistoryPageResult(
+          items: response.data
+              .map((r) => HistoryItem.fromJson(r))
+              .toList(growable: false),
+          total: response.count,
+        ),
       );
     } on Object catch (e, s) {
       return Result.err(SupabaseService.mapError(e, s));

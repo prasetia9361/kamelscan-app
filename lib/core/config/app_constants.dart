@@ -97,6 +97,14 @@ class AppConstants {
   static const Duration searchDebounce = Duration(milliseconds: 350);
   static const int historyPageSize = 20;
 
+  /// Baris per halaman pada tabel Riwayat versi web (Bab 10.5).
+  ///
+  /// Lebih besar daripada [historyPageSize] karena bentuknya berbeda: HP
+  /// memakai gulir tak berujung pada kartu setinggi ± 88 px, sedangkan tabel
+  /// web menampilkan baris setinggi ± 52 px pada layar yang jauh lebih tinggi.
+  /// Dua puluh baris menyisakan setengah layar kosong di bawah tabel.
+  static const int webHistoryPageSize = 25;
+
   /// Ambang indikator token (Bab 7.3).
   static const double tokenWarningRatio = 0.20;
   static const double tokenCriticalRatio = 0.05;

@@ -36,6 +36,7 @@ import '../pages/shops/shops_page.dart';
 import '../pages/splash/splash_page.dart';
 import '../pages/tutorial/tutorial_page.dart';
 import '../pages/web/dashboard/web_dashboard_page.dart';
+import '../pages/web/history/web_history_page.dart';
 import 'route_guards.dart';
 import 'route_names.dart';
 import 'shells/mobile_shell.dart';
@@ -205,12 +206,26 @@ GoRouter appRouter(Ref ref) {
                 path: Routes.history,
                 // Filter jenis dibawa di query oleh kartu Beranda yang
                 // ditekan (Bab 9.2). Kosong berarti tanpa penyaringan.
-                builder: (_, state) => HistoryPage(
-                  typeWire: state.uri.queryParameters['type'] ?? '',
-                  // Bab 10.3 — kolom *Cari resi* di bilah atas web mendarat
-                  // di sini. Kosong berarti dibuka lewat menu biasa.
-                  initialQuery: state.uri.queryParameters['q'] ?? '',
-                ),
+                // 🔴 Dua halaman untuk satu alamat, dan itu disengaja
+                // (Bab 10.5). Keduanya membaca tabel dan filter yang sama,
+                // tetapi bentuknya berbeda secara mendasar: HP memakai gulir
+                // tak berujung, web memakai tabel berhalaman bernomor yang
+                // wajib tahu jumlah total barisnya. Memaksa satu halaman
+                // melayani keduanya berarti HP ikut menanggung perhitungan
+                // `count` pada tiap gulir, di jaringan gudang, untuk angka
+                // yang tidak pernah ditampilkan di sana.
+                builder: (_, state) => kIsWeb
+                    ? WebHistoryPage(
+                        typeWire: state.uri.queryParameters['type'] ?? '',
+                        initialQuery: state.uri.queryParameters['q'],
+                      )
+                    : HistoryPage(
+                        typeWire: state.uri.queryParameters['type'] ?? '',
+                        // Bab 10.3 — kolom *Cari resi* di bilah atas web
+                        // mendarat di sini. Kosong berarti dibuka lewat menu
+                        // biasa.
+                        initialQuery: state.uri.queryParameters['q'] ?? '',
+                      ),
                 routes: [
                   GoRoute(
                     path: ':id',
