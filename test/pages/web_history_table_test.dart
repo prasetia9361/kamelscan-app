@@ -100,12 +100,15 @@ void main() {
     testWidgets('ketujuh kolom tampil pada 1400', (tester) async {
       await pasang(tester, lebar: 1400, isi: data());
 
-      expect(find.text('Tanggal'), findsOneWidget);
       expect(find.text('Resi'), findsOneWidget);
       expect(find.text('Toko'), findsOneWidget);
       expect(find.text('Packer'), findsOneWidget);
       expect(find.text('Durasi'), findsOneWidget);
       expect(find.text('Aksi'), findsOneWidget);
+
+      // "Tanggal" juga dua kali — judul kolom dan label saringan rentang
+      // tanggal di atasnya, sama seperti Tipe dan Status.
+      expect(find.text('Tanggal'), findsNWidgets(2));
 
       // "Tipe" dan "Status" muncul DUA kali dan itu benar: sekali sebagai
       // judul kolom, sekali sebagai label menu saringan di atasnya. Keduanya
@@ -126,7 +129,7 @@ void main() {
       expect(find.text('Durasi'), findsNothing);
 
       // Yang wajib bertahan sampai kapan pun tabelnya masih tabel.
-      expect(find.text('Tanggal'), findsOneWidget);
+      expect(find.text('Tanggal'), findsNWidgets(2));
       expect(find.text('Resi'), findsOneWidget);
       expect(find.text('Status'), findsNWidgets(2));
       expect(tester.takeException(), isNull);
@@ -225,8 +228,10 @@ void main() {
         isi: data(),
       );
 
-      expect(find.text('Tanggal'), findsNothing);
+      // Yang tersisa hanya label saringan, bukan judul kolom.
+      expect(find.text('Tanggal'), findsOneWidget);
       expect(find.text('Packer'), findsNothing);
+      expect(find.text('Aksi'), findsNothing);
       // Resinya justru harus tetap ada — ia isi kartunya.
       expect(find.text('JX000000000'), findsOneWidget);
       expect(tester.takeException(), isNull);
@@ -234,7 +239,7 @@ void main() {
 
     testWidgets('tepat di 768 masih berbentuk tabel', (tester) async {
       await pasang(tester, lebar: WebShell.cardBreakpoint, isi: data());
-      expect(find.text('Tanggal'), findsOneWidget);
+      expect(find.text('Tanggal'), findsNWidgets(2));
     });
 
     testWidgets('bilah saringan tidak meluber pada 420', (tester) async {

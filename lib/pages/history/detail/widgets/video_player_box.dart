@@ -33,6 +33,19 @@ class VideoPlayerBox extends StatefulWidget {
   final String? disabledReason;
   final Future<void> Function() onPlay;
 
+  /// 🔴 Perbandingan kotak **sebelum** videonya dimuat: 9:16, bukan 16:9.
+  ///
+  /// Seluruh rekaman aplikasi ini tegak — packer memegang HP tegak saat
+  /// merekam, dipastikan Product Owner 26 Agustus 2026. Sesudah video terbuka,
+  /// perbandingan diambil dari berkasnya sendiri, jadi angka ini hanya berlaku
+  /// pada saat menunggu.
+  ///
+  /// Dulu 16:9, dan akibatnya dua hal yang keduanya terlihat murahan: kotak
+  /// hitam mendatar lebar yang isinya cuma tombol putar, lalu **layar
+  /// melompat** begitu videonya siap dan kotaknya berubah tegak. Yang kedua
+  /// itu terjadi tepat saat pengguna sedang mengarahkan tetikus ke tombol.
+  static const double rasioTegak = 9 / 16;
+
   @override
   State<VideoPlayerBox> createState() => _VideoPlayerBoxState();
 }
@@ -102,8 +115,8 @@ class _VideoPlayerBoxState extends State<VideoPlayerBox> {
       borderRadius: BorderRadius.circular(12),
       child: AspectRatio(
         aspectRatio: chewie != null
-            ? (_controller?.value.aspectRatio ?? 16 / 9)
-            : 16 / 9,
+            ? (_controller?.value.aspectRatio ?? VideoPlayerBox.rasioTegak)
+            : VideoPlayerBox.rasioTegak,
         child: Container(
           color: Colors.black,
           child: chewie != null

@@ -224,6 +224,32 @@ class WebHistoryViewModel extends _$WebHistoryViewModel {
   void selectStatus(VideoStatus? status) =>
       _ubahFilter(gantiStatus: true, status: status);
 
+  void selectShop(String? shopId) =>
+      _ubahFilter(gantiShop: true, shopId: shopId);
+
+  void selectPacker(String? userId) =>
+      _ubahFilter(gantiPacker: true, userId: userId);
+
+  /// Saringan tanggal, dalam jumlah hari ke belakang. null berarti seluruhnya.
+  ///
+  /// 🔴 Batasnya dihitung dari **tengah malam** hari ini, bukan dari jam
+  /// sekarang. "30 hari terakhir" yang dihitung dari pukul 14.30 memotong
+  /// separuh hari ke-30, sehingga jumlah barisnya berubah-ubah sepanjang hari
+  /// untuk saringan yang tampak sama — dan dua orang yang membukanya pada jam
+  /// berbeda akan melihat angka berbeda.
+  void selectDays(int? hari) {
+    if (hari == null) {
+      _ubahFilter(gantiSejak: true, sejak: null);
+      return;
+    }
+    final sekarang = DateTime.now();
+    final tengahMalam = DateTime(sekarang.year, sekarang.month, sekarang.day);
+    _ubahFilter(
+      gantiSejak: true,
+      sejak: tengahMalam.subtract(Duration(days: hari - 1)),
+    );
+  }
+
   void clearFilters() => _applyFilter(const VideoFilter());
 
   /// Satu-satunya tempat [VideoFilter] baru dirakit di berkas ini.
@@ -241,19 +267,25 @@ class WebHistoryViewModel extends _$WebHistoryViewModel {
     String? resiQuery,
     VideoType? type,
     VideoStatus? status,
+    String? shopId,
+    String? userId,
+    DateTime? sejak,
     bool gantiResi = false,
     bool gantiType = false,
     bool gantiStatus = false,
+    bool gantiShop = false,
+    bool gantiPacker = false,
+    bool gantiSejak = false,
   }) {
     final f = state.value?.filter;
     if (f == null) return;
     _applyFilter(VideoFilter(
       resiQuery: gantiResi ? resiQuery : f.resiQuery,
-      shopId: f.shopId,
+      shopId: gantiShop ? shopId : f.shopId,
       type: gantiType ? type : f.type,
       status: gantiStatus ? status : f.status,
-      userId: f.userId,
-      from: f.from,
+      userId: gantiPacker ? userId : f.userId,
+      from: gantiSejak ? sejak : f.from,
       to: f.to,
     ));
   }

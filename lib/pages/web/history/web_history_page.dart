@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/models/enums.dart';
 import '../../../core/models/history_item.dart';
+import '../../../core/providers/session_provider.dart';
 import '../../../core/repositories/video_repository.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -13,9 +14,11 @@ import '../../../core/widgets/failure_messages.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../../navigation/route_names.dart';
 import '../../../navigation/shells/web_shell.dart';
+import '../../account/packers/packers_view_model.dart';
 import '../../history/detail/video_detail_page.dart';
 import '../../history/widgets/marketplace_badge.dart';
 import '../../history/widgets/video_status_chip.dart';
+import '../../shops/shops_view_model.dart';
 import 'web_history_view_model.dart';
 
 /// Riwayat versi web: tabel terurut, saringan, halaman bernomor, dan panel
@@ -100,6 +103,9 @@ class _WebHistoryPageState extends ConsumerState<WebHistoryPage> {
               onSearch: _vm.search,
               onType: _vm.selectType,
               onStatus: _vm.selectStatus,
+              onShop: _vm.selectShop,
+              onPacker: _vm.selectPacker,
+              onDays: _vm.selectDays,
               onClear: () {
                 _cari.clear();
                 _vm.clearFilters();
@@ -137,13 +143,16 @@ class _WebHistoryPageState extends ConsumerState<WebHistoryPage> {
 // Saringan
 // ---------------------------------------------------------------------------
 
-class _FilterBar extends StatelessWidget {
+class _FilterBar extends ConsumerWidget {
   const _FilterBar({
     required this.controller,
     required this.filter,
     required this.onSearch,
     required this.onType,
     required this.onStatus,
+    required this.onShop,
+    required this.onPacker,
+    required this.onDays,
     required this.onClear,
   });
 
@@ -152,12 +161,35 @@ class _FilterBar extends StatelessWidget {
   final ValueChanged<String> onSearch;
   final ValueChanged<VideoType?> onType;
   final ValueChanged<VideoStatus?> onStatus;
+  final ValueChanged<String?> onShop;
+  final ValueChanged<String?> onPacker;
+  final ValueChanged<int?> onDays;
   final VoidCallback onClear;
 
+  /// Rentang tanggal yang disediakan, dalam hari.
+  static const List<int> rentangHari = [7, 30, 90];
+
+  /// Menerjemahkan `filter.from` kembali menjadi salah satu [rentangHari].
+  ///
+  /// 🔴 Mengembalikan null bila tidak cocok persis dengan salah satunya, dan
+  /// itu bukan kehati-hatian berlebihan: `DropdownButtonFormField` **melempar**
+  /// bila nilai terpilihnya tidak ada di daftar pilihan. Filter yang datang
+  /// dari alamat atau dari keadaan lama akan meruntuhkan seluruh halaman,
+  /// bukan sekadar salah menyorot.
+  static int? hariDari(DateTime? from) {
+    if (from == null) return null;
+    final kini = DateTime.now();
+    final tengahMalam = DateTime(kini.year, kini.month, kini.day);
+    final awal = DateTime(from.year, from.month, from.day);
+    final hari = tengahMalam.difference(awal).inDays + 1;
+    return rentangHari.contains(hari) ? hari : null;
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final t = context.l10n;
     final f = filter;
+    final isOwner = ref.watch(sessionProvider).value?.isOwner ?? false;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 12),
@@ -189,6 +221,25 @@ class _FilterBar extends StatelessWidget {
             ],
             onChanged: onType,
           ),
+
+          // 🔴 Toko dan Packer hanya untuk Owner (Bab 2.2). Bagi packer
+          // keduanya tidak menyaring apa pun yang berarti: ia sudah hanya
+          // melihat rekamannya sendiri, jadi menyaring "menurut packer" adalah
+          // menu berisi satu nama — dirinya.
+          if (isOwner) ...[
+            _PilihanToko(value: f?.shopId, onChanged: onShop),
+            _PilihanPacker(value: f?.userId, onChanged: onPacker),
+          ],
+
+          _Pilihan<int?>(
+            label: t.tableColDate,
+            value: hariDari(f?.from),
+            options: [
+              (null, t.historyFilterAll),
+              for (final h in rentangHari) (h, t.dashboardRangeDays(h)),
+            ],
+            onChanged: onDays,
+          ),
           _Pilihan<VideoStatus?>(
             label: t.tableColStatus,
             value: f?.status,
@@ -209,6 +260,63 @@ class _FilterBar extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+/// Menu turun daftar toko.
+///
+/// ⚠️ Selama daftarnya belum tiba atau gagal diambil, menunya tetap digambar
+/// berisi *Semua* saja — bukan dihilangkan. Bilah saringan yang jumlah
+/// menunya berubah-ubah membuat menu lain berpindah tempat tepat saat hendak
+/// ditekan.
+class _PilihanToko extends ConsumerWidget {
+  const _PilihanToko({required this.value, required this.onChanged});
+
+  final String? value;
+  final ValueChanged<String?> onChanged;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = context.l10n;
+    final daftar = ref.watch(shopsViewModelProvider).value ?? const [];
+
+    // Nilai yang tidak ada di daftar akan MELEMPAR pada DropdownButtonFormField.
+    final ada = daftar.any((s) => s.shop.id == value);
+
+    return _Pilihan<String?>(
+      label: t.tableColShop,
+      value: ada ? value : null,
+      options: [
+        (null, t.historyFilterAll),
+        for (final s in daftar) (s.shop.id, s.shop.shopName),
+      ],
+      onChanged: onChanged,
+    );
+  }
+}
+
+/// Menu turun daftar packer.
+class _PilihanPacker extends ConsumerWidget {
+  const _PilihanPacker({required this.value, required this.onChanged});
+
+  final String? value;
+  final ValueChanged<String?> onChanged;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = context.l10n;
+    final daftar = ref.watch(packersViewModelProvider).value ?? const [];
+    final ada = daftar.any((p) => p.user.id == value);
+
+    return _Pilihan<String?>(
+      label: t.tableColPacker,
+      value: ada ? value : null,
+      options: [
+        (null, t.historyFilterAll),
+        for (final p in daftar) (p.user.id, p.user.fullName),
+      ],
+      onChanged: onChanged,
     );
   }
 }
