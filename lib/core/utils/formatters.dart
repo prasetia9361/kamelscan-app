@@ -38,6 +38,18 @@ class Formatters {
   static String number(num value, {String? locale}) =>
       NumberFormat.decimalPattern(_loc(locale)).format(value);
 
+  /// `26 Agu` — label sumbu grafik dasbor (Bab 10.4).
+  static String dayMonth(DateTime value, {String? locale}) =>
+      DateFormat('d MMM', _loc(locale)).format(value.toLocal());
+
+  /// `3,7` — satu angka di belakang koma.
+  ///
+  /// Dipakai rata-rata per hari di dasbor. Dibulatkan ke bilangan bulat,
+  /// "3,7 video per hari" dan "4,4 video per hari" sama-sama menjadi "4" —
+  /// dua angka yang berbeda 19% ditampilkan sebagai angka yang sama.
+  static String decimal1(num value, {String? locale}) =>
+      NumberFormat('#,##0.0', _loc(locale)).format(value);
+
   /// `12,4 MB`
   static String fileSize(int bytes, {String? locale}) {
     if (bytes < 1024) return '$bytes B';

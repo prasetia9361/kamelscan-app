@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../repositories/admin_repository.dart';
 import '../repositories/auth_repository.dart';
+import '../repositories/dashboard_repository.dart';
 import '../repositories/home_repository.dart';
 import '../repositories/settings_repository.dart';
 import '../repositories/shop_repository.dart';
@@ -124,6 +125,10 @@ TokenRepository tokenRepository(Ref ref) =>
 @Riverpod(keepAlive: true)
 HomeRepository homeRepository(Ref ref) =>
     HomeRepository(ref.watch(supabaseClientProvider));
+
+@Riverpod(keepAlive: true)
+DashboardRepository dashboardRepository(Ref ref) =>
+    DashboardRepository(ref.watch(supabaseClientProvider));
 
 @Riverpod(keepAlive: true)
 SettingsRepository settingsRepository(Ref ref) =>
