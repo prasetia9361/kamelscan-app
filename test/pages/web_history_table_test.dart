@@ -105,6 +105,7 @@ void main() {
       expect(find.text('Toko'), findsOneWidget);
       expect(find.text('Packer'), findsOneWidget);
       expect(find.text('Durasi'), findsOneWidget);
+      expect(find.text('Aksi'), findsOneWidget);
 
       // "Tipe" dan "Status" muncul DUA kali dan itu benar: sekali sebagai
       // judul kolom, sekali sebagai label menu saringan di atasnya. Keduanya
@@ -181,8 +182,12 @@ void main() {
 
       // "1–25 dari 431" menjawab pertanyaan yang benar-benar diajukan orang
       // saat menelusuri bukti: berapa banyak lagi yang tersisa.
-      expect(find.text('1–25 dari 431'), findsOneWidget);
-      expect(find.text('Halaman 1 dari 18'), findsOneWidget);
+      expect(find.text('Menampilkan 1–25 dari 431 video'), findsOneWidget);
+
+      // Nomor halaman digambar, bukan sekadar "halaman 1 dari 18".
+      expect(find.text('1'), findsOneWidget);
+      expect(find.text('18'), findsOneWidget);
+      expect(find.text('…'), findsOneWidget);
     });
 
     testWidgets('tombol mundur mati di halaman pertama', (tester) async {
@@ -208,7 +213,7 @@ void main() {
         ),
       );
       expect(maju.onPressed, isNull);
-      expect(find.text('26–30 dari 30'), findsOneWidget);
+      expect(find.text('Menampilkan 26–30 dari 30 video'), findsOneWidget);
     });
   });
 

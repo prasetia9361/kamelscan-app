@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kamelscan/core/repositories/video_repository.dart';
+import 'package:kamelscan/pages/web/history/web_history_page.dart';
 import 'package:kamelscan/pages/web/history/web_history_view_model.dart';
 
 /// Hitungan halaman tabel Riwayat web (Bab 10.5).
@@ -99,6 +100,54 @@ void main() {
       for (final s in HistorySort.values) {
         expect(s.column, isNot(contains('(')));
         expect(s.column, isNot(contains('.')));
+      }
+    });
+  });
+  group('Nomor halaman yang digambar', () {
+    // Daftar nomor yang meleset satu mengirim pengguna ke halaman yang salah
+    // tanpa satu pun galat - sama bentuknya dengan cacat menu sidebar
+    // (Bab 10.3), dan sama sulitnya ditemukan dengan mata.
+    List<int?> nomor(int page, int pageCount) =>
+        WebHistoryPagination.nomorHalaman(page: page, pageCount: pageCount);
+
+    test('sedikit halaman digambar seluruhnya, tanpa elipsis', () {
+      expect(nomor(0, 1), [0]);
+      expect(nomor(2, 5), [0, 1, 2, 3, 4]);
+      expect(nomor(3, 7), [0, 1, 2, 3, 4, 5, 6]);
+    });
+
+    test('banyak halaman diringkas dengan elipsis', () {
+      // Bentuk yang digambar desainer: 1 2 3 ... 143
+      expect(nomor(0, 143), [0, 1, 2, null, 142]);
+    });
+
+    test('halaman terakhir meringkas dari sisi sebaliknya', () {
+      expect(nomor(142, 143), [0, null, 140, 141, 142]);
+    });
+
+    test('di tengah, elipsis muncul di kedua sisi', () {
+      expect(nomor(70, 143), [0, null, 69, 70, 71, null, 142]);
+    });
+
+    test('halaman pertama dan terakhir SELALU ada', () {
+      for (final p in [0, 1, 5, 70, 141, 142]) {
+        final hasil = nomor(p, 143);
+        expect(hasil.first, 0, reason: 'halaman $p');
+        expect(hasil.last, 142, reason: 'halaman $p');
+      }
+    });
+
+    test('halaman yang sedang dibuka selalu ikut digambar', () {
+      for (final p in [0, 1, 2, 40, 141, 142]) {
+        expect(nomor(p, 143), contains(p));
+      }
+    });
+
+    test('nomornya selalu menaik dan tidak pernah berulang', () {
+      for (final p in [0, 3, 70, 142]) {
+        final angka = nomor(p, 143).whereType<int>().toList();
+        expect(angka, orderedEquals(angka.toList()..sort()));
+        expect(angka.toSet().length, angka.length);
       }
     });
   });

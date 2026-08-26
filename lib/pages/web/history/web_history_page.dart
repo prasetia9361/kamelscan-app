@@ -107,7 +107,7 @@ class _WebHistoryPageState extends ConsumerState<WebHistoryPage> {
             ),
             Expanded(
               child: async.when(
-                loading: () => const AppListSkeleton(itemCount: 8, itemHeight: 52),
+                loading: () => const AppListSkeleton(itemCount: 8, itemHeight: 56),
                 error: (error, _) => AppErrorView(
                   failure: error,
                   onRetry: _vm.refresh,
@@ -122,6 +122,7 @@ class _WebHistoryPageState extends ConsumerState<WebHistoryPage> {
                   onClosePanel: () => _vm.select(null),
                   onPrev: _vm.previousPage,
                   onNext: _vm.nextPage,
+                  onGoto: _vm.goToPage,
                 ),
               ),
             ),
@@ -273,6 +274,7 @@ class _Isi extends StatelessWidget {
     required this.onClosePanel,
     required this.onPrev,
     required this.onNext,
+    required this.onGoto,
   });
 
   final WebHistoryData data;
@@ -282,6 +284,7 @@ class _Isi extends StatelessWidget {
   final VoidCallback onClosePanel;
   final VoidCallback onPrev;
   final VoidCallback onNext;
+  final ValueChanged<int> onGoto;
 
   @override
   Widget build(BuildContext context) {
@@ -311,7 +314,12 @@ class _Isi extends StatelessWidget {
                     ? _Tabel(data: data, onSort: onSort, onSelect: onSelect)
                     : _Kartu(data: data, onSelect: onSelect),
               ),
-              _Halaman(data: data, onPrev: onPrev, onNext: onNext),
+              _Halaman(
+                data: data,
+                onPrev: onPrev,
+                onNext: onNext,
+                onGoto: onGoto,
+              ),
             ],
           ),
         ),
@@ -335,25 +343,25 @@ class _Isi extends StatelessWidget {
 /// dibuat dapat ditekan: judul yang dapat ditekan tetapi tidak melakukan apa
 /// pun lebih membingungkan daripada judul biasa.
 enum _Kolom {
-  date(flex: 3, sort: HistorySort.date),
-  resi(flex: 3, sort: HistorySort.resi),
-  shop(flex: 3, minWidth: 900),
-  packer(flex: 2, minWidth: 1180),
-  type(flex: 2, sort: HistorySort.type),
-  status(flex: 2, sort: HistorySort.status),
-  duration(flex: 2, sort: HistorySort.duration, minWidth: 1180);
+  resi(lebar: 200, sort: HistorySort.resi),
+  type(lebar: 112, sort: HistorySort.type),
+  shop(lebar: 156),
+  packer(lebar: 140),
+  date(lebar: 176, sort: HistorySort.date),
+  duration(lebar: 88, sort: HistorySort.duration),
+  status(lebar: 160, sort: HistorySort.status),
+  action(lebar: 72);
 
-  const _Kolom({required this.flex, this.sort, this.minWidth = 0});
+  const _Kolom({required this.lebar, this.sort});
 
-  final int flex;
-  final HistorySort? sort;
-
-  /// Lebar isi tabel minimal sebelum kolom ini ikut ditampilkan.
+  /// Lebar rancangan desainer pada isi 1104 px (lebar jendela 1200).
   ///
-  /// Kolom dibuang, bukan dipersempit. Tujuh kolom yang dipaksa muat pada
-  /// 800 px menyisakan ± 100 px per kolom, dan nomor resi — satu-satunya isi
-  /// yang tidak boleh terpotong — akan berakhir sebagai `JX12…`.
-  final double minWidth;
+  /// Dipakai sebagai **perbandingan**, bukan ukuran mati: pada layar lebih
+  /// lebar kolomnya tumbuh menurut perbandingan yang sama, sehingga tabelnya
+  /// mengisi ruang tanpa menyisakan jalur kosong di kanan.
+  final double lebar;
+
+  final HistorySort? sort;
 
   String label(AppL10n t) => switch (this) {
         _Kolom.date => t.tableColDate,
@@ -363,10 +371,42 @@ enum _Kolom {
         _Kolom.type => t.tableColType,
         _Kolom.status => t.tableColStatus,
         _Kolom.duration => t.tableColDuration,
+        _Kolom.action => t.tableColAction,
       };
 
-  static List<_Kolom> visibleFor(double width) =>
-      [for (final k in _Kolom.values) if (width >= k.minWidth) k];
+  /// Jarak kiri-kanan isi tabel.
+  static const double paddingH = 16;
+
+  /// 🔴 Urutan kolom yang dibuang saat ruang menyempit — ditetapkan desainer,
+  /// dan urutannya bukan selera.
+  ///
+  /// Resi, Tipe, Tanggal, dan Status **tidak pernah** dibuang: keempatnya yang
+  /// dibutuhkan saat menangani komplain, dan komplain adalah satu-satunya
+  /// alasan halaman ini dibuka dalam keadaan terburu-buru. Yang dibuang tetap
+  /// dapat dilihat di panel samping.
+  static const List<_Kolom> urutanBuang = [
+    _Kolom.action,
+    _Kolom.duration,
+    _Kolom.packer,
+    _Kolom.shop,
+  ];
+
+  /// Kolom dibuang, bukan dipersempit.
+  ///
+  /// Delapan kolom yang dipaksa muat pada 800 px menyisakan ± 95 px per kolom,
+  /// dan nomor resi — satu-satunya isi yang tidak boleh terpotong — akan
+  /// berakhir sebagai `JX12…`.
+  static List<_Kolom> visibleFor(double tersedia) {
+    final kolom = [..._Kolom.values];
+    double butuh() =>
+        kolom.fold<double>(0, (a, k) => a + k.lebar) + paddingH * 2;
+
+    for (final k in urutanBuang) {
+      if (butuh() <= tersedia) break;
+      kolom.remove(k);
+    }
+    return kolom;
+  }
 }
 
 class _Tabel extends StatelessWidget {
@@ -432,13 +472,15 @@ class _BarisJudul extends StatelessWidget {
         color: scheme.surfaceContainerHighest,
         border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      height: 44,
+      padding: const EdgeInsets.symmetric(horizontal: _Kolom.paddingH),
+      // Tinggi kepala 48 dan baris 56 — angka rancangan desainer. Baris 56
+      // dipilih supaya tombol aksi 48x48 muat utuh dengan sisa 4 px.
+      height: 48,
       child: Row(
         children: [
           for (final k in kolom)
             Expanded(
-              flex: k.flex,
+              flex: k.lebar.round(),
               child: _JudulKolom(
                 label: k.label(t),
                 sort: k.sort,
@@ -493,6 +535,21 @@ class _JudulKolom extends StatelessWidget {
             size: 14,
             color: scheme.primary,
           ),
+        ]
+        // 🔴 Kolom yang BISA diurutkan tetapi belum dipakai memakai panah dua
+        // arah abu-abu (rancangan desainer butir 5).
+        //
+        // Tanpa itu, kolom yang dapat diklik terlihat persis sama dengan yang
+        // tidak — dan pengurutan yang tidak pernah ditemukan sama saja dengan
+        // pengurutan yang tidak ada. Ini juga yang membedakannya dari Toko dan
+        // Packer, yang memang sengaja tidak dapat diurutkan.
+        else if (sort != null) ...[
+          const SizedBox(width: 2),
+          Icon(
+            Icons.unfold_more_rounded,
+            size: 14,
+            color: scheme.outlineVariant,
+          ),
         ],
       ],
     );
@@ -524,16 +581,25 @@ class _BarisData extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.l10n;
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final colors = theme.extension<AppColors>()!;
     final video = item.video;
 
+    // Video kedaluwarsa atau terhapus: barisnya diredupkan, bukan disembunyikan
+    // (rancangan desainer butir 7). Ia masih bukti bahwa rekamannya PERNAH ada
+    // — dan itu justru yang ditanyakan saat sengketa tiba terlambat.
+    final pudar = video.status == VideoStatus.expired ||
+        video.status == VideoStatus.deleted;
+
     return InkWell(
       onTap: onTap,
-      child: Container(
-        height: 52,
-        padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Opacity(
+        opacity: pudar ? 0.55 : 1,
+        child: Container(
+        height: 56,
+        padding: const EdgeInsets.symmetric(horizontal: _Kolom.paddingH),
         decoration: BoxDecoration(
           color: selected ? scheme.primaryContainer : null,
           border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
@@ -542,7 +608,7 @@ class _BarisData extends StatelessWidget {
           children: [
             for (final k in kolom)
               Expanded(
-                flex: k.flex,
+                flex: k.lebar.round(),
                 child: switch (k) {
                   _Kolom.date => Text(
                       Formatters.shortDateTime(video.scanDate),
@@ -595,10 +661,25 @@ class _BarisData extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodyMedium,
                     ),
+                  // Membuka panel yang sama dengan menekan barisnya. Ada
+                  // sebagai tombol tersendiri karena baris tabel tidak
+                  // terlihat dapat ditekan — tidak ada satu pun tanda visual
+                  // yang mengatakannya, dan yang tidak tahu akan mengira
+                  // halaman ini hanya daftar bacaan.
+                  _Kolom.action => Align(
+                      alignment: Alignment.centerLeft,
+                      child: IconButton(
+                        onPressed: onTap,
+                        visualDensity: VisualDensity.compact,
+                        tooltip: t.tableOpenDetail,
+                        icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                      ),
+                    ),
                 },
               ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -619,12 +700,19 @@ class _TipeChip extends StatelessWidget {
     final t = context.l10n;
     final packing = type == VideoType.packing;
     final warna = packing ? colors.packing : colors.returnColor;
-    final latar = packing ? colors.packingContainer : colors.returnContainer;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: latar,
+        // 🔴 Packing berisi penuh, Retur bergaris tepi. Bentuknya sengaja
+        // berbeda, bukan hanya warnanya.
+        //
+        // Rancangan desainer butir 6: tipe dibedakan TIGA cara sekaligus —
+        // bentuk, ikon, dan teks. Warna saja gagal bagi pengguna buta warna,
+        // dan biru-ungu adalah pasangan yang paling sering tertukar
+        // (`palet_warna_dan_tipografi.md` §7 butir 3).
+        color: packing ? colors.packingContainer : Colors.transparent,
+        border: packing ? null : Border.all(color: warna, width: 1.2),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -638,12 +726,20 @@ class _TipeChip extends StatelessWidget {
             color: warna,
           ),
           const SizedBox(width: 4),
-          Text(
-            packing ? t.videoTypePacking : t.videoTypeReturn,
-            style: Theme.of(context)
-                .textTheme
-                .labelMedium
-                ?.copyWith(color: warna),
+          // 🔴 `Flexible`, bukan `Text` telanjang. `mainAxisSize.min` membuat
+          // chip menuntut lebar aslinya dan menolak menyusut; pada kolom yang
+          // sempit ia meluber — tertangkap tes pada lebar 768 dengan selisih
+          // 0,29 piksel, cukup untuk menghasilkan garis kuning-hitam.
+          Flexible(
+            child: Text(
+              packing ? t.videoTypePacking : t.videoTypeReturn,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context)
+                  .textTheme
+                  .labelMedium
+                  ?.copyWith(color: warna),
+            ),
           ),
         ],
       ),
@@ -788,26 +884,86 @@ class _PanelSamping extends StatelessWidget {
 // Halaman bernomor
 // ---------------------------------------------------------------------------
 
+/// Deret nomor halaman pada kaki tabel Riwayat (Bab 10.5).
+///
+/// 🔴 Berdiri sebagai kelas tersendiri supaya **dapat diuji**. Daftar nomor
+/// yang meleset satu mengirim pengguna ke halaman yang salah tanpa satu pun
+/// galat — bentuk kegagalan yang sama dengan cacat menu sidebar Bab 10.3, dan
+/// sama sulitnya ditemukan dengan mata: yang terlihat hanyalah deretan angka
+/// yang tampak masuk akal.
+class WebHistoryPagination {
+  const WebHistoryPagination._();
+
+  /// Berapa nomor yang digambar sebelum diringkas dengan elipsis.
+  static const int ambangRingkas = 7;
+
+  /// Nomor halaman yang digambar; `null` berarti elipsis.
+  ///
+  /// 🔴 Fungsi murni supaya dapat diuji. Daftar nomor yang meleset satu
+  /// mengirim pengguna ke halaman yang salah **tanpa satu pun galat** — sama
+  /// bentuknya dengan cacat menu sidebar (Bab 10.3), dan sama sulitnya
+  /// ditemukan dengan mata.
+  ///
+  /// Nomor di sini berbasis nol; layar menambahkan satu saat menuliskannya.
+  static List<int?> nomorHalaman({required int page, required int pageCount}) {
+    if (pageCount <= ambangRingkas) {
+      return [for (var i = 0; i < pageCount; i++) i];
+    }
+
+    // Halaman pertama dan terakhir selalu ada: keduanya tujuan yang paling
+    // sering diminta ("dari awal", "yang paling lama").
+    final terpilih = <int>{0, pageCount - 1, page};
+    for (final geser in [-1, 1]) {
+      terpilih.add(page + geser);
+    }
+    // Di dekat ujung, deretnya dipanjangkan ke dalam supaya jumlah tombolnya
+    // tidak berubah-ubah saat berpindah halaman — tombol yang berpindah
+    // tempat justru tertekan keliru.
+    if (page <= 2) terpilih.addAll([1, 2]);
+    if (page >= pageCount - 3) {
+      terpilih.addAll([pageCount - 2, pageCount - 3]);
+    }
+
+    final urut = terpilih.where((n) => n >= 0 && n < pageCount).toList()..sort();
+
+    final hasil = <int?>[];
+    int? sebelumnya;
+    for (final n in urut) {
+      if (sebelumnya != null && n - sebelumnya > 1) hasil.add(null);
+      hasil.add(n);
+      sebelumnya = n;
+    }
+    return hasil;
+  }
+
+}
+
 class _Halaman extends StatelessWidget {
   const _Halaman({
     required this.data,
     required this.onPrev,
     required this.onNext,
+    required this.onGoto,
   });
 
   final WebHistoryData data;
   final VoidCallback onPrev;
   final VoidCallback onNext;
+  final ValueChanged<int> onGoto;
 
   @override
   Widget build(BuildContext context) {
     final t = context.l10n;
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final nomor = WebHistoryPagination.nomorHalaman(
+      page: data.page,
+      pageCount: data.pageCount,
+    );
 
     return Container(
       height: 56,
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      padding: const EdgeInsets.symmetric(horizontal: _Kolom.paddingH),
       decoration: BoxDecoration(
         border: Border(top: BorderSide(color: scheme.outlineVariant)),
       ),
@@ -816,9 +972,9 @@ class _Halaman extends StatelessWidget {
           Expanded(
             child: Text(
               // Angka barisnya ikut ditulis, bukan hanya nomor halaman.
-              // "1–25 dari 431" menjawab pertanyaan yang benar-benar diajukan
-              // orang saat menelusuri bukti: berapa banyak lagi yang tersisa.
-              t.tableRowRange(
+              // "1-25 dari 431 video" menjawab pertanyaan yang benar-benar
+              // diajukan orang saat menelusuri bukti: berapa lagi yang tersisa.
+              t.tableShowingRange(
                 Formatters.number(data.firstRow),
                 Formatters.number(data.lastRow),
                 Formatters.number(data.total),
@@ -834,19 +990,68 @@ class _Halaman extends StatelessWidget {
             tooltip: t.commonBack,
             icon: const Icon(Icons.chevron_left),
           ),
-          Text(
-            t.tablePagePosition(
-              Formatters.number(data.page + 1),
-              Formatters.number(data.pageCount),
-            ),
-            style: theme.textTheme.bodyMedium,
-          ),
+          for (final n in nomor)
+            if (n == null)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: Text('…',
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(color: scheme.onSurfaceVariant)),
+              )
+            else
+              _TombolHalaman(
+                nomor: n,
+                aktif: n == data.page,
+                onTap: () => onGoto(n),
+              ),
           IconButton(
             onPressed: data.hasNext ? onNext : null,
             tooltip: t.commonNext,
             icon: const Icon(Icons.chevron_right),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _TombolHalaman extends StatelessWidget {
+  const _TombolHalaman({
+    required this.nomor,
+    required this.aktif,
+    required this.onTap,
+  });
+
+  final int nomor;
+  final bool aktif;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: InkWell(
+        onTap: aktif ? null : onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          constraints: const BoxConstraints(minWidth: 32),
+          height: 32,
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          decoration: BoxDecoration(
+            color: aktif ? scheme.primary : null,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            Formatters.number(nomor + 1),
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: aktif ? scheme.onPrimary : scheme.onSurfaceVariant,
+            ),
+          ),
+        ),
       ),
     );
   }

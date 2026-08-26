@@ -21,7 +21,15 @@ class VideoStatusChip extends StatelessWidget {
     final colors = theme.extension<AppColors>()!;
 
     final (color, label, icon) = switch (status) {
-      VideoStatus.uploaded => (colors.success, t.videoStatusUploaded, null),
+      // 🔴 Ikonnya dulu `null`. Rancangan desainer Bab 10.5 butir 6: SETIAP
+      // status punya ikon sendiri, bukan sekadar warna berbeda — satu-satunya
+      // status tanpa ikon justru menjadi satu-satunya yang hanya dapat
+      // dibedakan lewat warna.
+      VideoStatus.uploaded => (
+          colors.success,
+          t.videoStatusUploaded,
+          Icons.cloud_done_outlined,
+        ),
       VideoStatus.uploading => (
           colors.packing,
           t.videoStatusUploading,
@@ -58,13 +66,21 @@ class VideoStatusChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (icon != null) ...[
-            Icon(icon, size: 12, color: color),
-            const SizedBox(width: 4),
-          ],
-          Text(
-            label,
-            style: theme.textTheme.labelSmall?.copyWith(color: color),
+          // Tanpa syarat: keenam status wajib berikon. Yang satu tanpa ikon
+          // akan menjadi satu-satunya yang hanya dapat dibedakan lewat warna.
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          // 🔴 `Flexible` — chip ber-`mainAxisSize.min` menuntut lebar aslinya
+          // dan menolak menyusut. "Menunggu unggah" adalah label terpanjang di
+          // sini, dan di kolom tabel web yang sempit ia meluber. Cacat sebentuk
+          // sudah tertangkap pada chip Tipe (Bab 10.5).
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelSmall?.copyWith(color: color),
+            ),
           ),
         ],
       ),
