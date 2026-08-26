@@ -94,7 +94,9 @@ void main() {
     testWidgets('ketujuh menu terlihat sekaligus', (tester) async {
       await pasang(tester, lebar: 1400);
 
-      expect(find.text('Dasbor'), findsOneWidget);
+      // "Dasbor" muncul dua kali: di sidebar dan sebagai judul bilah atas —
+      // halaman yang sedang terbuka. Sisanya sekali.
+      expect(find.text('Dasbor'), findsNWidgets(2));
       expect(find.text('Toko'), findsOneWidget);
       expect(find.text('Riwayat'), findsOneWidget);
       expect(find.text('Packer'), findsOneWidget);
@@ -109,13 +111,20 @@ void main() {
       expect(find.byIcon(Icons.menu), findsNothing);
     });
 
-    testWidgets('bilah atas memuat kolom cari dan nama pengguna sekaligus',
+    testWidgets('bilah atas memuat judul halaman dan nama pengguna sekaligus',
         (tester) async {
       await pasang(tester, lebar: 1400);
 
-      // Inilah yang hilang pada M.17: kolom teks tergencet habis oleh
+      // 🔴 Kolom *Cari nomor resi* pernah berdiri di sini (Bab 10.3) dan
+      // dibuang 26 Agustus 2026: begitu tabel Riwayat lahir dengan
+      // saringannya sendiri, dua kolom pencarian berisi kata yang sama
+      // berdiri bersamaan di layar. Tidak satu pun tes menangkapnya —
+      // keduanya memang bekerja — dan baru terlihat di peramban Product
+      // Owner. Baris ini yang menjaga agar tidak kembali diam-diam.
+      expect(find.byType(TextField), findsNothing);
+
+      // Inilah yang hilang pada M.17: isi bilah atas tergencet habis oleh
       // tetangganya di dalam Row, dan yang tersisa cuma ikon.
-      expect(find.byType(TextField), findsOneWidget);
       expect(find.text('Budi Santoso'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
@@ -145,7 +154,8 @@ void main() {
       await tester.tap(find.byIcon(Icons.menu));
       await tester.pumpAndSettle();
 
-      expect(find.text('Dasbor'), findsOneWidget);
+      // Lagi-lagi dua: menu di dalam laci, dan judul bilah atas.
+      expect(find.text('Dasbor'), findsNWidgets(2));
       expect(find.text('Toko'), findsOneWidget);
       expect(find.text('Packer'), findsOneWidget);
       expect(find.text('Tutorial'), findsOneWidget);
@@ -156,7 +166,10 @@ void main() {
         (tester) async {
       await pasang(tester, lebar: sempit);
 
-      expect(find.byType(TextField), findsOneWidget);
+      // Judul halaman wajib tetap terbaca justru di lebar ini: sidebar-nya
+      // sudah jadi laci tersembunyi, jadi inilah satu-satunya penanda halaman
+      // mana yang sedang terbuka.
+      expect(find.text('Dasbor'), findsOneWidget);
       // `takeException` menangkap luberan RenderFlex. Bila bilah atasnya
       // melebihi lebar layar, ia tidak diam — ia melempar di sini.
       expect(tester.takeException(), isNull);

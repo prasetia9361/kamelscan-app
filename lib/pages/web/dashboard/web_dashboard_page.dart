@@ -33,31 +33,66 @@ class WebDashboardPage extends ConsumerWidget {
   static const double fourColumnWidth = 900;
   static const double twoColumnWidth = 520;
 
+  /// Batas bawah dan atas tinggi grafik.
+  ///
+  /// Bawah menjaga grafik tetap terbaca di jendela pendek; atas menjaganya
+  /// tetap proporsional di layar tinggi — grafik setinggi 900 px membuat
+  /// naik-turun satu video terlihat seperti perubahan besar.
+  static const double minChartHeight = 260;
+  static const double maxChartHeight = 640;
+
+  /// Tinggi yang dipakai bagian halaman selain grafiknya sendiri: padding 48,
+  /// kepala halaman 60, dua jarak 20, kartu 132, dan bingkai kotak grafik 84.
+  static const double chartChromeHeight = 364;
+
+  /// 🔴 Tinggi grafik dihitung dari tinggi jendela, bukan angka mati.
+  ///
+  /// Angka mati 280 px membuat dasbor berhenti di separuh layar dan
+  /// menyisakan ruang kosong sebesar itu lagi di bawahnya — terlihat pada
+  /// peramban Product Owner 26 Agustus 2026. Dihitung begini, grafiknya
+  /// memanjang mengisi sisa jendela dan pola hariannya jauh lebih terbaca.
+  static double chartHeightFor(double viewportHeight) =>
+      (viewportHeight - chartChromeHeight)
+          .clamp(minChartHeight, maxChartHeight);
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(webDashboardViewModelProvider);
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _Header(stats: async.value),
-          const SizedBox(height: 20),
-          async.when(
-            loading: () => const _DashboardSkeleton(),
-            error: (error, _) => SizedBox(
-              height: 320,
-              child: AppErrorView(
-                failure: error,
-                onRetry: () =>
-                    ref.read(webDashboardViewModelProvider.notifier).refresh(),
+    // `LayoutBuilder` berdiri DI LUAR gulir. Di dalamnya tinggi yang tersedia
+    // tak terhingga, dan perhitungan apa pun yang memakainya akan selalu
+    // menghasilkan batas atas.
+    return LayoutBuilder(
+      builder: (context, jendela) {
+        final tinggiGrafik = chartHeightFor(jendela.maxHeight);
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _Header(stats: async.value),
+              const SizedBox(height: 20),
+              async.when(
+                loading: () => _DashboardSkeleton(chartHeight: tinggiGrafik),
+                error: (error, _) => SizedBox(
+                  height: tinggiGrafik,
+                  child: AppErrorView(
+                    failure: error,
+                    onRetry: () => ref
+                        .read(webDashboardViewModelProvider.notifier)
+                        .refresh(),
+                  ),
+                ),
+                data: (stats) => _DashboardBody(
+                  stats: stats,
+                  chartHeight: tinggiGrafik,
+                ),
               ),
-            ),
-            data: (stats) => _DashboardBody(stats: stats),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -130,9 +165,10 @@ class _Header extends ConsumerWidget {
 // ---------------------------------------------------------------------------
 
 class _DashboardBody extends StatelessWidget {
-  const _DashboardBody({required this.stats});
+  const _DashboardBody({required this.stats, required this.chartHeight});
 
   final DailyStats stats;
+  final double chartHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -141,7 +177,7 @@ class _DashboardBody extends StatelessWidget {
       children: [
         _SummaryCards(stats: stats),
         const SizedBox(height: 20),
-        _ChartCard(stats: stats),
+        _ChartCard(stats: stats, chartHeight: chartHeight),
       ],
     );
   }
@@ -360,9 +396,10 @@ class _ChangeLabel extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _ChartCard extends StatelessWidget {
-  const _ChartCard({required this.stats});
+  const _ChartCard({required this.stats, required this.chartHeight});
 
   final DailyStats stats;
+  final double chartHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -406,7 +443,7 @@ class _ChartCard extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             SizedBox(
-              height: 280,
+              height: chartHeight,
               child: stats.isEmpty
                   ? AppEmptyState(
                       title: t.dashboardEmptyTitle,
@@ -691,15 +728,25 @@ class _DailyChart extends StatelessWidget {
 /// Bentuknya sengaja menyerupai isi yang akan menggantikannya, supaya halaman
 /// tidak melompat saat datanya tiba.
 class _DashboardSkeleton extends StatelessWidget {
-  const _DashboardSkeleton();
+  const _DashboardSkeleton({required this.chartHeight});
+
+  /// Sama persis dengan tinggi grafik yang akan menggantikannya, supaya
+  /// halaman tidak melompat saat datanya tiba.
+  final double chartHeight;
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    return Column(
       children: [
-        SizedBox(height: 132, child: AppListSkeleton(itemCount: 1, itemHeight: 116)),
-        SizedBox(height: 8),
-        SizedBox(height: 360, child: AppListSkeleton(itemCount: 1, itemHeight: 344)),
+        const SizedBox(
+          height: 132,
+          child: AppListSkeleton(itemCount: 1, itemHeight: 116),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: chartHeight + 84,
+          child: AppListSkeleton(itemCount: 1, itemHeight: chartHeight + 68),
+        ),
       ],
     );
   }

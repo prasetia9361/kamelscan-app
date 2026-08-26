@@ -282,19 +282,29 @@ class _WebTopBar extends ConsumerWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final t = context.l10n;
+    final isOwner = ref.watch(currentRoleProvider) == UserRole.owner;
+    final menu = WebShell.menuFor(isOwner: isOwner);
+    final aktif = WebShell.selectedIndexOf(menu: menu, location: location);
+
     return AppBar(
-      // 🔴 Judulnya kolom pencarian, dan ia WAJIB dibatasi `ConstrainedBox`.
-      // Kolom teks tanpa batas melebar sejauh yang diizinkan induknya, lalu
-      // menggencet `actions` di sebelahnya sampai nol — bentuk lain dari
-      // jebakan lebar tak terhingga yang sudah dua kali memakan waktu di
-      // proyek ini (M.12 dan M.17).
+      // 🔴 Judulnya nama halaman yang sedang dibuka, BUKAN kolom pencarian.
+      //
+      // Sampai 26 Agustus 2026 tempat ini berisi kolom *Cari nomor resi*
+      // (Bab 10.3). Begitu tabel Riwayat lahir dengan saringannya sendiri
+      // (Bab 10.5), dua kolom pencarian berisi kata yang sama berdiri
+      // bersamaan di layar — terlihat langsung pada peramban Product Owner,
+      // dan tidak satu pun tes menangkapnya karena keduanya memang bekerja.
+      // Keputusan Product Owner: yang di bilah atas yang dibuang.
+      //
+      // Nama halaman menggantikannya bukan sekadar untuk mengisi ruang. Di
+      // bawah 1024 px sidebar-nya menjadi laci tersembunyi, dan tanpa baris
+      // ini tidak ada satu pun penanda halaman mana yang sedang terbuka.
       titleSpacing: 16,
-      title: Align(
-        alignment: Alignment.centerLeft,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
-          child: const _ResiSearchField(),
-        ),
+      title: Text(
+        aktif == null ? t.appName : menu[aktif].label(t),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
       ),
       actions: const [
         _SessionChip(),
@@ -302,52 +312,6 @@ class _WebTopBar extends ConsumerWidget implements PreferredSizeWidget {
         _ProfileMenu(),
         SizedBox(width: 12),
       ],
-    );
-  }
-}
-
-/// Bab 10.3 — *"Pencarian resi menonjol di top bar karena ini adalah alur
-/// kerja utama saat menangani komplain."*
-///
-/// Hasilnya dikirim lewat alamat, bukan lewat provider bersama: petugas yang
-/// menangani komplain hampir selalu berdua dengan rekannya, dan alamat yang
-/// dapat disalin menghemat satu putaran pengetikan ulang.
-class _ResiSearchField extends StatefulWidget {
-  const _ResiSearchField();
-
-  @override
-  State<_ResiSearchField> createState() => _ResiSearchFieldState();
-}
-
-class _ResiSearchFieldState extends State<_ResiSearchField> {
-  final TextEditingController _controller = TextEditingController();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _submit(String value) {
-    final q = value.trim();
-    if (q.isEmpty) return;
-    context.go(Routes.historyOf(query: q));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.l10n;
-
-    return TextField(
-      controller: _controller,
-      textInputAction: TextInputAction.search,
-      onSubmitted: _submit,
-      decoration: InputDecoration(
-        isDense: true,
-        hintText: t.historySearchHint,
-        prefixIcon: const Icon(Icons.search_rounded, size: 20),
-        border: const OutlineInputBorder(),
-      ),
     );
   }
 }
