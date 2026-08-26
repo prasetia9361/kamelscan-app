@@ -234,8 +234,17 @@ foreach ($r in @(
 # dihapus dari server - landing page yang baru tidak akan pernah terlihat
 # oleh orang yang sempat membukanya lebih dulu.
 #
-# ⚠️ HAPUS baris ini begitu landing page dipasang di akar.
-$rules += '/  /app/  302'
+# ⚠️ Sejak 26 Agustus 2026 landing page desainer sudah ada di folder `landing`,
+#    jadi aturan ini hanya dipasang bila akar situs benar-benar KOSONG -
+#    misalnya saat membangun tanpa `-Landing`. Diperiksa dari hasil salinannya,
+#    bukan dari ada-tidaknya argumen: yang menentukan adalah apa yang
+#    benar-benar terkirim ke Cloudflare.
+if (-not (Test-Path (Join-Path $out 'index.html'))) {
+    $rules += '/  /app/  302'
+    Write-Host "Akar situs kosong - dilempar ke /app/ (302)." -ForegroundColor Yellow
+} else {
+    Write-Host "Landing page menempati akar situs." -ForegroundColor Green
+}
 
 $isi = ($rules -join "`n") + "`n"
 [System.IO.File]::WriteAllText(

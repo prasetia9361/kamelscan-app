@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Layar peluncur KamelScan — MODE GELAP.
+
+  Latar #0F141A, bukan hitam murni. Alasannya sama seperti di palet: hitam
+  murni pada layar OLED menghasilkan kontras yang terlalu keras dan efek
+  smearing saat berpindah layar.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/splash_background" />
+    <item>
+        <bitmap
+            android:gravity="center"
+            android:src="@drawable/splash_logo" />
+    </item>
+</layer-list>

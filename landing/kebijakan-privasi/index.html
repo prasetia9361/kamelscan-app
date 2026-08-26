@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0D5EA6">
+<title>Kebijakan Privasi — KamelScan</title>
+<meta name="description" content="Data apa yang dikumpulkan KamelScan, siapa yang dapat melihatnya, dan berapa lama disimpan.">
+
+<!--
+  🔴 NASKAH INI TIDAK PERNAH DIPERIKSA PENASIHAT HUKUM.
+
+  Product Owner memutuskan pada 26 Agustus 2026 untuk MEMBATALKAN pemeriksaan
+  hukum dan menerbitkan naskah ini apa adanya, setelah diberitahu risikonya.
+  Spanduk peringatan dan meta robots noindex dicabut atas dasar keputusan itu.
+
+  Isi teknisnya akurat — setiap nama data yang disebut di Bagian 2 diambil
+  dari skema basis data yang sebenarnya (tabel users, tenants, package_videos
+  pada panduan_dokumentasi.md Bab 5.2), bukan dikarang. Rumusan hukumnya yang
+  perlu diperiksa.
+
+  ✅ Seluruh isian sudah terisi per 26 Agustus 2026. Tanggal berlaku
+  ditetapkan 1 September 2026 oleh Product Owner — itu keputusannya, bukan
+  tanda bahwa naskahnya sudah ditelaah.
+
+  🔴 SATU HAL MASIH MENAHAN PENERBITAN, dan ini BUKAN soal hukum melainkan
+  soal benar atau tidaknya: klaim Bagian 3 yang belum diverifikasi. Lihat
+  di bawah. Pembatalan pemeriksaan hukum tidak menghapus persoalan ini.
+
+  🔴 SATU KLAIM YANG BELUM DIVERIFIKASI — periksa sebelum terbit.
+  Bagian 3 menyatakan pengelola platform tidak dapat memutar, mengunduh,
+  maupun membagikan isi video pelanggan. Bab 2.2 butir 5 memang menyuruh
+  menyatakannya terbuka dan menyebutnya nilai jual, tetapi penegakannya ada
+  di Edge Function `get-video-url` dan `create-public-link` yang menolak
+  pemanggil ber-`app_role = 'admin'`. Kedua fungsi itu di luar batas worktree
+  desain dan TIDAK diperiksa apakah sudah terpasang serta teruji. Di
+  Kebijakan Privasi, klaim yang tidak berlaku bukan sekadar salah tulis.
+  Pastikan lebih dulu; bila belum berlaku, CABUT kalimatnya, jangan
+  diperhalus.
+
+  🔴 DUA HAL HUKUM YANG WAJIB DIPERIKSA PENASIHAT HUKUM:
+
+    1. DATA KELUAR DARI INDONESIA. Product Owner memastikan pada 26 Agustus
+       2026 bahwa server berada di SINGAPURA. Itu berarti data pribadi
+       pelanggan disimpan di luar wilayah Indonesia. Pengiriman data pribadi
+       ke luar negeri punya kewajibannya sendiri, dan penyelenggara sistem
+       elektronik tetap wajib menjamin akses bagi pihak berwenang Indonesia.
+       Bagian 8 menyatakan faktanya apa adanya; kecukupan rumusannya menurut
+       hukum yang berlaku BUKAN penilaian desainer.
+
+    2. PENDAFTARAN PSE. Penyelenggara sistem elektronik yang melayani
+       pengguna di Indonesia umumnya wajib terdaftar. Perlu dipastikan
+       apakah layanan ini termasuk.
+
+  ⚠️ Angka 10 tahun pada Bagian 6 (penyimpanan catatan keuangan) dan 14 hari
+  kerja pada Bagian 11 (waktu tanggapan permintaan data) adalah usulan
+  desainer mengikuti kebiasaan umum, bukan pemberian Product Owner.
+  Sesuaikan bila ketentuan yang berlaku menuntut angka lain.
+
+  Tanggal berlaku ditetapkan 1 Oktober 2026.
+-->
+
+<link rel="icon" type="image/png" sizes="32x32" href="../img/icon-32.png">
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+
+<a class="lompat" href="#isi">Lompat ke isi halaman</a>
+
+<header class="nav">
+  <div class="wrap nav-isi">
+    <a class="merek" href="../index.html" aria-label="KamelScan, ke beranda">
+      <img src="../img/logo-mark-72.png" alt="" width="42" height="34">
+      <span>Kamel<i>Scan</i></span>
+    </a>
+    <div class="nav-aksi">
+      <a class="tombol tombol-teks" href="../index.html">Kembali ke beranda</a>
+      <a class="tombol tombol-utama" href="/app/register">Daftar Gratis</a>
+    </div>
+    <a class="tombol tombol-teks nav-laci-tombol" href="../index.html" aria-label="Kembali ke beranda" style="text-decoration:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+    </a>
+  </div>
+</header>
+
+<main class="dok" id="isi">
+<div class="dok-wrap">
+
+
+  <div class="dok-kepala">
+    <h1>Kebijakan Privasi</h1>
+    <p class="dok-tanggal">
+      <span>Berlaku sejak <b>1 Oktober 2026</b></span>
+      <span>Terakhir diperbarui <b>26 Agustus 2026</b></span>
+    </p>
+  </div>
+
+  <nav class="dok-isi" aria-label="Daftar isi">
+    <h2>Daftar isi</h2>
+    <ol>
+      <li><a href="#p1">Ringkasan satu halaman</a></li>
+      <li><a href="#p2">Data apa saja yang kami kumpulkan</a></li>
+      <li><a href="#p3">Siapa yang dapat melihat isi video Anda</a></li>
+      <li><a href="#p4">Izin yang diminta aplikasi</a></li>
+      <li><a href="#p5">Mengapa kami mengambil titik lokasi</a></li>
+      <li><a href="#p6">Berapa lama data disimpan</a></li>
+      <li><a href="#p7">Tautan bukti publik</a></li>
+      <li><a href="#p8">Di mana data Anda disimpan</a></li>
+      <li><a href="#p9">Kepada siapa data dibagikan</a></li>
+      <li><a href="#p10">Cara kami menjaganya</a></li>
+      <li><a href="#p11">Hak Anda atas data Anda</a></li>
+      <li><a href="#p12">Cookie dan penyimpanan di peramban</a></li>
+      <li><a href="#p13">Anak-anak</a></li>
+      <li><a href="#p14">Perubahan kebijakan ini</a></li>
+      <li><a href="#p15">Cara menghubungi kami</a></li>
+    </ol>
+  </nav>
+
+  <section id="p1">
+    <h2><span>1.</span> Ringkasan satu halaman</h2>
+    <p>Bagian ini bukan pengganti isi selengkapnya di bawah, tetapi memuat hal
+    yang paling sering ditanyakan:</p>
+    <ul class="poin">
+      <li>Kami menyimpan <b>video pengemasan</b> Anda beserta nomor resi,
+      waktu, nama toko, dan titik lokasi perekaman.</li>
+      <li><b>Kami tidak menonton isi video Anda.</b> Pengelola platform hanya
+      dapat melihat catatannya, bukan gambarnya. Penjelasannya di Bagian 3.</li>
+      <li>Video <b>terhapus sendiri</b> setelah 30 hari (Standar) atau 60 hari
+      (Pro). Kami tidak menyimpan salinan cadangannya.</li>
+      <li>Kami <b>tidak menjual data Anda</b> kepada siapa pun, dan tidak
+      memakainya untuk iklan.</li>
+      <li>Tautan bukti yang Anda buat sendiri <b>dapat dibuka siapa pun yang
+      memilikinya</b>, tanpa perlu masuk akun.</li>
+      <li>Anda berhak meminta salinan data Anda atau meminta akun Anda dihapus
+      seluruhnya.</li>
+    </ul>
+  </section>
+
+  <section id="p2">
+    <h2><span>2.</span> Data apa saja yang kami kumpulkan</h2>
+
+    <h3>Saat Anda mendaftar</h3>
+    <ul class="poin">
+      <li>Nama lengkap, alamat surel, dan kata sandi. Kata sandi disimpan
+      dalam bentuk teracak, tidak dalam bentuk aslinya.</li>
+      <li>Nomor telepon, nama pengguna, dan foto profil — bila Anda mengisinya.</li>
+      <li>Nama usaha. Nama badan hukum dan NPWP hanya bila Anda memerlukan
+      faktur.</li>
+    </ul>
+
+    <h3>Setiap kali sebuah video direkam</h3>
+    <ul class="poin">
+      <li><b>Isi videonya</b> beserta suaranya.</li>
+      <li>Nomor resi dan jenis rekaman (pengemasan atau pengembalian).</li>
+      <li>Nama toko dan siapa yang merekam.</li>
+      <li>Waktu perekaman menurut jam server kami, bukan jam HP.</li>
+      <li>Durasi dan ukuran berkasnya.</li>
+      <li>Titik lokasi berupa garis lintang dan bujur beserta tingkat
+      ketelitiannya — bila izin lokasi Anda berikan.</li>
+      <li>Model HP dan versi aplikasi yang dipakai, untuk keperluan penanganan
+      gangguan.</li>
+    </ul>
+
+    <h3>Saat Anda membayar</h3>
+    <ul class="poin">
+      <li>Bukti transfer yang Anda unggah, serta catatan tanggal dan nominal
+      pembayaran.</li>
+      <li>Kami <b>tidak menyimpan nomor kartu maupun data rekening</b> Anda.</li>
+    </ul>
+
+    <h3>Saat Anda memakai layanan</h3>
+    <ul class="poin">
+      <li>Waktu terakhir Anda masuk ke akun.</li>
+      <li>Catatan perubahan kuota token, untuk menyelesaikan sengketa
+      penagihan.</li>
+    </ul>
+  </section>
+
+  <section id="p3">
+    <h2><span>3.</span> Siapa yang dapat melihat isi video Anda</h2>
+    <div class="sorot">
+      <p><b>Pengelola platform KamelScan tidak dapat menonton, mengunduh,
+      maupun membagikan isi video pelanggan.</b></p>
+      <p>Yang dapat kami lihat hanyalah catatannya — nomor resi, waktu, nama
+      toko, durasi, ukuran berkas, dan titik lokasi — dan itu pun hanya untuk
+      membantu Anda saat ada gangguan serta untuk keperluan penagihan.
+      Pembatasan ini ditegakkan di sisi server, bukan sekadar disembunyikan
+      dari tampilan.</p>
+    </div>
+    <div class="dok-tabel">
+      <table>
+        <thead>
+          <tr><th>Siapa</th><th>Dapat melihat</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Pemilik akun</td>
+            <td>Seluruh video di dalam akun usahanya, termasuk isinya.</td>
+          </tr>
+          <tr>
+            <td>Packer</td>
+            <td>Bawaannya hanya video yang ia rekam sendiri. Pemilik dapat
+            mengizinkannya melihat seluruh video pada toko yang ditugaskan
+            kepadanya.</td>
+          </tr>
+          <tr>
+            <td>Pengelola platform</td>
+            <td>Catatan video saja. <b>Tidak dapat memutar, mengunduh, maupun
+            membagikan isinya.</b></td>
+          </tr>
+          <tr>
+            <td>Pemegang tautan bukti</td>
+            <td>Satu video yang tautannya Anda bagikan sendiri, sampai masa
+            berlakunya habis.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Kami dapat diwajibkan menyerahkan data oleh perintah resmi yang sah
+    dari pihak berwenang. Bila itu terjadi dan hukum tidak melarang kami
+    memberitahukannya, kami akan memberi tahu Anda.</p>
+  </section>
+
+  <section id="p4">
+    <h2><span>4.</span> Izin yang diminta aplikasi</h2>
+    <p>Aplikasi HP meminta izin hanya pada saat izin itu benar-benar
+    dibutuhkan, bukan semuanya sekaligus di awal.</p>
+    <div class="dok-tabel">
+      <table>
+        <thead>
+          <tr><th>Izin</th><th>Dipakai untuk</th><th>Bila Anda tolak</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Kamera</td><td>Merekam video dan memindai resi</td><td>Perekaman tidak dapat dilakukan</td></tr>
+          <tr><td>Mikrofon</td><td>Merekam suara</td><td>Video tetap direkam, tanpa suara</td></tr>
+          <tr><td>Lokasi</td><td>Menandai tempat perekaman</td><td>Video tetap direkam, ditandai &ldquo;Lokasi tidak tersedia&rdquo;</td></tr>
+          <tr><td>Penyimpanan</td><td>Menyimpan video sementara dan mengunduhnya</td><td>Pengunduhan tidak dapat dilakukan</td></tr>
+          <tr><td>Notifikasi</td><td>Memberi tahu kemajuan unggahan</td><td>Unggahan tetap berjalan, tanpa pemberitahuan</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Anda dapat mencabut izin ini kapan saja lewat pengaturan HP Anda.</p>
+  </section>
+
+  <section id="p5">
+    <h2><span>5.</span> Mengapa kami mengambil titik lokasi</h2>
+    <p>Titik lokasi ditanamkan ke dalam gambar video bersama nomor resi, waktu,
+    dan nama toko. Gunanya satu: memperkuat bukti bahwa pengemasan itu benar
+    terjadi di tempat usaha Anda pada waktu yang tercatat.</p>
+    <p>Kami tidak melacak pergerakan Anda. Lokasi diambil <b>hanya pada saat
+    perekaman berlangsung</b>, tidak di latar belakang, dan tidak saat aplikasi
+    sedang tertutup.</p>
+    <p>Bila Anda menolak izin lokasi, perekaman tetap berjalan. Videonya diberi
+    keterangan &ldquo;Lokasi tidak tersedia&rdquo;.</p>
+  </section>
+
+  <section id="p6">
+    <h2><span>6.</span> Berapa lama data disimpan</h2>
+    <div class="dok-tabel">
+      <table>
+        <thead>
+          <tr><th>Jenis data</th><th>Lama disimpan</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Isi video</td><td>30 hari (Standar) atau 60 hari (Pro), dihitung sejak direkam. Setelah itu terhapus otomatis dan permanen.</td></tr>
+          <tr><td>Catatan video</td><td>Tersimpan sebagai riwayat meskipun videonya sudah terhapus.</td></tr>
+          <tr><td>Data akun</td><td>Selama akun Anda ada.</td></tr>
+          <tr><td>Catatan pembayaran</td><td>10 tahun, mengikuti kewajiban penyimpanan dokumen perusahaan dan perpajakan.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p><b>Kami tidak menyimpan salinan cadangan video yang sudah melewati masa
+    simpannya</b>, sehingga kami tidak dapat memulihkannya atas permintaan
+    siapa pun — termasuk permintaan Anda sendiri.</p>
+  </section>
+
+  <section id="p7">
+    <h2><span>7.</span> Tautan bukti publik</h2>
+    <p>Ketika Anda menekan tombol bagikan pada sebuah video, kami membuat
+    alamat acak yang dapat dibuka tanpa masuk akun.</p>
+    <p>Halaman itu menampilkan videonya, nomor resi, jenis rekaman, nama toko,
+    waktu perekaman, titik lokasi, dan sisa masa berlaku tautannya.</p>
+    <p>Halaman itu <b>tidak</b> menampilkan identitas akun Anda, alamat surel,
+    nama packer, daftar video Anda yang lain, maupun alamat penyimpanan
+    berkasnya. Dari halaman itu, seseorang tidak dapat menelusuri data
+    pelanggan mana pun.</p>
+    <div class="sorot">
+      <p>Namun perlu Anda sadari: <b>siapa pun yang memegang alamat itu dapat
+      membuka dan mengunduh videonya.</b> Tautannya tidak dilindungi kata
+      sandi. Bagikan hanya kepada pihak yang berkepentingan.</p>
+    </div>
+  </section>
+
+  <section id="p8">
+    <h2><span>8.</span> Di mana data Anda disimpan</h2>
+    <p>Kami memakai penyedia layanan berikut untuk menjalankan KamelScan:</p>
+    <ul class="poin">
+      <li><b>Supabase</b> — menyimpan data akun, catatan video, dan menangani
+      proses masuk akun.</li>
+      <li><b>Cloudflare R2</b> — menyimpan berkas videonya.</li>
+      <li><b>Cloudflare Pages</b> — menyajikan halaman dan aplikasi web.</li>
+    </ul>
+    <div class="sorot">
+      <p><b>Server yang menyimpan data KamelScan berada di Singapura.</b></p>
+      <p>Artinya data Anda disimpan di luar wilayah Indonesia dan tunduk pula
+      pada hukum tempat server itu berada. Pengiriman data pribadi ke luar
+      wilayah Indonesia kami lakukan dengan mengikuti ketentuan pelindungan
+      data pribadi yang berlaku di Indonesia.</p>
+    </div>
+  </section>
+
+  <section id="p9">
+    <h2><span>9.</span> Kepada siapa data dibagikan</h2>
+    <p><b>Kami tidak menjual data Anda, dan tidak memakainya untuk iklan.</b></p>
+    <p>Data hanya sampai ke pihak berikut:</p>
+    <ul class="poin">
+      <li>Penyedia layanan pada Bagian 8, sebatas yang diperlukan untuk
+      menjalankan layanan ini.</li>
+      <li>Pihak yang Anda beri tautan bukti — atas tindakan Anda sendiri.</li>
+      <li>Pihak berwenang, bila ada perintah resmi yang sah.</li>
+    </ul>
+  </section>
+
+  <section id="p10">
+    <h2><span>10.</span> Cara kami menjaganya</h2>
+    <ul class="poin">
+      <li>Data setiap pelanggan dipisahkan di tingkat basis data, sehingga
+      satu pelanggan tidak dapat membaca data pelanggan lain sekalipun mencoba
+      memanggil sistem kami secara langsung.</li>
+      <li>Pemutaran video memakai alamat sementara yang kedaluwarsa dalam
+      hitungan menit, bukan alamat tetap yang dapat disebarkan.</li>
+      <li>Kata sandi disimpan dalam bentuk teracak.</li>
+      <li>Seluruh hubungan ke server memakai sambungan terenkripsi.</li>
+    </ul>
+    <p>Tidak ada sistem yang sepenuhnya kebal. Bila terjadi kebocoran data yang
+    berdampak pada Anda, kami akan memberi tahu Anda dan pihak berwenang sesuai
+    ketentuan yang berlaku.</p>
+  </section>
+
+  <section id="p11">
+    <h2><span>11.</span> Hak Anda atas data Anda</h2>
+    <ul class="poin">
+      <li><b>Melihat dan memperbaiki</b> data akun Anda melalui menu Pengaturan
+      di dalam aplikasi.</li>
+      <li><b>Meminta salinan</b> data yang kami simpan tentang Anda.</li>
+      <li><b>Meminta penghapusan</b> akun beserta seluruh datanya. Setelah
+      dihapus, data tidak dapat dipulihkan.</li>
+      <li><b>Mencabut izin</b> kamera, mikrofon, atau lokasi kapan saja lewat
+      pengaturan HP.</li>
+      <li><b>Mengajukan keberatan</b> atas cara kami memperlakukan data
+      Anda.</li>
+    </ul>
+    <p>Permintaan disampaikan lewat kontak pada Bagian 15. Kami menanggapinya
+    dalam waktu <b>14 hari kerja</b>.</p>
+  </section>
+
+  <section id="p12">
+    <h2><span>12.</span> Cookie dan penyimpanan di peramban</h2>
+    <p>Halaman pemasaran ini <b>tidak memakai cookie pelacak</b> dan tidak
+    memuat alat pengukur pengunjung dari pihak ketiga.</p>
+    <p>Aplikasi web di <b>/app</b> menyimpan penanda sesi di peramban Anda
+    semata-mata agar Anda tetap masuk akun. Penanda itu tidak dipakai untuk
+    mengikuti kegiatan Anda di situs lain.</p>
+  </section>
+
+  <section id="p13">
+    <h2><span>13.</span> Anak-anak</h2>
+    <p>KamelScan ditujukan untuk pelaku usaha, bukan untuk anak-anak. Kami
+    tidak dengan sengaja mengumpulkan data anak di bawah umur
+    <b>18 tahun</b>. Bila Anda mengetahui hal itu
+    terjadi, beri tahu kami dan datanya akan kami hapus.</p>
+  </section>
+
+  <section id="p14">
+    <h2><span>14.</span> Perubahan kebijakan ini</h2>
+    <p>Bila kami mengubah kebijakan ini, tanggal &ldquo;terakhir
+    diperbarui&rdquo; di bagian atas halaman ikut berubah. Untuk perubahan yang
+    berdampak besar pada Anda, kami memberi tahu lewat aplikasi.</p>
+  </section>
+
+  <section id="p15">
+    <h2><span>15.</span> Cara menghubungi kami</h2>
+    <p>Kebijakan ini dikeluarkan oleh <b>PT Global Fitur Inovasi
+    Teknologi</b>, Desa Sidorejo, Kecamatan Warungasem, Kabupaten Batang,
+    Jawa Tengah — pihak yang bertanggung jawab atas data pribadi Anda dalam
+    layanan ini.</p>
+    <p>Untuk pertanyaan mengenai privasi atau permintaan terkait data Anda:</p>
+    <ul class="poin">
+      <li>WhatsApp <a href="https://wa.me/6285113214018" target="_blank" rel="noopener">+62 851-1321-4018</a></li>
+      <li>Surel <a href="mailto:aiotideaproject@gmail.com">aiotideaproject@gmail.com</a></li>
+      <li>Jam kerja Senin&ndash;Jumat, 09.00&ndash;17.00 WIB</li>
+    </ul>
+  </section>
+
+  <div class="dok-kaki">
+    <a class="tombol tombol-garis" href="../syarat-ketentuan/index.html">Baca Syarat &amp; Ketentuan</a>
+    <a class="tombol tombol-teks" href="../index.html">Kembali ke beranda</a>
+  </div>
+
+</div>
+</main>
+
+<footer class="kaki">
+  <div class="wrap kaki-bawah" style="margin-top:0;border-top:0">
+    <span>© <span id="tahun">2026</span> PT Global Fitur Inovasi Teknologi</span>
+    <span>Dibuat untuk gudang yang sinyalnya susah.</span>
+  </div>
+</footer>
+
+<script src="../app.js"></script>
+</body>
+</html>

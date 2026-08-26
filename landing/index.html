@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0D5EA6">
+<title data-i18n="meta.judul">KamelScan — Bukti video setiap paket, terekam otomatis saat resi discan</title>
+<meta name="description" content="KamelScan merekam proses packing dan retur otomatis begitu nomor resi discan. Video berwatermark resi, waktu, toko, dan lokasi — siap jadi bukti sengketa marketplace. Coba gratis 100 video.">
+
+<!--
+  Landing page KamelScan — Bab 10.2.
+
+  🔴 Halaman ini SENGAJA bukan Flutter. Bundel Flutter Web > 3 MB dan lambat
+  dimuat; halaman pemasaran yang menentukan konversi tidak boleh menunggu itu.
+  Aplikasinya sendiri berada di /app/.
+
+  🔴 Huruf dimuat dari landing/fonts/, bukan dari CDN Google Fonts. Calon
+  pelanggan membuka halaman ini dari gudang yang sinyalnya buruk.
+
+  🔴 Semua angka harga di bagian "Harga" DITULIS MATI di sini. Ia TIDAK ikut
+  berubah saat Admin mengubah `platform_settings.pricing` di Supabase. Setiap
+  kali harga berubah, halaman ini wajib diperbarui manual — lihat peringatan
+  di Bab 10.2.
+
+  ⚠️ Teks bertanda data-i18n disiapkan untuk versi bahasa Inggris. Kamus EN
+  belum diisi, jadi tombol pengalih bahasa masih disembunyikan di app.js.
+-->
+
+<link rel="icon" type="image/png" sizes="32x32" href="img/icon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="img/icon-180.png">
+
+<!-- Dua berat yang paling dulu terlihat, diminta lebih awal supaya teks tidak
+     sempat berkedip ganti huruf. Sisanya dimuat lewat styles.css. -->
+<link rel="preload" href="fonts/Inter-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/Inter-Bold.woff2"    as="font" type="font/woff2" crossorigin>
+
+<link rel="stylesheet" href="styles.css">
+
+<meta property="og:type" content="website">
+<meta property="og:title" content="KamelScan — bukti video setiap paket">
+<meta property="og:description" content="Rekam packing otomatis saat resi discan. Bukti siap kirim ke pusat resolusi marketplace.">
+<meta property="og:image" content="img/icon-512.png">
+</head>
+<body>
+
+<a class="lompat" href="#isi" data-i18n="nav.lompat">Lompat ke isi halaman</a>
+
+<!-- ===================================================================== -->
+<!-- 1. NAVBAR                                                             -->
+<!-- ===================================================================== -->
+<header class="nav">
+  <div class="wrap nav-isi">
+    <a class="merek" href="#beranda" aria-label="KamelScan, ke beranda">
+      <img src="img/logo-mark-72.png" alt="" width="42" height="34">
+      <span>Kamel<i>Scan</i></span>
+    </a>
+
+    <nav class="nav-tautan" aria-label="Navigasi utama">
+      <a href="#cara-kerja" data-i18n="nav.fitur">Fitur</a>
+      <a href="#harga"      data-i18n="nav.harga">Harga</a>
+      <a href="#tutorial"   data-i18n="nav.tutorial">Tutorial</a>
+      <a href="#kontak"     data-i18n="nav.kontak">Kontak</a>
+    </nav>
+
+    <div class="nav-aksi">
+      <!-- Pengalih bahasa. Disembunyikan sampai kamus EN diisi — lihat app.js. -->
+      <button class="tombol tombol-teks" id="alih-bahasa" type="button" hidden>EN</button>
+      <a class="tombol tombol-teks" href="/app/login" data-i18n="nav.masuk">Masuk</a>
+      <a class="tombol tombol-utama" href="/app/register" data-i18n="nav.daftar">Daftar Gratis</a>
+    </div>
+
+    <button class="nav-laci-tombol" id="laci-tombol" type="button"
+            aria-expanded="false" aria-controls="laci" aria-label="Buka menu">
+      <svg class="ikon-buka" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      <svg class="ikon-tutup" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+
+  <div class="nav-laci" id="laci">
+    <div class="wrap">
+      <a href="#cara-kerja" data-i18n="nav.fitur">Fitur</a>
+      <a href="#harga"      data-i18n="nav.harga">Harga</a>
+      <a href="#tutorial"   data-i18n="nav.tutorial">Tutorial</a>
+      <a href="#kontak"     data-i18n="nav.kontak">Kontak</a>
+      <div class="laci-aksi">
+        <a class="tombol tombol-garis tombol-lebar" href="/app/login" data-i18n="nav.masuk">Masuk</a>
+        <a class="tombol tombol-utama tombol-lebar" href="/app/register" data-i18n="nav.daftar">Daftar Gratis</a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main id="isi">
+
+<!-- ===================================================================== -->
+<!-- 2. HERO                                                               -->
+<!-- ===================================================================== -->
+<section class="hero" id="beranda">
+  <div class="wrap hero-grid">
+    <div>
+      <h1 class="judul-hero" data-i18n="hero.judul">
+        Bukti video setiap paket, terekam otomatis saat resi discan.
+      </h1>
+
+      <p class="teks-besar" data-i18n="hero.sub">
+        Packer cukup men-scan nomor resi. KamelScan merekam sendiri proses
+        pengemasannya, membubuhkan nomor resi, waktu, nama toko, dan lokasi ke
+        dalam video, lalu menyimpannya di cloud. Saat pembeli mengaku paketnya
+        kosong, buktinya sudah ada — tinggal dikirim.
+      </p>
+
+      <div class="hero-aksi">
+        <a class="tombol tombol-utama" href="/app/register" data-i18n="hero.cta1">Coba Gratis 100 Video</a>
+        <a class="tombol tombol-garis" href="#cara-kerja" data-i18n="hero.cta2">Lihat Cara Kerjanya</a>
+      </div>
+
+      <p class="hero-catatan teks-dukung">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+        <span data-i18n="hero.catatan">Tanpa kartu kredit. Tanpa batas waktu — batasnya jumlah video, bukan hari.</span>
+      </p>
+
+      <ul class="hero-poin">
+        <li>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8v8M11 8v8M15 8v8M19 8v8"/></svg>
+          <span data-i18n="hero.poin1">Dipicu QR, barcode, atau ketik manual</span>
+        </li>
+        <li>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 3v6h6"/></svg>
+          <span data-i18n="hero.poin2">Tetap jalan saat sinyal gudang putus</span>
+        </li>
+        <li>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14v6h16v-6"/><path d="M12 3v12"/><path d="M8 11l4 4 4-4"/></svg>
+          <span data-i18n="hero.poin3">Bagikan lewat tautan, bisa diunduh juga</span>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Ilustrasi layar perekaman.
+         ⚠️ Ini GAMBAR BUATAN, bukan tangkapan layar aplikasi sungguhan.
+         Bab 10.2 meminta gambar dari `platform_settings.banner_landing`;
+         berkas itu belum ada, jadi bagian ini sementara diisi ilustrasi.  -->
+    <div class="hero-gambar">
+      <svg viewBox="0 0 300 600" role="img" aria-labelledby="ilus-judul">
+        <title id="ilus-judul">Ilustrasi layar KamelScan sedang merekam paket dengan nomor resi JX1234567890ID</title>
+        <!-- badan HP -->
+        <rect x="4" y="4" width="292" height="592" rx="38" fill="#101828"/>
+        <rect x="12" y="12" width="276" height="576" rx="31" fill="#0F141A"/>
+        <!-- jendela kamera -->
+        <rect x="12" y="12" width="276" height="576" rx="31" fill="#1A222C"/>
+        <rect x="24" y="86" width="252" height="330" rx="14" fill="#232D39"/>
+        <!-- Kardus yang sedang direkam.
+             ⚠️ Ketiga sisi WAJIB berbeda terang dari jendela kamera #232D39 di
+             belakangnya. Versi pertama memberi sisi kanan warna #232D39 juga —
+             rasionya 1,00:1, jadi sisi itu tidak tergambar sama sekali dan
+             kardusnya tampak seperti bentuk cuil. Nilai sekarang: 3,30 / 1,96 /
+             1,48 : 1. Periksa ulang bila warnanya diutak-atik. -->
+        <g>
+          <path d="M92 232l58-30 58 30-58 30z" fill="#6E7C93"/>
+          <path d="M92 232v66l58 30v-66z" fill="#4C596D"/>
+          <path d="M208 232v66l-58 30v-66z" fill="#3B4757"/>
+          <!-- Pita perekat memakai biru packing, supaya bentuknya langsung
+               terbaca sebagai paket kirim dan bukan sekadar kotak. -->
+          <path d="M121 217l58 30v22l-14-7v-14l-44-23z" fill="#8FC3F0"/>
+        </g>
+        <!-- bingkai pemindai -->
+        <g stroke="#8FC3F0" stroke-width="3" fill="none" stroke-linecap="round">
+          <path d="M68 168v-14a8 8 0 0 1 8-8h14"/>
+          <path d="M232 168v-14a8 8 0 0 0-8-8h-14"/>
+          <path d="M68 334v14a8 8 0 0 0 8 8h14"/>
+          <path d="M232 334v14a8 8 0 0 1-8 8h-14"/>
+        </g>
+        <!-- lencana REKAM -->
+        <rect x="24" y="34" width="112" height="32" rx="16" fill="#D32F2F"/>
+        <circle cx="44" cy="50" r="6" fill="#FFFFFF"/>
+        <text x="58" y="55" fill="#FFFFFF" font-family="Inter, sans-serif" font-size="14" font-weight="700">REKAM</text>
+        <!-- penghitung durasi, monospace + angka bertabulasi -->
+        <text x="276" y="55" text-anchor="end" fill="#E6EDF5" font-family="'JetBrains Mono', monospace" font-size="17" font-weight="700">00:12</text>
+
+        <!-- kartu info resi -->
+        <rect x="24" y="436" width="252" height="130" rx="16" fill="#0F141A" stroke="#3A4757"/>
+        <text x="44" y="466" fill="#A5B3C4" font-family="Inter, sans-serif" font-size="12" font-weight="600" letter-spacing="1.2">NOMOR RESI</text>
+        <!-- 🔴 monospace wajib: 0/O dan 1/l/I harus terbedakan saat dibacakan -->
+        <text x="44" y="494" fill="#8FC3F0" font-family="'JetBrains Mono', monospace" font-size="19" font-weight="700" letter-spacing=".5">JX1234567890ID</text>
+        <!-- chip packing: isi penuh + ikon, tidak mengandalkan warna saja -->
+        <rect x="44" y="512" width="96" height="28" rx="8" fill="#8FC3F0"/>
+        <rect x="54" y="521" width="12" height="10" rx="2" fill="#06304F"/>
+        <text x="72" y="531" fill="#06304F" font-family="Inter, sans-serif" font-size="13" font-weight="700">Packing</text>
+        <text x="150" y="531" fill="#A5B3C4" font-family="Inter, sans-serif" font-size="13">Toko Berkah Jaya</text>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================================== -->
+<!-- 3. MASALAH & SOLUSI                                                   -->
+<!-- ===================================================================== -->
+<section class="bagian bagian-abu" id="masalah">
+  <div class="wrap">
+    <div class="bagian-kepala">
+      <span class="kicker" data-i18n="masalah.kicker">Kenapa perlu</span>
+      <h2 class="judul-bagian" data-i18n="masalah.judul">
+        Empat hal yang menggerogoti margin toko online
+      </h2>
+      <p data-i18n="masalah.sub">
+        Bukan soal seberapa rapi packing Anda. Soal apakah Anda bisa
+        membuktikannya ketika ditanya.
+      </p>
+    </div>
+
+    <div class="kisi kisi-2">
+      <article class="kartu">
+        <span class="lencana-ikon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+        </span>
+        <h3 class="judul-kartu" data-i18n="masalah.k1.judul">"Paketnya kosong waktu saya terima"</h3>
+        <p data-i18n="masalah.k1.isi">
+          Klaim sepihak dari pembeli. Tanpa rekaman, pusat resolusi marketplace
+          hanya punya satu versi cerita — dan itu bukan versi Anda.
+        </p>
+        <p class="solusi">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+          <span data-i18n="masalah.k1.solusi"><b>Solusinya:</b> video packing berwatermark nomor resi, waktu server, nama toko, dan koordinat lokasi.</span>
+        </p>
+      </article>
+
+      <article class="kartu">
+        <span class="lencana-ikon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+        </span>
+        <h3 class="judul-kartu" data-i18n="masalah.k2.judul">Cari satu rekaman, habis satu sore</h3>
+        <p data-i18n="masalah.k2.isi">
+          Kalau selama ini Anda merekam manual dan menyimpannya di galeri HP,
+          menemukan video paket tertentu berarti menggulir ratusan berkas tanpa
+          nama.
+        </p>
+        <p class="solusi">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+          <span data-i18n="masalah.k2.solusi"><b>Solusinya:</b> ketik nomor resinya, videonya langsung ketemu.</span>
+        </p>
+      </article>
+
+      <article class="kartu">
+        <span class="lencana-ikon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2l20 20"/><path d="M5 12.5a10 10 0 0 1 4-2.4"/><path d="M2 8.8A15 15 0 0 1 7 6"/><path d="M17 6a15 15 0 0 1 5 2.8"/><path d="M15 10.1a10 10 0 0 1 4 2.4"/><path d="M9 16a5 5 0 0 1 6 0"/><path d="M12 20h.01"/></svg>
+        </span>
+        <h3 class="judul-kartu" data-i18n="masalah.k3.judul">Sinyal gudang hidup-mati</h3>
+        <p data-i18n="masalah.k3.isi">
+          Gudang sering berdinding beton atau seng. Aplikasi yang butuh internet
+          terus-menerus akan gagal justru di jam tersibuk.
+        </p>
+        <p class="solusi">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+          <span data-i18n="masalah.k3.solusi"><b>Solusinya:</b> rekaman disimpan di HP dulu, lalu diunggah sendiri begitu sinyal kembali.</span>
+        </p>
+      </article>
+
+      <article class="kartu">
+        <span class="lencana-ikon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v5H4z"/><path d="M4 15h16v5H4z"/><path d="M7 6.5h.01M7 17.5h.01"/><path d="M12 9v6"/><path d="M9.5 12.5L12 15l2.5-2.5"/></svg>
+        </span>
+        <h3 class="judul-kartu" data-i18n="masalah.k4.judul">Rekam manual, memori HP cepat penuh</h3>
+        <p data-i18n="masalah.k4.isi">
+          Merekam sendiri dengan kamera bawaan menghasilkan berkas berukuran
+          besar. Beberapa ratus paket saja sudah cukup membuat memori HP packer
+          penuh, dan saat berkasnya perlu dikirim ke pusat resolusi, ukurannya
+          sering terlalu besar untuk dilampirkan.
+        </p>
+        <p class="solusi">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+          <span data-i18n="masalah.k4.solusi"><b>Solusinya:</b> video direkam pada ukuran yang sengaja dijaga ringkas dan disimpan di cloud, bukan menumpuk di HP. Yang Anda kirim cukup tautannya — dan siapa pun yang membukanya tetap bisa mengunduh berkasnya bila diminta.</span>
+        </p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================================== -->
+<!-- 4. CARA KERJA                                                         -->
+<!-- ===================================================================== -->
+<section class="bagian" id="cara-kerja">
+  <div class="wrap">
+    <div class="bagian-kepala bagian-kepala-tengah">
+      <span class="kicker" data-i18n="cara.kicker">Cara kerja</span>
+      <h2 class="judul-bagian" data-i18n="cara.judul">Empat langkah, dan packer hanya mengerjakan yang pertama</h2>
+      <p data-i18n="cara.sub">Sisanya berjalan sendiri di latar belakang.</p>
+    </div>
+
+    <ol class="kisi kisi-4">
+      <li class="kartu langkah">
+        <span class="langkah-no" aria-hidden="true">1</span>
+        <h3 data-i18n="cara.l1.judul">Scan nomor resi</h3>
+        <p data-i18n="cara.l1.isi">
+          Arahkan kamera ke QR Code atau barcode pada label pengiriman. Tidak
+          terbaca? Nomornya boleh diketik manual.
+        </p>
+      </li>
+      <li class="kartu langkah">
+        <span class="langkah-no" aria-hidden="true">2</span>
+        <h3 data-i18n="cara.l2.judul">Rekaman mulai sendiri</h3>
+        <p data-i18n="cara.l2.isi">
+          Berhenti otomatis saat batas durasi tercapai atau saat resi berikutnya
+          discan. Tidak ada tombol yang lupa ditekan.
+        </p>
+      </li>
+      <li class="kartu langkah">
+        <span class="langkah-no" aria-hidden="true">3</span>
+        <h3 data-i18n="cara.l3.judul">Diberi watermark & diunggah</h3>
+        <p data-i18n="cara.l3.isi">
+          Nomor resi, waktu server, nama toko, dan koordinat ditanam ke dalam
+          gambar video, lalu dikirim ke cloud saat ada sinyal.
+        </p>
+      </li>
+      <li class="kartu langkah">
+        <span class="langkah-no" aria-hidden="true">4</span>
+        <h3 data-i18n="cara.l4.judul">Bagikan atau unduh</h3>
+        <p data-i18n="cara.l4.isi">
+          Satu tautan yang bisa dibuka petugas resolusi marketplace tanpa perlu
+          punya akun dan tanpa memasang aplikasi apa pun. Di halaman itu ada
+          tombol unduh, jadi mereka bisa menyimpan sendiri berkas videonya bila
+          diminta sebagai lampiran. Anda pun bisa mengunduhnya kapan saja dari
+          aplikasi.
+        </p>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<!-- ===================================================================== -->
+<!-- 5. UNDUH APLIKASI                                                     -->
+<!-- ===================================================================== -->
+<section class="bagian bagian-abu" id="unduh">
+  <div class="wrap">
+    <div class="unduh">
+      <div>
+        <span class="lencana-segera" data-i18n="unduh.lencana">Segera hadir</span>
+        <h2 class="judul-bagian" data-i18n="unduh.judul">Aplikasi HP untuk merekam</h2>
+        <p class="teks-besar" style="margin-top:var(--space-md);color:var(--on-surface-variant);max-width:52ch" data-i18n="unduh.isi">
+          Perekaman hanya bisa dilakukan dari HP — versi web tidak merekam.
+          Aplikasi Android dan iOS sedang dalam proses rilis. Sementara itu Anda
+          sudah bisa mendaftar dan menyiapkan toko lewat peramban.
+        </p>
+        <div class="toko-badge" aria-label="Status ketersediaan aplikasi">
+          <span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M4 3l14 9-14 9z"/></svg>
+            <span data-i18n="unduh.play">Google Play — segera</span>
+          </span>
+          <span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6c0-2 1.5-3.5 3.5-3.5"/><path d="M8.5 21c-2 0-4.5-4-4.5-8 0-3 2-5 4.5-5 1.2 0 2.3.7 3.5.7s2.3-.7 3.5-.7c2.5 0 4.5 2 4.5 5 0 4-2.5 8-4.5 8-1.2 0-2.3-.7-3.5-.7s-2.3.7-3.5.7z"/></svg>
+            <span data-i18n="unduh.ios">App Store — segera</span>
+          </span>
+        </div>
+      </div>
+      <div>
+        <a class="tombol tombol-utama" href="/app/register" data-i18n="unduh.cta">Daftar lewat peramban</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================================== -->
+<!-- 6. HARGA                                                              -->
+<!-- ===================================================================== -->
+<!--
+  🔴 Angka di bawah ditulis mati. Sumber kebenarannya ada di
+  `platform_settings.pricing` di Supabase. Setiap kali Admin mengubah harga di
+  sana, blok ini WAJIB diperbarui manual. Ini pertukaran yang disadari
+  (Bab 10.2) demi menghindari halaman pemasaran yang bergantung pada API.
+  Terakhir disamakan dengan Bab 7.1: 26 Agustus 2026.
+-->
+<section class="bagian" id="harga">
+  <div class="wrap">
+    <div class="bagian-kepala bagian-kepala-tengah">
+      <span class="kicker" data-i18n="harga.kicker">Harga</span>
+      <h2 class="judul-bagian" data-i18n="harga.judul">Bayar per bulan, berhenti kapan saja</h2>
+      <p data-i18n="harga.sub">Satu video yang berhasil diunggah memakai satu token.</p>
+    </div>
+
+    <div class="uji-coba">
+      <div class="isi">
+        <h3 data-i18n="harga.trial.judul">Mulai dengan 100 video gratis</h3>
+        <p data-i18n="harga.trial.isi">
+          Diberikan otomatis saat mendaftar, sekali per akun. Tidak ada batas
+          waktu — batasnya jumlah video, bukan jumlah hari. Fiturnya setara
+          paket Standar.
+        </p>
+      </div>
+      <a class="tombol tombol-utama" href="/app/register" data-i18n="harga.trial.cta">Ambil uji coba</a>
+    </div>
+
+    <div class="kisi kisi-2">
+      <article class="kartu paket">
+        <span class="paket-nama" data-i18n="harga.standar.nama">Standar</span>
+        <p class="paket-harga">
+          <span class="angka" data-i18n="harga.standar.harga">Rp 99.000</span>
+          <span class="satuan" data-i18n="harga.perbulan">/ bulan</span>
+        </p>
+        <p class="teks-dukung" data-i18n="harga.standar.untuk">Untuk toko yang dikerjakan sendiri atau tim kecil.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="harga.standar.f1"><b>1.000 video</b> per bulan</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="harga.standar.f2">Durasi maksimal <b>30 detik</b> per video</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="harga.standar.f3">Video tersimpan <b>30 hari</b></span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="harga.standar.f4">Sampai <b>5 akun packer</b></span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="harga.standar.f5">Jumlah toko tidak dibatasi</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="harga.standar.f6">Tautan publik untuk berbagi bukti</span></li>
+          <li class="tak-ada"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg><span data-i18n="harga.standar.f7">Watermark memakai teks nama toko</span></li>
+        </ul>
+        <a class="tombol tombol-garis tombol-lebar" href="/app/register" data-i18n="harga.standar.cta">Pilih Standar</a>
+      </article>
+
+      <article class="kartu paket paket-unggulan">
+        <span class="paket-label" data-i18n="harga.pro.label">Paling lengkap</span>
+        <span class="paket-nama" data-i18n="harga.pro.nama">Pro</span>
+        <p class="paket-harga">
+          <span class="angka" data-i18n="harga.pro.harga">Rp 249.000</span>
+          <span class="satuan" data-i18n="harga.perbulan">/ bulan</span>
+        </p>
+        <p class="teks-dukung" data-i18n="harga.pro.untuk">Untuk gudang dengan banyak packer dan volume kirim tinggi.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="harga.pro.f1"><b>5.000 video</b> per bulan</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="harga.pro.f2">Durasi maksimal <b>60 detik</b> per video</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="harga.pro.f3">Video tersimpan <b>60 hari</b></span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="harga.pro.f4">Akun packer <b>tidak dibatasi</b></span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="harga.pro.f5">Jumlah toko tidak dibatasi</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="harga.pro.f6">Tautan publik untuk berbagi bukti</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="harga.pro.f7"><b>Watermark logo toko</b> sendiri</span></li>
+        </ul>
+        <a class="tombol tombol-utama tombol-lebar" href="/app/register" data-i18n="harga.pro.cta">Pilih Pro</a>
+      </article>
+    </div>
+
+    <p class="catatan-retensi">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+      <span data-i18n="harga.retensi">
+        <b>Video terhapus otomatis setelah masa simpannya habis</b> — 30 hari
+        pada paket Standar, 60 hari pada Pro, dihitung dari waktu perekaman.
+        Ini bagian dari cara kerja layanan, bukan kesalahan. Unduh video yang
+        ingin Anda simpan lebih lama sebelum tenggatnya.
+      </span>
+    </p>
+  </div>
+</section>
+
+<!-- ===================================================================== -->
+<!-- 7. TUTORIAL                                                           -->
+<!-- ===================================================================== -->
+<!--
+  ⚠️ BELUM TERISI. Bab 10.2 meminta "cuplikan 3 video teratas" dari tabel
+  `tutorials`. Isi tabel itu belum tersedia untuk desainer, jadi bagian ini
+  sementara mengarahkan pembaca ke halaman Tutorial di dalam aplikasi.
+  Ganti dengan tiga kartu video begitu daftarnya diberikan.
+-->
+<section class="bagian" id="tutorial">
+  <div class="wrap">
+    <div class="bagian-kepala bagian-kepala-tengah">
+      <span class="kicker" data-i18n="tutorial.kicker">Tutorial</span>
+      <h2 class="judul-bagian" data-i18n="tutorial.judul">Belajar memakainya dalam sepuluh menit</h2>
+      <p data-i18n="tutorial.sub">
+        Panduan langkah demi langkah untuk menyiapkan toko, membuat akun packer,
+        dan merekam paket pertama Anda.
+      </p>
+      <p style="margin-top:var(--space-lg)">
+        <a class="tombol tombol-garis" href="/app/tutorial" data-i18n="tutorial.cta">Buka halaman Tutorial</a>
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================================== -->
+<!-- 8. KONTAK                                                             -->
+<!-- ===================================================================== -->
+<!--
+  Data kontak diberikan Product Owner pada 26 Agustus 2026.
+
+  ⚠️ Nomor dan surel di bawah tampil terbuka di halaman publik, jadi keduanya
+  akan terkumpul oleh perayap spam. Itu konsekuensi yang melekat pada halaman
+  kontak mana pun; dicatat di sini supaya tidak dikira kebocoran.
+
+  ⚠️ Zona waktu "WIB" adalah dugaan, bukan pemberian. Betulkan bila keliru.
+-->
+<section class="bagian bagian-abu" id="kontak">
+  <div class="wrap">
+    <div class="bagian-kepala bagian-kepala-tengah">
+      <span class="kicker" data-i18n="kontak.kicker">Kontak</span>
+      <h2 class="judul-bagian" data-i18n="kontak.judul">Ada yang ingin ditanyakan lebih dulu?</h2>
+      <p data-i18n="kontak.sub">Kami balas pada jam kerja.</p>
+    </div>
+
+    <div class="kisi kisi-3">
+      <article class="kartu kontak-kartu">
+        <span class="lencana-ikon nada-sukses" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.5 8.5 0 0 1-4-1L3 21l2.1-5a8.4 8.4 0 0 1-1-4 8.4 8.4 0 0 1 8.4-8.4h.5A8.4 8.4 0 0 1 21 11v.5z"/></svg>
+        </span>
+        <div>
+          <h3 data-i18n="kontak.wa.judul">WhatsApp</h3>
+          <!-- Pesan pembuka sudah disiapkan supaya calon pelanggan tidak
+               bingung harus menulis apa. Buang bagian ?text=… bila tidak mau. -->
+          <a class="kontak-tautan"
+             href="https://wa.me/6285113214018?text=Halo%20KamelScan%2C%20saya%20ingin%20bertanya%20soal%20layanannya."
+             target="_blank" rel="noopener">+62 851-1321-4018</a>
+          <p class="teks-kecil" data-i18n="kontak.wa.isi">Jalur tercepat, dibalas pada jam kerja.</p>
+        </div>
+      </article>
+
+      <article class="kartu kontak-kartu">
+        <span class="lencana-ikon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 7l10 6 10-6"/></svg>
+        </span>
+        <div>
+          <h3 data-i18n="kontak.email.judul">Surel</h3>
+          <a class="kontak-tautan" href="mailto:aiotideaproject@gmail.com">aiotideaproject@gmail.com</a>
+          <p class="teks-kecil" data-i18n="kontak.email.isi">Untuk pertanyaan panjang, penawaran, atau lampiran.</p>
+        </div>
+      </article>
+
+      <article class="kartu kontak-kartu">
+        <span class="lencana-ikon nada-retur" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+        </span>
+        <div>
+          <h3 data-i18n="kontak.jam.judul">Jam operasional</h3>
+          <p class="kontak-nilai" data-i18n="kontak.jam.nilai">Senin&ndash;Jumat, 09.00&ndash;17.00 WIB</p>
+          <p class="teks-kecil" data-i18n="kontak.jam.isi">Pesan yang masuk di luar jam ini dibalas pada hari kerja berikutnya.</p>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================================== -->
+<!-- Ajakan penutup                                                        -->
+<!-- ===================================================================== -->
+<section class="penutup">
+  <div class="wrap">
+    <h2 class="judul-bagian" data-i18n="penutup.judul">Paket berikutnya yang Anda kirim bisa sudah ada buktinya</h2>
+    <p data-i18n="penutup.sub">
+      Daftar sekarang, dapat 100 video gratis. Tidak perlu kartu kredit, dan
+      tidak ada tenggat waktu untuk memakainya.
+    </p>
+    <div class="hero-aksi">
+      <a class="tombol tombol-terang" href="/app/register" data-i18n="penutup.cta1">Daftar Gratis</a>
+      <a class="tombol tombol-garis" href="/app/login" data-i18n="penutup.cta2">Sudah punya akun</a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ===================================================================== -->
+<!-- 9. FOOTER                                                             -->
+<!-- ===================================================================== -->
+<footer class="kaki">
+  <div class="wrap">
+    <div class="kaki-grid">
+      <div>
+        <a class="merek" href="#beranda">
+          <img src="img/logo-mark-72.png" alt="" width="42" height="34">
+          <span>Kamel<i>Scan</i></span>
+        </a>
+        <p class="teks-dukung" style="margin-top:var(--space-sm);max-width:36ch" data-i18n="kaki.tagline">
+          Rekaman bukti packing otomatis untuk penjual online di Indonesia.
+        </p>
+      </div>
+
+      <div>
+        <h3 data-i18n="kaki.produk">Produk</h3>
+        <ul>
+          <li><a href="#cara-kerja" data-i18n="nav.fitur">Fitur</a></li>
+          <li><a href="#harga"      data-i18n="nav.harga">Harga</a></li>
+          <li><a href="#tutorial"   data-i18n="nav.tutorial">Tutorial</a></li>
+          <li><a href="/app/login"  data-i18n="nav.masuk">Masuk</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h3 data-i18n="kaki.legal">Ketentuan</h3>
+        <ul>
+          <!--
+            ⚠️ Kedua halaman ini sudah ada, tetapi masih DRAF — belum diperiksa
+            penasihat hukum dan masih memuat bagian bertanda kuning yang belum
+            terisi. Tautannya sudah dipasang karena situsnya sendiri pun belum
+            terbit. Selesaikan isinya sebelum penerbitan: tautan ke dokumen
+            hukum yang isinya masih berlubang lebih merugikan daripada tidak
+            ada tautannya sama sekali.
+
+            Alamatnya sengaja relatif, tanpa garis miring di depan, supaya
+            halaman ini tetap bisa diperiksa dengan membuka berkasnya langsung
+            dari komputer tanpa perlu menjalankan server.
+          -->
+          <li><a href="syarat-ketentuan/index.html" data-i18n="kaki.snk">Syarat &amp; Ketentuan</a></li>
+          <li><a href="kebijakan-privasi/index.html" data-i18n="kaki.privasi">Kebijakan Privasi</a></li>
+          <li><a href="#kontak" data-i18n="nav.kontak">Kontak</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="kaki-bawah">
+      <span>© <span id="tahun">2026</span> PT Global Fitur Inovasi Teknologi</span>
+      <span data-i18n="kaki.dibuat">Dibuat untuk gudang yang sinyalnya susah.</span>
+    </div>
+  </div>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

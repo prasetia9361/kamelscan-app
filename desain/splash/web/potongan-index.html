@@ -1,37 +1,27 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-  <!--
-    Diganti oleh nilai `--base-href` saat `flutter build`. Untuk produksi
-    aplikasi ini dibangun dengan `--base-href /app/` (Bab 10.2): akar `/`
-    ditempati landing page statis, Flutter Web menempati `/app/`.
+<!--
+  ====================================================================
+  POTONGAN UNTUK web/index.html  —  layar peluncur Flutter Web
+  ====================================================================
 
-    🔴 Jangan menuliskannya sebagai `/app/` di sini. Nilainya harus tetap
-    `$FLUTTER_BASE_HREF` agar build lokal (`flutter run -d chrome`) yang
-    melayani dari `/` tidak ikut tergeser dan berakhir layar putih.
-  -->
-  <base href="$FLUTTER_BASE_HREF">
+  Masalahnya: <body> pada web/index.html benar-benar kosong kecuali satu baris
+  pemuat Flutter. Bundelnya 4,3 MB, jadi di sinyal gudang yang jelek pengunjung
+  menatap layar putih belasan detik tanpa tanda apa pun bahwa sesuatu sedang
+  terjadi. Sebagian akan menutup tabnya sebelum aplikasinya sempat muncul.
 
-  <meta charset="UTF-8">
-  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="KamelScan — bukti video setiap paket, otomatis. Rekaman packing terpicu barcode/QR untuk melindungi toko online dari sengketa marketplace.">
-  <meta name="theme-color" content="#0D5EA6">
+  Cara pasang: SISIPKAN blok <style> di bawah ke dalam <head>, lalu GANTI isi
+  <body> dengan blok kedua. Jangan sentuh baris <base href="$FLUTTER_BASE_HREF">.
 
-  <!-- iOS meta tags & icons -->
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="KamelScan">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  🔴 Logonya ditanam sebagai data-URI, bukan berkas terpisah. Itu disengaja:
+  berkas terpisah berarti satu permintaan jaringan lagi, dan di sinyal buruk
+  permintaan itu sendiri bisa gagal — sehingga layar peluncurnya ikut kosong,
+  persis masalah yang sedang diperbaiki.
 
-  <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
+  🔴 TIDAK memerlukan perubahan apa pun di lib/. Penghilangan layar peluncur
+  memakai MutationObserver yang menunggu Flutter menggambar bingkai
+  pertamanya, bukan panggilan dari sisi Dart.
+-->
 
-  <title>KamelScan</title>
-  <link rel="manifest" href="manifest.json">
-
-  <!-- Layar peluncur - dikerjakan desainer, lihat
-       desain/splash/CARA-PASANG.md. Menggantikan layar putih yang
-       tampil selama 1,3 MB bundel Flutter diunduh. -->
+<!-- ============ 1. SISIPKAN INI DI DALAM <head> ============ -->
 <style>
   :root { --splash-bg: #F2F5F9; --splash-fg: #4A5567; --splash-bar: #0D5EA6; }
   @media (prefers-color-scheme: dark) {
@@ -64,8 +54,8 @@
     #splash { transition: none; }
   }
 </style>
-</head>
-<body>
+
+<!-- ============ 2. GANTI ISI <body> DENGAN INI ============ -->
 <div id="splash">
   <img src="data:image/png;base64,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" alt="KamelScan" width="168">
   <div class="bar"><i></i></div>
@@ -110,5 +100,3 @@
 </script>
 
 <script src="flutter_bootstrap.js" async></script>
-</body>
-</html>
