@@ -3,7 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kamelscan/core/config/tier_config.dart';
+import 'package:kamelscan/core/models/app_user.dart';
 import 'package:kamelscan/core/models/daily_stats.dart';
+import 'package:kamelscan/core/models/enums.dart';
+import 'package:kamelscan/core/models/tenant.dart';
+import 'package:kamelscan/core/providers/session_provider.dart';
 import 'package:kamelscan/core/theme/app_theme.dart';
 import 'package:kamelscan/core/utils/app_failure.dart';
 import 'package:kamelscan/core/widgets/app_state_views.dart';
@@ -62,6 +67,7 @@ void main() {
     DailyStats? stats,
     AppFailure? gagal,
     double tinggi = 1400,
+    bool owner = true,
   }) async {
     tester.view.physicalSize = Size(lebar, tinggi);
     tester.view.devicePixelRatio = 1.0;
@@ -72,6 +78,11 @@ void main() {
         overrides: [
           webDashboardViewModelProvider
               .overrideWith(() => _VmPalsu(stats: stats, gagal: gagal)),
+          // 🔴 Sesi WAJIB dipalsukan. Tanpa ini `isOwner` selalu false, dan
+          // grafik pemakaian token tidak pernah dirender sama sekali — tes
+          // yang memeriksanya akan lulus atau gagal karena alasan yang sama
+          // sekali berbeda dari yang tertulis di namanya.
+          sessionProvider.overrideWith(() => _SesiPalsu(owner)),
         ],
         child: MaterialApp(
           theme: AppTheme.light,
@@ -299,6 +310,56 @@ void main() {
       expect(hasil.last.total, 12);
     });
   });
+  group('🔴 Keterangan dasar tanggal kedua grafik', () {
+    testWidgets('keduanya menyebut tanggal apa yang dihitung', (tester) async {
+      await pasang(tester, lebar: 1400, stats: contoh());
+
+      // Product Owner menanyakannya 28 Agustus 2026: jumlah kedua grafik tidak
+      // sama, dan tidak ada satu kata pun di layar yang menjelaskan kenapa.
+      //
+      // Video dihitung menurut `scan_date` (kapan direkam); token menurut
+      // `token_ledger.created_at` (kapan unggahannya berhasil). Video yang
+      // direkam malam lalu terunggah besok paginya muncul pada dua tanggal
+      // berbeda. Selisihnya benar — yang salah adalah tidak menjelaskannya.
+      expect(find.text('Dihitung menurut tanggal rekam'), findsOneWidget);
+      expect(
+        find.text('Dihitung menurut tanggal unggah — 1 token = 1 video'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('keterangan grafik token ikut hilang bila bukan Owner',
+        (tester) async {
+      // Grafik token memang hanya untuk Owner; keterangannya tidak boleh
+      // tertinggal sendirian tanpa grafiknya.
+      await pasang(tester, lebar: 1400, stats: contoh(), owner: false);
+
+      expect(find.text('Dihitung menurut tanggal rekam'), findsOneWidget);
+      expect(
+        find.text('Dihitung menurut tanggal unggah — 1 token = 1 video'),
+        findsNothing,
+      );
+    });
+  });
+}
+
+class _SesiPalsu extends Session {
+  _SesiPalsu(this.owner);
+
+  final bool owner;
+
+  @override
+  Future<SessionContext?> build() async => SessionContext(
+        user: AppUser(
+          id: 'u1',
+          tenantId: 't1',
+          email: 'a@contoh.com',
+          fullName: 'Budi Santoso',
+          role: owner ? UserRole.owner : UserRole.packer,
+        ),
+        tenant: const Tenant(id: 't1', ownerId: 'u1'),
+        tierCatalog: TierCatalog.fallback,
+      );
 }
 
 class _VmPalsu extends WebDashboardViewModel {

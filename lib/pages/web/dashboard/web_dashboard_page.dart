@@ -650,8 +650,30 @@ class _KartuGrafikVideo extends StatelessWidget {
               spacing: 16,
               runSpacing: 8,
               children: [
-                Text(t.dashboardChartTitle,
-                    style: theme.textTheme.titleMedium),
+                // 🔴 Kedua grafik di halaman ini menghitung TANGGAL YANG
+                // BERBEDA, dan tanpa dua baris keterangan ini selisihnya
+                // terbaca sebagai kesalahan.
+                //
+                // Video dihitung menurut `scan_date` — kapan direkam.
+                // Token dihitung menurut `token_ledger.created_at` — kapan
+                // unggahannya berhasil. Video yang direkam malam lalu
+                // terunggah besok paginya muncul pada dua tanggal berbeda di
+                // kedua grafik. Product Owner menanyakannya 28 Agustus 2026
+                // setelah melihat jumlah keduanya tidak sama.
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(t.dashboardChartTitle,
+                        style: theme.textTheme.titleMedium),
+                    Text(
+                      t.dashboardChartVideoSubtitle,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
                 Wrap(
                   spacing: 16,
                   children: [
