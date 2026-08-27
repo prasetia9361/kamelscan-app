@@ -26,6 +26,31 @@ class DashboardRange extends _$DashboardRange {
     if (!DashboardRepository.allowedRanges.contains(days)) return;
     state = days;
   }
+
+  /// Dipanggil bersama [DashboardCustomRange.clear] saat pengguna kembali ke
+  /// salah satu tombol 7/30/90.
+  void selectAndClearCustom(int days, VoidCallback bersihkan) {
+    if (!DashboardRepository.allowedRanges.contains(days)) return;
+    bersihkan();
+    state = days;
+  }
+}
+
+/// Rentang Kustom: tanggal awal dan akhir yang dipilih sendiri.
+///
+/// Dipisah dari [DashboardRange] alih-alih menyatukan keduanya menjadi satu
+/// keadaan: pemilih 7/30/90 dan pemilih tanggal adalah dua cara memilih hal
+/// yang sama, dan menyimpannya terpisah membuat "kembali ke 30 hari" cukup
+/// menekan tombolnya — rentang kustom yang lama tidak perlu dihapus dulu, dan
+/// masih ada bila pengguna berpindah bolak-balik.
+@riverpod
+class DashboardCustomRange extends _$DashboardCustomRange {
+  @override
+  ({DateTime from, DateTime to})? build() => null;
+
+  void select(DateTime from, DateTime to) => state = (from: from, to: to);
+
+  void clear() => state = null;
 }
 
 /// Grafik dan kartu ringkasan dasbor web (Bab 10.4).
@@ -36,12 +61,19 @@ class WebDashboardViewModel extends _$WebDashboardViewModel {
     // 🔴 `watch`, bukan `read`. Inilah yang membuat grafik dimuat ulang saat
     // tombol 7/30/90 ditekan — tanpa satu baris pun kode penyegaran.
     final days = ref.watch(dashboardRangeProvider);
+    final kustom = ref.watch(dashboardCustomRangeProvider);
 
     final session = ref.watch(sessionProvider).value;
     if (session == null) throw AppFailure.sessionExpired;
 
-    debugPrint('KAMELSCAN_DASBOR minta statistik · $days hari');
-    final hasil = await ref.read(dashboardRepositoryProvider).fetchDailyStats(days);
+    debugPrint('KAMELSCAN_DASBOR minta statistik · '
+        '${kustom == null ? '$days hari' : 'kustom ${kustom.from} s/d ${kustom.to}'}');
+
+    final hasil = await ref.read(dashboardRepositoryProvider).fetchDailyStats(
+          days,
+          from: kustom?.from,
+          to: kustom?.to,
+        );
 
     // Jalur gagal ikut dicetak, bukan hanya jalur berhasil — aturan yang lahir
     // dari L.9. Tanpa ini, "server menolak" tidak dapat dibedakan dari
@@ -56,10 +88,14 @@ class WebDashboardViewModel extends _$WebDashboardViewModel {
   /// ditampilkan: ia sedang menunggu jawabannya.
   Future<void> refresh() async {
     final days = ref.read(dashboardRangeProvider);
+    final kustom = ref.read(dashboardCustomRangeProvider);
     state = await AsyncValue.guard(
-      () async =>
-          (await ref.read(dashboardRepositoryProvider).fetchDailyStats(days))
-              .unwrap(),
+      () async => (await ref.read(dashboardRepositoryProvider).fetchDailyStats(
+                days,
+                from: kustom?.from,
+                to: kustom?.to,
+              ))
+          .unwrap(),
     );
   }
 }

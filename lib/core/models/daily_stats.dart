@@ -45,6 +45,15 @@ abstract class DailyStats with _$DailyStats {
 
     /// Jumlah pada rentang sepanjang sama, persis sebelumnya.
     @Default(StatTotal()) StatTotal previous,
+
+    /// Pemakaian token per hari — grafik kedua (Bab 10.4).
+    @Default(<TokenPoint>[]) List<TokenPoint> tokenSeries,
+
+    /// Antrean unggah **di server**.
+    @Default(PendingUploads()) PendingUploads pending,
+
+    /// null bila dompetnya belum terbentuk — bukan nol.
+    WalletInfo? wallet,
   }) = _DailyStats;
 
   const DailyStats._();
@@ -94,6 +103,110 @@ abstract class DailyStats with _$DailyStats {
   /// ("belum ada pembanding").
   static double? _change(int now, int before) =>
       before == 0 ? null : (now - before) / before;
+
+  // ---------- Kartu Token Tersedia ----------
+
+  /// Rata-rata token terpakai per hari pada rentang ini.
+  double get averageTokensPerDay {
+    if (tokenSeries.isEmpty) return 0;
+    final jumlah = tokenSeries.fold<int>(0, (a, p) => a + p.used);
+    return jumlah / tokenSeries.length;
+  }
+
+  /// Perkiraan berapa hari lagi saldonya cukup pada laju sekarang.
+  ///
+  /// 🔴 null bila lajunya nol atau dompetnya belum ada. Membaginya tetap akan
+  /// menghasilkan tak-hingga, dan layar akan menuliskan *"cukup ∞ hari"* —
+  /// kalimat yang secara teknis benar dan sama sekali tidak berguna. Yang
+  /// tidak dapat diperkirakan lebih baik tidak diperkirakan.
+  int? get estimatedDaysLeft {
+    final saldo = wallet?.balance;
+    final laju = averageTokensPerDay;
+    if (saldo == null || laju <= 0) return null;
+    return (saldo / laju).floor();
+  }
+
+  // ---------- Kartu Menunggu Unggah ----------
+
+  /// Umur video tertua yang masih menunggu diunggah.
+  Duration? get oldestPendingAge {
+    final sejak = pending.oldestAt;
+    if (sejak == null) return null;
+    final umur = DateTime.now().difference(sejak);
+    return umur.isNegative ? Duration.zero : umur;
+  }
+
+  /// Ambang "wajar" antrean unggah.
+  ///
+  /// Enam jam dipilih desainer sebagai batas antara "sedang jalan" dan
+  /// "tersangkut": satu giliran kerja penuh. Video yang belum terkirim
+  /// sesudah sepanjang itu hampir pasti bukan soal jaringan yang lambat.
+  static const Duration pendingWarnAfter = Duration(hours: 6);
+
+  bool get pendingIsStale {
+    final umur = oldestPendingAge;
+    return umur != null && umur >= pendingWarnAfter;
+  }
+}
+
+/// Satu hari pada grafik pemakaian token.
+@freezed
+abstract class TokenPoint with _$TokenPoint {
+  const factory TokenPoint({
+    required DateTime date,
+
+    /// Token terpakai hari itu. Sudah dibalik tandanya di server — buku besar
+    /// mencatat pemakaian sebagai angka negatif.
+    @Default(0) int used,
+  }) = _TokenPoint;
+
+  const TokenPoint._();
+
+  factory TokenPoint.fromJson(Map<String, dynamic> json) =>
+      _$TokenPointFromJson(json);
+}
+
+/// Antrean unggah di server (Bab 10.4).
+///
+/// ⚠️ **Bukan** antrean di perangkat. `DEVIASI_LIBRARY.md` L.5: baris
+/// `package_videos` baru dibuat saat mengunggah, jadi video yang direkam di
+/// gudang tanpa sinyal belum terhitung di sini sama sekali. Di web antrean
+/// perangkat memang tidak dapat dilihat — perangkatnya bukan yang sedang
+/// dipakai — jadi angka ini yang terbaik yang tersedia, bukan angka yang
+/// salah.
+@freezed
+abstract class PendingUploads with _$PendingUploads {
+  const factory PendingUploads({
+    @Default(0) int count,
+
+    /// Waktu rekam video tertua yang masih tersangkut. null bila antreannya
+    /// kosong.
+    DateTime? oldestAt,
+  }) = _PendingUploads;
+
+  const PendingUploads._();
+
+  factory PendingUploads.fromJson(Map<String, dynamic> json) =>
+      _$PendingUploadsFromJson(json);
+
+  bool get isEmpty => count == 0;
+}
+
+/// Saldo dan kuota dompet token.
+@freezed
+abstract class WalletInfo with _$WalletInfo {
+  const factory WalletInfo({
+    @Default(0) int balance,
+    @Default(0) int quota,
+  }) = _WalletInfo;
+
+  const WalletInfo._();
+
+  factory WalletInfo.fromJson(Map<String, dynamic> json) =>
+      _$WalletInfoFromJson(json);
+
+  /// Sisa kuota 0..1. Dipakai bilah kemajuan dan ambang warna Bab 7.3.
+  double get ratio => quota <= 0 ? 0 : (balance / quota).clamp(0.0, 1.0);
 }
 
 /// Satu hari pada grafik.

@@ -13,11 +13,11 @@ import 'package:kamelscan/pages/web/dashboard/web_dashboard_view_model.dart';
 
 /// Dasbor web (Bab 10.4) — empat kondisi Bab 3.4 dan dua lebar layar.
 ///
-/// 🔴 Memakai `AppTheme` sungguhan, bukan tema bawaan Flutter. Percobaan
-/// pertama pada cacat M.12 memakai tema bawaan dan **lulus**, sehingga susunan
-/// yang rusak sempat dinyatakan baik-baik saja. Kepala halaman ini berisi judul
-/// dan `SegmentedButton` bersebelahan — bentuk yang persis sama dengan yang
-/// sudah dua kali meluber di proyek ini (M.12 dan M.17).
+/// 🔴 Memakai `AppTheme` sungguhan. Percobaan pertama pada cacat M.12 memakai
+/// tema bawaan Flutter dan **lulus**, sehingga susunan yang rusak sempat
+/// dinyatakan baik-baik saja. Kepala halaman ini berisi judul dan
+/// `SegmentedButton` bersebelahan — bentuk yang persis sama dengan yang sudah
+/// dua kali meluber di proyek ini (M.12 dan M.17).
 void main() {
   DailyStats contoh({
     int packing = 12,
@@ -25,6 +25,12 @@ void main() {
     int packingLalu = 10,
     int returLalu = 2,
     int hari = 3,
+    int saldo = 800,
+    int kuota = 1000,
+    bool adaDompet = true,
+    int menunggu = 0,
+    Duration? umurTertua,
+    List<int> token = const [4, 0, 6],
   }) =>
       DailyStats.fromJson({
         'days': hari,
@@ -37,6 +43,17 @@ void main() {
         ],
         'total': {'packing': packing, 'return': retur},
         'previous': {'packing': packingLalu, 'return': returLalu},
+        'token_series': [
+          for (var i = 0; i < token.length; i++)
+            {'date': '2026-08-${24 + i}', 'used': token[i]},
+        ],
+        'pending': {
+          'count': menunggu,
+          'oldest_at': umurTertua == null
+              ? null
+              : DateTime.now().subtract(umurTertua).toIso8601String(),
+        },
+        if (adaDompet) 'wallet': {'balance': saldo, 'quota': kuota},
       });
 
   Future<void> pasang(
@@ -44,8 +61,9 @@ void main() {
     required double lebar,
     DailyStats? stats,
     AppFailure? gagal,
+    double tinggi = 1400,
   }) async {
-    tester.view.physicalSize = Size(lebar, 1000);
+    tester.view.physicalSize = Size(lebar, tinggi);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
@@ -73,51 +91,121 @@ void main() {
   }
 
   group('Kondisi berisi', () {
-    testWidgets('empat kartu ringkasan dan grafiknya tergambar',
+    testWidgets('empat kartu ringkasan sesuai rancangan desainer',
         (tester) async {
       await pasang(tester, lebar: 1400, stats: contoh());
 
       expect(find.text('Video Packing'), findsWidgets);
       expect(find.text('Video Return'), findsWidgets);
-      expect(find.text('Total Video'), findsOneWidget);
-      expect(find.text('Rata-rata / Hari'), findsOneWidget);
-      expect(find.byType(LineChart), findsOneWidget);
+
+      // 🔴 Dua kartu terakhir MENYIMPANG dari Bab 10.4, dan itu disengaja:
+      // dokumen meminta keempatnya membandingkan dengan periode sebelumnya,
+      // sedangkan Token dan Menunggu Unggah adalah keadaan SAAT INI — angka
+      // yang tidak punya "periode lalu" untuk dibandingkan.
+      expect(find.text('Token Tersedia'), findsOneWidget);
+      expect(find.text('Menunggu Unggah'), findsOneWidget);
+
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('rata-rata ditulis dengan satu desimal, tidak dibulatkan',
-        (tester) async {
-      // 11 video / 3 hari = 3,666… Dibulatkan menjadi "4", dan tenant yang
-      // merekam 3,7 per hari tampak sama dengan yang merekam 4,4.
-      await pasang(tester, lebar: 1400, stats: contoh(packing: 8, retur: 3));
-      expect(find.text('3,7'), findsOneWidget);
-    });
-
-    testWidgets('kenaikan memakai panah, bukan warna saja', (tester) async {
+    testWidgets('grafiknya batang, bukan garis', (tester) async {
       await pasang(tester, lebar: 1400, stats: contoh());
 
-      // §7 palet: makna tidak pernah disampaikan hanya lewat warna.
-      expect(find.byIcon(Icons.arrow_upward_rounded), findsWidgets);
-      expect(find.textContaining('20%'), findsOneWidget);
+      // Rancangan desainer memakai batang bertumpuk supaya packing dan retur
+      // satu hari terbaca sebagai satu hari, bukan dua garis yang harus
+      // dijumlahkan sendiri oleh pembacanya.
+      expect(find.byType(BarChart), findsWidgets);
+      expect(find.byType(LineChart), findsNothing);
     });
 
-    testWidgets('periode sebelumnya nol menulis "belum ada pembanding"',
+    testWidgets('ringkasan total ditulis di bawah grafiknya', (tester) async {
+      await pasang(tester, lebar: 1400, stats: contoh());
+
+      expect(find.text('Total 3 hari: 15 video'), findsOneWidget);
+      expect(find.text('(Packing 12 · Retur 3)'), findsOneWidget);
+    });
+
+    testWidgets('pemilih rentang punya pilihan Kustom', (tester) async {
+      await pasang(tester, lebar: 1400, stats: contoh());
+
+      expect(find.text('7 hari'), findsOneWidget);
+      expect(find.text('90 hari'), findsOneWidget);
+      expect(find.text('Kustom'), findsOneWidget);
+    });
+  });
+
+  group('Kartu Token Tersedia', () {
+    testWidgets('menulis perkiraan sisa hari pada laju sekarang',
+        (tester) async {
+      // 10 token terpakai dalam 3 hari = 3,33/hari. Saldo 800 -> 240 hari.
+      await pasang(
+        tester,
+        lebar: 1400,
+        stats: contoh(saldo: 800, token: [4, 0, 6]),
+      );
+      expect(find.textContaining('Cukup ± 240 hari'), findsOneWidget);
+    });
+
+    testWidgets('laju nol tidak menghasilkan "cukup ∞ hari"', (tester) async {
+      await pasang(
+        tester,
+        lebar: 1400,
+        stats: contoh(token: [0, 0, 0]),
+      );
+      expect(find.text('Belum cukup data untuk memperkirakan'), findsOneWidget);
+    });
+
+    testWidgets('🔴 kuota menipis mengubah KATA, bukan hanya warna',
+        (tester) async {
+      // Palet §7: makna tidak pernah disampaikan lewat warna saja. Bilah yang
+      // berubah oranye tanpa satu kata pun adalah bentuk paling murni dari
+      // pelanggaran itu.
+      await pasang(tester, lebar: 1400, stats: contoh(saldo: 100));
+      expect(find.text('Token menipis'), findsOneWidget);
+    });
+
+    testWidgets('saldo nol berkata habis, bukan menipis', (tester) async {
+      await pasang(tester, lebar: 1400, stats: contoh(saldo: 0));
+      expect(find.text('Token habis'), findsOneWidget);
+    });
+
+    testWidgets('dompet yang belum ada berbeda dari saldo nol', (tester) async {
+      // Dua keadaan yang berbeda: yang pertama tidak boleh menyuruh Owner
+      // membeli token yang sebenarnya sudah ia punya.
+      await pasang(tester, lebar: 1400, stats: contoh(adaDompet: false));
+      expect(find.text('Dompet token belum terbentuk'), findsOneWidget);
+      expect(find.text('Token habis'), findsNothing);
+    });
+  });
+
+  group('Kartu Menunggu Unggah', () {
+    testWidgets('antrean kosong berkata begitu', (tester) async {
+      await pasang(tester, lebar: 1400, stats: contoh(menunggu: 0));
+      expect(find.text('Tidak ada yang menunggu'), findsOneWidget);
+    });
+
+    testWidgets('menyebut umur yang tertua, bukan yang terbaru',
         (tester) async {
       await pasang(
         tester,
         lebar: 1400,
-        stats: contoh(packingLalu: 0, returLalu: 0),
+        stats: contoh(menunggu: 4, umurTertua: const Duration(hours: 2)),
       );
+      expect(find.text('Tertua menunggu 2 jam'), findsOneWidget);
+    });
 
-      // Bukan "naik 100%". Tiga kartu pembanding + kartu rata-rata yang
-      // memang tidak pernah membandingkan.
-      expect(find.text('Belum ada pembanding'), findsNWidgets(4));
-      expect(find.byIcon(Icons.arrow_upward_rounded), findsNothing);
+    testWidgets('lewat enam jam berubah jadi peringatan', (tester) async {
+      await pasang(
+        tester,
+        lebar: 1400,
+        stats: contoh(menunggu: 1, umurTertua: const Duration(hours: 7)),
+      );
+      expect(find.text('Ada yang tersangkut lebih dari 6 jam'), findsOneWidget);
     });
   });
 
-  group('Kondisi kosong', () {
-    testWidgets('grafik diganti ajakan, tetapi pemilih rentang TETAP ada',
+  group('Kondisi kosong dan gagal', () {
+    testWidgets('grafik diganti ajakan, pemilih rentang TETAP ada',
         (tester) async {
       await pasang(
         tester,
@@ -126,52 +214,31 @@ void main() {
       );
 
       expect(find.byType(AppEmptyState), findsOneWidget);
-      expect(find.byType(LineChart), findsNothing);
-
-      // 🔴 Inilah yang membedakannya dari layar kosong biasa. Sebab tersering
-      // dasbor kosong adalah rentang 7 hari yang kebetulan sepi — layar yang
-      // menyembunyikan tombol 30/90 hari menutup satu-satunya jalan keluar.
-      expect(find.byType(SegmentedButton<int>), findsOneWidget);
+      // 🔴 Sebab tersering dasbor kosong adalah rentang 7 hari yang kebetulan
+      // sepi — layar yang menyembunyikan tombol 30/90 menutup jalan keluarnya.
       expect(find.text('90 hari'), findsOneWidget);
     });
-  });
 
-  group('Kondisi gagal', () {
-    testWidgets('menampilkan pesan manusia, bukan pesan mentah server',
-        (tester) async {
+    testWidgets('gagal menampilkan pesan manusia', (tester) async {
       await pasang(tester, lebar: 1400, gagal: AppFailure.network);
-
       expect(find.byType(AppErrorView), findsOneWidget);
-      expect(find.byType(LineChart), findsNothing);
-      // Kepala halaman tetap berdiri: pemilih rentangnya masih dapat dipakai
-      // mencoba rentang lain tanpa memuat ulang seluruh halaman.
-      expect(find.byType(SegmentedButton<int>), findsOneWidget);
     });
   });
 
-  group('Layar sempit — kartu turun ke baris berikutnya', () {
-    testWidgets('tidak ada yang meluber pada lebar 700', (tester) async {
+  group('Layar sempit', () {
+    testWidgets('tidak ada yang meluber pada 700', (tester) async {
       await pasang(tester, lebar: 700, stats: contoh());
-
-      // `takeException` menangkap luberan RenderFlex. Bila kepala halaman atau
-      // kartunya melebihi lebar layar, ia tidak diam — ia melempar di sini.
       expect(tester.takeException(), isNull);
-      expect(find.text('Total Video'), findsOneWidget);
     });
 
-    testWidgets('tidak ada yang meluber pada lebar 420', (tester) async {
+    testWidgets('tidak ada yang meluber pada 420', (tester) async {
       await pasang(tester, lebar: 420, stats: contoh());
-
       expect(tester.takeException(), isNull);
-      expect(find.byType(SegmentedButton<int>), findsOneWidget);
     });
   });
 
   group('Sumbu grafik', () {
     test('batas atas dibulatkan ke kelipatan empat', () {
-      // Supaya keempat garis bantunya jatuh pada bilangan bulat. Sumbu
-      // berlabel "2,5 video" membuat pembaca bertanya apa artinya setengah
-      // video.
       expect(DailyChartAxis.maxYFor(7), 8);
       expect(DailyChartAxis.maxYFor(8), 8);
       expect(DailyChartAxis.maxYFor(9), 12);
@@ -183,11 +250,53 @@ void main() {
     });
 
     test('label tanggal dijarangkan agar tidak saling menimpa', () {
-      // Rentang terpendek memberi label pada setiap hari; yang panjang
-      // dijarangkan sampai muat tujuh label.
       expect(DailyChartAxis.labelStepFor(7), 1);
       expect(DailyChartAxis.labelStepFor(30), 5);
       expect(DailyChartAxis.labelStepFor(90), 13);
+    });
+  });
+
+  group('Pengelompokan mingguan pada rentang panjang', () {
+    List<DailyPoint> deret(int n) => [
+          for (var i = 0; i < n; i++)
+            DailyPoint(
+              date: DateTime(2026, 6, 1).add(Duration(days: i)),
+              packing: 1,
+              returnCount: 1,
+            ),
+        ];
+
+    test('rentang pendek dibiarkan harian', () {
+      expect(WebDashboardPage.groupIfNeeded(deret(7)).length, 7);
+      expect(WebDashboardPage.groupIfNeeded(deret(30)).length, 30);
+    });
+
+    test('🔴 90 hari dikelompokkan jadi 13 batang', () {
+      // Rancangan desainer butir 3: 90 batang tidak muat walau di layar
+      // lebar, dan batang selebar 6 px hanya terlihat seperti kabut.
+      final hasil = WebDashboardPage.groupIfNeeded(deret(90));
+      expect(hasil.length, 13);
+    });
+
+    test('tidak ada hari yang hilang saat dikelompokkan', () {
+      final hasil = WebDashboardPage.groupIfNeeded(deret(90));
+      final jumlah = hasil.fold<int>(0, (a, p) => a + p.total);
+      // 90 hari x (1 packing + 1 retur).
+      expect(jumlah, 180);
+    });
+
+    test('tanggalnya AWAL kelompok, bukan akhirnya', () {
+      // Menuliskan tanggal akhir membuat batang pertama seolah mewakili
+      // minggu yang belum terjadi.
+      final hasil = WebDashboardPage.groupIfNeeded(deret(90));
+      expect(hasil.first.date, DateTime(2026, 6, 1));
+      expect(hasil[1].date, DateTime(2026, 6, 8));
+    });
+
+    test('sisa hari yang tidak genap seminggu tetap ikut', () {
+      // 90 = 12 x 7 + 6. Kelompok terakhir berisi enam hari.
+      final hasil = WebDashboardPage.groupIfNeeded(deret(90));
+      expect(hasil.last.total, 12);
     });
   });
 }

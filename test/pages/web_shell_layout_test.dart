@@ -94,9 +94,14 @@ void main() {
     testWidgets('ketujuh menu terlihat sekaligus', (tester) async {
       await pasang(tester, lebar: 1400);
 
-      // "Dasbor" muncul dua kali: di sidebar dan sebagai judul bilah atas —
+      // "Beranda" muncul dua kali: di sidebar dan sebagai judul bilah atas —
       // halaman yang sedang terbuka. Sisanya sekali.
-      expect(find.text('Dasbor'), findsNWidgets(2));
+      //
+      // 🔴 Namanya "Beranda", bukan "Dasbor": di web tidak ada halaman
+      // Beranda tersendiri seperti di HP, dan dasbor inilah halaman
+      // pembukanya (rancangan desainer 26 Agustus 2026). Alamatnya tetap
+      // `/dashboard`.
+      expect(find.text('Beranda'), findsNWidgets(2));
       expect(find.text('Toko'), findsOneWidget);
       expect(find.text('Riwayat'), findsOneWidget);
       expect(find.text('Packer'), findsOneWidget);
@@ -155,7 +160,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Lagi-lagi dua: menu di dalam laci, dan judul bilah atas.
-      expect(find.text('Dasbor'), findsNWidgets(2));
+      expect(find.text('Beranda'), findsNWidgets(2));
       expect(find.text('Toko'), findsOneWidget);
       expect(find.text('Packer'), findsOneWidget);
       expect(find.text('Tutorial'), findsOneWidget);
@@ -169,7 +174,7 @@ void main() {
       // Judul halaman wajib tetap terbaca justru di lebar ini: sidebar-nya
       // sudah jadi laci tersembunyi, jadi inilah satu-satunya penanda halaman
       // mana yang sedang terbuka.
-      expect(find.text('Dasbor'), findsOneWidget);
+      expect(find.text('Beranda'), findsOneWidget);
       // `takeException` menangkap luberan RenderFlex. Bila bilah atasnya
       // melebihi lebar layar, ia tidak diam — ia melempar di sini.
       expect(tester.takeException(), isNull);

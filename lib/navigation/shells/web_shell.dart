@@ -35,7 +35,16 @@ enum WebMenu {
   final bool ownerOnly;
 
   String label(AppL10n t) => switch (this) {
-        WebMenu.dashboard => t.navDashboard,
+        // 🔴 "Beranda", bukan "Dasbor" — rancangan desainer 26 Agustus 2026.
+        // Di web tidak ada halaman Beranda tersendiri seperti di HP; dasbor
+        // inilah halaman pembukanya, dan menamainya "Dasbor" di sebelah menu
+        // lain yang seluruhnya bernama tempat membuat ia terbaca seperti alat
+        // tambahan, bukan halaman pertama.
+        //
+        // ⚠️ Alamatnya tetap `/dashboard`. Yang berubah hanya namanya di
+        // layar; mengganti alamat berarti mematahkan setiap tautan yang sudah
+        // pernah dikirim orang.
+        WebMenu.dashboard => t.navHome,
         WebMenu.shops => t.navShops,
         WebMenu.history => t.navHistory,
         WebMenu.packers => t.navPackers,
