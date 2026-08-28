@@ -2,7 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_constants.dart';
 import '../models/enums.dart';
-import '../models/subscription.dart';
+import '../models/pending_payment.dart';
 import '../models/tenant.dart';
 import '../services/supabase_service.dart';
 import '../utils/result.dart';
@@ -37,17 +37,33 @@ class AdminRepository {
     }
   }
 
-  /// Pembayaran manual yang menunggu verifikasi (Bab 12, alur semi-manual).
-  Future<Result<List<Subscription>>> fetchPendingPayments() async {
+  /// Pembayaran yang menunggu diverifikasi Admin (Bab 12.2).
+  ///
+  /// Hanya yang **sudah berbukti**: `proof_url` terisi. Baris `pending` tanpa
+  /// bukti adalah orang yang menekan "Pilih Paket" lalu menutup aplikasinya,
+  /// dan menampilkannya di sini hanya memenuhi daftar Admin dengan pekerjaan
+  /// yang tidak dapat dikerjakan.
+  ///
+  /// 🔴 Nama usaha ikut diambil lewat embedding. Tanpa itu yang tampil hanya
+  /// UUID tenant, dan mencocokkan `0b5ae403-…` dengan mutasi rekening adalah
+  /// pekerjaan yang mustahil dilakukan tanpa salah.
+  ///
+  /// ⚠️ Email pemiliknya sengaja TIDAK ikut. `users` punya dua hubungan ke
+  /// `tenants` sekaligus (`users.tenant_id` dan `tenants.owner_id`), dan
+  /// PostgREST menolak embedding yang rancu seperti itu tanpa menyebut nama
+  /// constraint-nya. Nama usaha sudah cukup untuk mencocokkan dengan mutasi
+  /// rekening; email baru dibutuhkan bila Admin hendak menghubungi, dan itu
+  /// bukan bagian dari memverifikasi.
+  Future<Result<List<PendingPayment>>> fetchPendingPayments() async {
     try {
       final rows = await _client
           .from(AppConstants.tblSubscriptions)
-          .select()
+          .select('*, tenants(business_name)')
           .eq('status', SubStatus.pending.wire)
           .not('proof_url', 'is', null)
           .order('created_at', ascending: false);
       return Result.ok(
-        rows.map((r) => Subscription.fromJson(r)).toList(growable: false),
+        rows.map((r) => PendingPayment.fromJson(r)).toList(growable: false),
       );
     } on Object catch (e, s) {
       return Result.err(SupabaseService.mapError(e, s));
