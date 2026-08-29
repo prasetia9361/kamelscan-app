@@ -63,20 +63,25 @@ class _AdminNewAdminPageState extends State<AdminNewAdminPage> {
   /// perintah yang akan ditempel Product Owner ke SQL Editor produksi.
   String get _kutip => _isi.replaceAll("'", "''");
 
-  String get _sqlPeriksa =>
-      'select id, email, full_name, role, created_at\n'
-      '  from public.users\n'
-      " where email_normalized = public.normalize_email('$_kutip');";
+  /// Daftar admin sekarang — dijalankan sebelum dan sesudah mengubah peran.
+  ///
+  /// Tidak ada satu pun layar di aplikasi yang menampilkannya, dan daftar yang
+  /// lebih panjang daripada dugaan adalah hal pertama yang perlu diketahui
+  /// pemilik platform.
+  static const String sqlDaftar = 'select * from public.list_admins();';
 
-  String get _sqlJadikan =>
-      'update public.users\n'
-      "   set role = 'admin'\n"
-      " where email_normalized = public.normalize_email('$_kutip');";
+  /// 🔴 Satu baris, bukan `update` mentah — fungsinya dari migrasi 33.
+  ///
+  /// Ia memeriksa sendiri bahwa orangnya ada, menolak dengan penjelasan bila
+  /// tidak, mencatat ke `audit_logs`, dan mengembalikan **nama** orangnya
+  /// supaya Admin melihat siapa yang baru saja dinaikkan.
+  ///
+  /// `update ... where email = ...` yang salah ketik satu huruf tidak menyentuh
+  /// baris mana pun dan dilaporkan SQL Editor sebagai **sukses** — bentuk
+  /// kegagalan yang paling sulit disadari, dan itulah yang digantikan di sini.
+  String get _sqlJadikan => "select public.promote_to_admin('$_kutip');";
 
-  String get _sqlBatalkan =>
-      'update public.users\n'
-      "   set role = 'owner'\n"
-      " where email_normalized = public.normalize_email('$_kutip');";
+  String get _sqlBatalkan => "select public.demote_to_owner('$_kutip');";
 
   @override
   Widget build(BuildContext context) {
@@ -181,7 +186,18 @@ class _AdminNewAdminPageState extends State<AdminNewAdminPage> {
               isi: t.adminNewAdminStep3Body,
             ),
             const SizedBox(height: 10),
-            _BlokSql(sql: _sqlPeriksa, label: t.adminNewAdminSqlCheck),
+            _BlokSql(sql: _sqlJadikan, label: t.adminNewAdminSqlPromote),
+            const SizedBox(height: 6),
+            // Perintahnya adalah fungsi dari migrasi 33. Bila migrasi itu
+            // belum dijalankan, Supabase menjawab "function does not exist" —
+            // pesan yang tidak menyebutkan sama sekali apa yang harus
+            // dilakukan.
+            Text(
+              t.adminNewAdminMigrationNote,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
 
             const SizedBox(height: 24),
             _Langkah(
@@ -189,19 +205,29 @@ class _AdminNewAdminPageState extends State<AdminNewAdminPage> {
               judul: t.adminNewAdminStep4Title,
               isi: t.adminNewAdminStep4Body,
             ),
-            const SizedBox(height: 10),
-            _BlokSql(sql: _sqlJadikan, label: t.adminNewAdminSqlPromote),
-
-            const SizedBox(height: 24),
-            _Langkah(
-              nomor: 5,
-              judul: t.adminNewAdminStep5Title,
-              isi: t.adminNewAdminStep5Body,
-            ),
 
             const SizedBox(height: 28),
             const Divider(),
             const SizedBox(height: 12),
+
+            // Daftar admin. Tidak ada satu pun layar di aplikasi yang
+            // menampilkannya, dan daftar yang lebih panjang daripada dugaan
+            // adalah hal pertama yang perlu diketahui pemilik platform.
+            Text(t.adminNewAdminListTitle, style: theme.textTheme.titleSmall),
+            const SizedBox(height: 4),
+            Text(
+              t.adminNewAdminListBody,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 10),
+            _BlokSql(
+              sql: _AdminNewAdminPageState.sqlDaftar,
+              label: t.adminNewAdminSqlList,
+            ),
+
+            const SizedBox(height: 20),
             Text(t.adminNewAdminUndoTitle, style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
             Text(

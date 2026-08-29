@@ -74,28 +74,26 @@ void main() {
       // `users` bila ada yang menempelnya tanpa membaca.
       await pasang(tester);
 
-      expect(find.textContaining('update public.users'), findsNothing);
+      expect(find.textContaining('promote_to_admin('), findsNothing);
       expect(find.textContaining('Isi emailnya lebih dulu'), findsOneWidget);
     });
 
-    testWidgets('🔴 memeriksa dulu, baru mengubah — dua blok terpisah', (
-      tester,
-    ) async {
-      // `update` yang langsung dijalankan tanpa melihat namanya dapat
-      // menaikkan orang yang keliru menjadi admin platform, dan tidak ada
-      // galat apa pun yang muncul.
+    testWidgets('🔴 memakai fungsi, bukan update mentah', (tester) async {
+      // `update ... where email = ...` yang salah ketik satu huruf tidak
+      // menyentuh baris mana pun dan dilaporkan SQL Editor sebagai SUKSES —
+      // bentuk kegagalan yang paling sulit disadari. Fungsi migrasi 33
+      // menolak dengan penjelasan bila orangnya tidak ada.
       await pasang(tester);
       await tester.enterText(kolomEmail, 'budi@contoh.com');
       await tester.pumpAndSettle();
 
-      expect(
-        find.textContaining('select id, email, full_name'),
-        findsOneWidget,
-      );
-      expect(find.textContaining("set role = 'admin'"), findsOneWidget);
+      expect(find.textContaining('promote_to_admin('), findsOneWidget);
+      expect(find.textContaining('update public.users'), findsNothing);
 
-      // Urutannya dikatakan, bukan hanya diurutkan.
-      expect(find.textContaining('TEPAT SATU baris'), findsOneWidget);
+      // Dan dikatakan bahwa hasilnya menyebut nama orangnya, bukan sekadar
+      // "berhasil" — Product Owner mengetik email, yang harus ia periksa
+      // adalah namanya.
+      expect(find.textContaining('menyebut NAMA orangnya'), findsOneWidget);
     });
 
     testWidgets('emailnya ikut masuk ke perintahnya', (tester) async {
@@ -104,8 +102,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.textContaining("normalize_email('budi@contoh.com')"),
-        findsWidgets,
+        find.textContaining("promote_to_admin('budi@contoh.com')"),
+        findsOneWidget,
       );
     });
 
@@ -120,10 +118,33 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.textContaining("normalize_email('o''brien@contoh.com')"),
-        findsWidgets,
+        find.textContaining("promote_to_admin('o''brien@contoh.com')"),
+        findsOneWidget,
       );
       expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('menyediakan perintah melihat daftar admin', (tester) async {
+      // Tidak ada satu pun layar di aplikasi yang menampilkan daftar ini, dan
+      // daftar yang lebih panjang daripada dugaan adalah hal pertama yang
+      // perlu diketahui pemilik platform.
+      await pasang(tester);
+      await tester.enterText(kolomEmail, 'budi@contoh.com');
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('list_admins()'), findsOneWidget);
+    });
+
+    testWidgets('🔴 menyebutkan bahwa migrasi 33 harus sudah jalan', (
+      tester,
+    ) async {
+      // Tanpa migrasi 33, Supabase menjawab "function does not exist" — pesan
+      // yang tidak menyebutkan sama sekali apa yang harus dilakukan.
+      await pasang(tester);
+      await tester.enterText(kolomEmail, 'budi@contoh.com');
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('migrasi 33'), findsOneWidget);
     });
 
     testWidgets('menyediakan perintah pembatalan bila salah orang', (
@@ -133,7 +154,7 @@ void main() {
       await tester.enterText(kolomEmail, 'budi@contoh.com');
       await tester.pumpAndSettle();
 
-      expect(find.textContaining("set role = 'owner'"), findsOneWidget);
+      expect(find.textContaining('demote_to_owner('), findsOneWidget);
     });
   });
 
