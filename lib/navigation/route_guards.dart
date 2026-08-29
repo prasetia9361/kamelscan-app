@@ -169,8 +169,7 @@ class RouteGuards {
   static bool _isOwnerOnly(String location) =>
       location.startsWith(Routes.shops) ||
       location.startsWith(Routes.payment) ||
-      location.startsWith(Routes.packers) ||
-      location.startsWith(Routes.watermark);
+      location.startsWith(Routes.packers);
 }
 
 /// Jembatan agar GoRouter ikut menghitung ulang `redirect` saat status login

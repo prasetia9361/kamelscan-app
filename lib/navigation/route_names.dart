@@ -68,7 +68,6 @@ class Routes {
   /// Bab 9.6 butir 1 — ubah nama, nomor HP, username, dan foto profil.
   static const String editProfile = '/account/edit';
   static const String settings = '/settings';
-  static const String watermark = '/settings/watermark';
   static const String payment = '/payment';
   static const String checkout = '/payment/checkout';
 
@@ -93,7 +92,6 @@ class Routes {
   // ---------- Perekaman (mobile saja) ----------
   static const String recordSetup = '/record';
   static const String recordCamera = '/record/camera';
-  static const String recordResult = '/record/result';
 
   // ---------- Admin ----------
   static const String adminDashboard = '/admin';

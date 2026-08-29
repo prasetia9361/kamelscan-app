@@ -83,7 +83,6 @@ class SettingsRepository {
           .from(AppConstants.tblTenantSettings)
           .upsert({
             'tenant_id': settings.tenantId,
-            'watermark_logo_url': settings.watermarkLogoUrl,
             'watermark_position': settings.watermarkPosition.wire,
             'watermark_opacity': settings.watermarkOpacity,
             'show_gps_on_watermark': settings.showGpsOnWatermark,

@@ -84,7 +84,6 @@ class SessionContext {
   bool get canPlayVideo => tenant.canPlayVideo && !user.isAdmin;
 
   /// Bab 2.2 catatan 4 — watermark logo kustom hanya tier Pro.
-  bool get canUseCustomWatermark => isOwner && tier.allowsCustomWatermark;
 
   SessionContext copyWith({TokenWallet? wallet}) => SessionContext(
         user: user,

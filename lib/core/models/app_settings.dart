@@ -50,8 +50,6 @@ abstract class TenantSettings with _$TenantSettings {
   const factory TenantSettings({
     required String tenantId,
 
-    /// Khusus tier Pro (Bab 2.2 catatan 4).
-    String? watermarkLogoUrl,
     @Default(WatermarkPosition.bottomRight) WatermarkPosition watermarkPosition,
     @Default(0.75) double watermarkOpacity,
     @Default(true) bool showGpsOnWatermark,
@@ -66,7 +64,4 @@ abstract class TenantSettings with _$TenantSettings {
 
   factory TenantSettings.fromJson(Map<String, dynamic> json) =>
       _$TenantSettingsFromJson(json);
-
-  bool get hasCustomLogo =>
-      watermarkLogoUrl != null && watermarkLogoUrl!.isNotEmpty;
 }

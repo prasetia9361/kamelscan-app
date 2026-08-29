@@ -246,13 +246,6 @@ class _PlanCard extends ConsumerWidget {
             ? t.planFeaturePackersUnlimited
             : t.planFeaturePackers(tier.maxPackers),
       ),
-      _Feature(
-        text: t.planFeatureWatermark,
-        // ✗ dengan teks pudar, bukan baris yang dihilangkan. Perbedaan antar
-        // paket justru yang paling ingin dilihat pembacanya; menyembunyikan
-        // yang tidak tersedia membuat kedua kartu tampak setara.
-        included: tier.allowsCustomWatermark,
-      ),
     ];
   }
 }
@@ -304,11 +297,19 @@ class _PlanIllustration extends StatelessWidget {
 }
 
 class _Feature extends StatelessWidget {
-  const _Feature({required this.text, this.included = true});
+  const _Feature({required this.text});
 
   final String text;
-  final bool included;
 
+  /// ⚠️ Parameter `included` dibuang 29 Agustus 2026 bersama satu-satunya
+  /// baris yang memakainya (watermark logo kustom). Sisa fitur seluruhnya
+  /// berupa ANGKA yang berbeda antar paket — detik, hari retensi, jumlah
+  /// token, jumlah packer — bukan fitur yang ada-atau-tidak.
+  ///
+  /// Bila kelak ada lagi fitur yang hanya dimiliki satu paket, kembalikan
+  /// parameternya: menampilkannya sebagai baris tercoret jauh lebih jelas
+  /// daripada menghilangkannya, karena perbedaan antar paket justru yang
+  /// paling ingin dilihat pembacanya.
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -319,23 +320,13 @@ class _Feature extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            included ? Icons.check_rounded : Icons.close_rounded,
-            size: 16,
-            color: included
-                ? colors.success
-                : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-          ),
+          Icon(Icons.check_rounded, size: 16, color: colors.success),
           const SizedBox(width: 6),
           Expanded(
             child: Text(
               text,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: included
-                    ? theme.colorScheme.onSurface
-                    : theme.colorScheme.onSurfaceVariant,
-                decoration: included ? null : TextDecoration.lineThrough,
-              ),
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.onSurface),
             ),
           ),
         ],

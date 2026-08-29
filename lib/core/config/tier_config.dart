@@ -28,8 +28,6 @@ class TierConfig {
   final int monthlyTokens;
   final num price;
 
-  /// Watermark logo kustom hanya untuk tier Pro (Bab 2.2 catatan 4).
-  bool get allowsCustomWatermark => plan == TierPlan.pro;
 
   bool get hasUnlimitedPackers => maxPackers < 0;
 

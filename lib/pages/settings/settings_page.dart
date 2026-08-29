@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -12,32 +11,33 @@ import '../../core/config/app_constants.dart';
 import '../../core/providers/pipeline_providers.dart';
 import '../../core/providers/session_provider.dart';
 import '../../core/providers/theme_provider.dart';
-import '../../core/theme/app_colors.dart';
 import '../../core/widgets/failure_messages.dart';
-import '../../navigation/route_names.dart';
 import 'settings_view_model.dart';
 import 'widgets/cellular_upload_switch.dart';
 
 /// Halaman Pengaturan (Bab 9.7).
 ///
-/// Dikelompokkan seperti di Bab 9.7: Tampilan, Perekaman, Merek, Privasi,
-/// Data, lalu Info. Kelompok Merek dan Privasi hanya tampil untuk Owner —
-/// keduanya mengubah hal yang berlaku bagi seluruh tenant.
+/// Kelompoknya lima: Tampilan, Perekaman, Privasi, Data, lalu Info.
 ///
-/// 🔴 Di **web**, tiga kelompok itu tidak ditampilkan sama sekali: Perekaman,
-/// Merek, dan Privasi. Keputusan Product Owner 26 Agustus 2026, dengan alasan
-/// yang sama seperti Bab 10.1 menghapus rute perekaman dari web — merekam
-/// hanya terjadi di HP, dan pengaturan yang tidak dapat berpengaruh apa pun di
-/// tempat ia ditampilkan lebih buruk daripada pengaturan yang tidak ada:
-/// ia mengundang orang mengubahnya lalu bertanya-tanya kenapa tidak terjadi
-/// apa-apa.
+/// ⚠️ Bab 9.7 menyebut enam — kelompok **Merek** dihapus 29 Agustus 2026
+/// bersama pengaturan watermark, atas keputusan Product Owner. Satu-satunya
+/// isinya yang tersisa, sakelar GPS, pindah ke Perekaman: yang diaturnya
+/// memang apa yang ikut terbakar ke video berikutnya.
 ///
-/// ⚠️ Yang ikut hilang bersama kelompok Privasi adalah *"Packer boleh melihat
-/// riwayat se-toko"* — satu-satunya isinya, dan satu-satunya yang sebenarnya
-/// **bukan** soal perekaman. Sesudah ini ia hanya dapat diubah dari HP.
-/// Product Owner sudah diberi tahu.
+/// 🔴 Di **web**, tiga kelompok tidak ditampilkan sama sekali: Perekaman,
+/// Privasi, dan Data. Alasannya sama seperti Bab 10.1 menghapus rute
+/// perekaman dari web — merekam dan menyimpan berkas sementara hanya terjadi
+/// di HP, dan pengaturan yang tidak dapat berpengaruh apa pun di tempat ia
+/// ditampilkan lebih buruk daripada pengaturan yang tidak ada: ia mengundang
+/// orang mengubahnya lalu bertanya-tanya kenapa tidak terjadi apa-apa.
+///
+/// ⚠️ Yang ikut hilang di web bersama kelompok Privasi adalah *"Packer boleh
+/// melihat riwayat se-toko"* — satu-satunya isinya, dan satu-satunya yang
+/// sebenarnya **bukan** soal perekaman. Sesudah ini ia hanya dapat diubah
+/// dari HP. Product Owner sudah diberi tahu.
+
 /// Kelompok pengaturan menurut Bab 9.7.
-enum SettingsGroup { display, recording, brand, privacy, data, info }
+enum SettingsGroup { display, recording, privacy, data, info }
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
@@ -58,12 +58,20 @@ class SettingsPage extends ConsumerWidget {
     required bool isOwner,
   }) =>
       switch (group) {
-        SettingsGroup.display ||
-        SettingsGroup.data ||
-        SettingsGroup.info =>
-          true,
+        SettingsGroup.display || SettingsGroup.info => true,
+
+        // 🔴 "Bersihkan cache" di web selalu menjawab "tidak ada berkas
+        // sementara untuk dihapus" — bukan karena bersih, melainkan karena
+        // peramban memang tidak menyimpan berkas video sementara. Tombolnya
+        // tidak melakukan apa pun dan MENGAKU BERHASIL, dan kegagalannya
+        // ditelan `on Object catch` sehingga tidak ada satu pun tanda.
+        //
+        // Pengaturan yang berbohong lebih buruk daripada pengaturan yang tidak
+        // ada. Alasan yang sama seperti tiga kelompok di bawah.
+        SettingsGroup.data => !isWeb,
+
         SettingsGroup.recording => !isWeb,
-        SettingsGroup.brand || SettingsGroup.privacy => !isWeb && isOwner,
+        SettingsGroup.privacy => !isWeb && isOwner,
       };
 
   @override
@@ -90,24 +98,24 @@ class SettingsPage extends ConsumerWidget {
           // Ketiganya mengatur apa yang terjadi saat merekam — dan merekam
           // hanya ada di HP (Bab 10.1).
           if (tampil(SettingsGroup.recording, isWeb: kIsWeb, isOwner: isOwner))
-            _Kelompok(judul: t.settingsGroupRecording, children: const [
-              _MicSwitch(),
-              SizedBox(height: 10),
-              _VoiceOverSwitch(),
-              SizedBox(height: 10),
-              CellularUploadSwitch(),
-            ]),
-
-          if (tampil(SettingsGroup.brand, isWeb: kIsWeb, isOwner: isOwner))
-            _Kelompok(
-              judul: t.settingsGroupBrand,
-              children: [
-                _WatermarkRow(
-                    canUsePro: session?.canUseCustomWatermark ?? false),
+            _Kelompok(judul: t.settingsGroupRecording, children: [
+              const _MicSwitch(),
+              const SizedBox(height: 10),
+              const _VoiceOverSwitch(),
+              const SizedBox(height: 10),
+              const CellularUploadSwitch(),
+              // 🔴 GPS pindah ke sini dari kelompok **Merek**, yang dihapus
+              // bersama pengaturan watermark (keputusan Product Owner
+              // 29 Agustus 2026). Ia memang pengaturan perekaman: yang
+              // diaturnya adalah apa yang ikut terbakar ke video BERIKUTNYA.
+              //
+              // Kelompok bernama "Merek" yang isinya tinggal satu sakelar GPS
+              // akan terbaca seperti judul yang lupa dihapus.
+              if (isOwner) ...[
                 const SizedBox(height: 10),
                 const _GpsSwitch(),
               ],
-            ),
+            ]),
 
           if (tampil(SettingsGroup.privacy, isWeb: kIsWeb, isOwner: isOwner))
             _Kelompok(
@@ -115,7 +123,11 @@ class SettingsPage extends ConsumerWidget {
               children: const [_PackerHistorySwitch()],
             ),
 
-          _Kelompok(judul: t.settingsGroupData, children: const [_ClearCache()]),
+          if (tampil(SettingsGroup.data, isWeb: kIsWeb, isOwner: isOwner))
+            _Kelompok(
+              judul: t.settingsGroupData,
+              children: const [_ClearCache()],
+            ),
           _Kelompok(judul: t.settingsGroupInfo, children: const [_InfoTile()]),
         ],
       ),
@@ -328,53 +340,6 @@ class _VoiceOverSwitch extends ConsumerWidget {
 ///
 /// Menyembunyikan fitur berbayar sepenuhnya membuat pelanggan tidak tahu apa
 /// yang mereka lewatkan; menekannya membuka halaman Pembayaran.
-class _WatermarkRow extends StatelessWidget {
-  const _WatermarkRow({required this.canUsePro});
-
-  final bool canUsePro;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.l10n;
-    final theme = Theme.of(context);
-    final colors = theme.extension<AppColors>()!;
-
-    return Card(
-      margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
-      child: ListTile(
-        leading: Icon(
-          canUsePro ? Icons.branding_watermark_outlined : Icons.lock_outline,
-          color: canUsePro ? null : colors.warning,
-        ),
-        title: Text(t.settingsWatermark),
-        subtitle: Text(
-          canUsePro ? t.settingsWatermarkBody : t.settingsProOnly,
-        ),
-        trailing: canUsePro
-            ? const Icon(Icons.chevron_right_rounded)
-            : Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: colors.warning.withValues(alpha: 0.16),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  t.tierPro,
-                  style: theme.textTheme.labelSmall
-                      ?.copyWith(color: colors.warning),
-                ),
-              ),
-        onTap: () => context.push(
-          canUsePro ? Routes.watermark : Routes.payment,
-        ),
-        contentPadding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
-      ),
-    );
-  }
-}
-
 class _GpsSwitch extends ConsumerWidget {
   const _GpsSwitch();
 

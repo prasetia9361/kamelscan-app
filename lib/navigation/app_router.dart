@@ -27,10 +27,8 @@ import '../pages/payment/checkout/checkout_page.dart';
 import '../pages/payment/plan_page.dart';
 import '../pages/public/public_video_page.dart';
 import '../pages/recording/camera/recording_camera_page.dart';
-import '../pages/recording/result/recording_result_page.dart';
 import '../pages/recording/setup/recording_setup_page.dart';
 import '../pages/settings/settings_page.dart';
-import '../pages/settings/watermark/watermark_page.dart';
 import '../pages/shops/form/shop_form_page.dart';
 import '../pages/shops/shops_page.dart';
 import '../pages/splash/splash_page.dart';
@@ -148,11 +146,6 @@ GoRouter appRouter(Ref ref) {
                   shopName: q['shop_name'] ?? '',
                 );
               },
-            ),
-            GoRoute(
-              path: 'result',
-              parentNavigatorKey: _rootNavigatorKey,
-              builder: (_, _) => const RecordingResultPage(),
             ),
           ],
         ),
@@ -314,13 +307,6 @@ GoRouter appRouter(Ref ref) {
               GoRoute(
                 path: Routes.settings,
                 builder: (_, _) => const SettingsPage(),
-                routes: [
-                  GoRoute(
-                    path: 'watermark',
-                    parentNavigatorKey: _rootNavigatorKey,
-                    builder: (_, _) => const WatermarkPage(),
-                  ),
-                ],
               ),
             ],
           ),

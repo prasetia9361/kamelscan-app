@@ -33,17 +33,11 @@ void main() {
       expect(standar.price, 99000);
     });
 
-    test('Pro punya packer tak terbatas dan watermark kustom', () {
+    test('Pro punya packer tak terbatas dan durasi rekam lebih panjang', () {
       final pro = TierCatalog.fromPricingJson(pricing).of(TierPlan.pro);
 
       expect(pro.hasUnlimitedPackers, isTrue);
-      expect(pro.allowsCustomWatermark, isTrue);
       expect(pro.maxRecordingDuration, const Duration(seconds: 60));
-    });
-
-    test('Standar tidak boleh memakai watermark logo kustom', () {
-      final standar = TierCatalog.fromPricingJson(pricing).of(TierPlan.standar);
-      expect(standar.allowsCustomWatermark, isFalse);
     });
 
     test('batas packer Standar ditegakkan pada angka 5', () {
