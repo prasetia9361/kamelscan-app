@@ -83,6 +83,17 @@ class AdminDashboardPage extends ConsumerWidget {
               subtitle: t.adminUsersMenuSubtitle,
               onTap: () => context.go(Routes.adminUsers),
             ),
+            const SizedBox(height: 12),
+
+            // Berdiri di kelompok atas bersama menu yang menyentuh orang,
+            // bukan di Pengaturan Platform — yang diurus di sini akun
+            // seseorang, bukan aturan yang berlaku bagi semua.
+            _MenuAdmin(
+              icon: Icons.admin_panel_settings_outlined,
+              title: t.adminNewAdminTitle,
+              subtitle: t.adminNewAdminMenuSubtitle,
+              onTap: () => context.go(Routes.adminNewAdmin),
+            ),
 
             // 🔴 Batas antara dua jenis pekerjaan yang berbeda, dan bukan
             // hiasan. Menu di ATAS mengubah SATU pelanggan; menu di BAWAH

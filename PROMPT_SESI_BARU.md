@@ -327,8 +327,8 @@ di Redmi Note 9.
 | Landing page + Syarat & Ketentuan + Kebijakan Privasi | ✅ |
 | Layar peluncur web, Android, iOS | ✅ |
 
-**Bab 11 (PANEL ADMIN) SELESAI SELURUHNYA — 29 Agustus 2026.** Tujuh halaman,
-uraiannya di `DEVIASI_LIBRARY.md` **P.5**:
+**Bab 11 (PANEL ADMIN) SELESAI SELURUHNYA — 29 Agustus 2026.** Delapan
+halaman, uraiannya di `DEVIASI_LIBRARY.md` **P.5**:
 
 | Bagian | Keadaan |
 |---|---|
@@ -339,6 +339,7 @@ uraiannya di `DEVIASI_LIBRARY.md` **P.5**:
 | 11.5 Kontak | ✅ (gambar iklan ditunda) |
 | 11.6 Metode pembayaran | ✅ sakelar Midtrans + rekening |
 | 11.7 Verifikasi pembayaran | ✅ + alasan penolakan |
+| *(di luar Bab 11)* Buat Akun Admin | ✅ halaman **panduan**, bukan pembuat akun — lihat P.3 |
 
 🔴 **Tiga keputusan dagang di panel Admin yang TIDAK BOLEH diubah diam-diam**
 — seluruhnya diuraikan di **P.5**:

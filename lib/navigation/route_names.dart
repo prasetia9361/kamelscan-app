@@ -115,6 +115,13 @@ class Routes {
   static const String adminPaymentMethods = '/admin/payment-methods';
   static const String adminContact = '/admin/contact';
 
+  /// Bab 2.2 — panduan membuat akun Admin baru.
+  ///
+  /// 🔴 Halaman ini TIDAK membuat akun. Bab 2.2 melarang jalur registrasi
+  /// menjadi admin dari aplikasi; yang disediakan hanya perintah SQL siap
+  /// salin untuk dijalankan di Supabase Dashboard.
+  static const String adminNewAdmin = '/admin/new-admin';
+
   // ---------- Web ----------
   static const String webDashboard = '/dashboard';
 

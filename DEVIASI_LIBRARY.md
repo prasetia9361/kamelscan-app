@@ -3405,6 +3405,32 @@ tetapi masih tertulis "Uji Coba".
 memeriksa `isOwner`), jadi akun admin yang dibuat lewat Dashboard tidak
 tersangkut di formulir nomor HP.
 
+#### Halaman panduan — Admin → Buat Akun Admin (29 Agustus 2026)
+
+Product Owner meminta menu pembuatan akun admin, karena jumlah admin akan
+bertambah seiring pelanggannya. **Bab 2.2 melarangnya:** *"Dibuat manual di
+database, tidak ada jalur registrasi menjadi admin dari aplikasi."*
+
+Yang dibangun karena itu **bukan** tombol "Buat", melainkan halaman panduan
+yang menyusun perintah SQL siap salin. Larangan Bab 2.2 tetap utuh — membuat
+admin masih menuntut kredensial Supabase Dashboard, yang terpisah dari login
+aplikasi. Bila satu akun admin dibobol, penyerangnya tetap tidak dapat
+mencetak admin baru untuk bertahan di dalam.
+
+Tiga hal yang dijaga tes:
+
+1. **Tidak ada kolom kata sandi.** Hanya satu kolom di seluruh halaman: email.
+   Tes gagal bila ada yang menambahkannya suatu hari karena terasa praktis.
+2. **Periksa dulu, baru ubah** — dua blok SQL terpisah. `update` yang langsung
+   dijalankan tanpa melihat namanya dapat menaikkan orang yang keliru menjadi
+   admin platform, tanpa galat apa pun.
+3. **Tanda kutip di dalam email dikutip ganda.** `o'brien@contoh.com` adalah
+   alamat sah, dan satu kutip yang lolos memutus perintah yang akan ditempel
+   ke SQL Editor **produksi**.
+
+Kedua jebakan di atas (alias Gmail, wajib keluar-masuk) tertulis di halamannya
+sendiri, tepat di langkah tempat orang akan menabraknya.
+
 ### P.4 Setujui & Tolak — terbukti pada baris sungguhan
 
 **Terbukti 29 Agustus 2026.** Sampai hari itu keduanya belum pernah dijalankan

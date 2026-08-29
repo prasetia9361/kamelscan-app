@@ -12,6 +12,7 @@ import '../pages/admin/dashboard/admin_dashboard_page.dart';
 import '../pages/admin/dashboard/admin_stats_page.dart';
 import '../pages/admin/payments/admin_payments_page.dart';
 import '../pages/admin/settings/admin_contact_page.dart';
+import '../pages/admin/settings/admin_new_admin_page.dart';
 import '../pages/admin/settings/admin_payment_methods_page.dart';
 import '../pages/admin/settings/admin_pricing_page.dart';
 import '../pages/admin/settings/admin_promos_page.dart';
@@ -182,6 +183,10 @@ GoRouter appRouter(Ref ref) {
           GoRoute(
             path: 'contact',
             builder: (_, _) => const AdminContactPage(),
+          ),
+          GoRoute(
+            path: 'new-admin',
+            builder: (_, _) => const AdminNewAdminPage(),
           ),
         ],
       ),

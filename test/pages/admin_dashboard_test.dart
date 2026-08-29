@@ -86,6 +86,11 @@ void main() {
               path: 'contact',
               builder: (_, _) => const Scaffold(body: Text('halaman kontak')),
             ),
+            GoRoute(
+              path: 'new-admin',
+              builder: (_, _) =>
+                  const Scaffold(body: Text('halaman admin baru')),
+            ),
           ],
         ),
       ],
@@ -147,6 +152,23 @@ void main() {
       // Lencana angka tidak muncul saat nol — lencana "0" hanya menarik mata
       // ke pekerjaan yang tidak ada.
       expect(find.text('0'), findsNothing);
+    });
+  });
+
+  group('Buat Akun Admin dapat dicapai (Bab 2.2)', () {
+    testWidgets('menunya ada di kelompok atas dan berpindah', (tester) async {
+      // Yang diurus di sini akun SESEORANG, bukan aturan yang berlaku bagi
+      // semua — jadi ia berdiri bersama menu pelanggan, bukan di Pengaturan
+      // Platform.
+      await pasang(tester, menunggu: const []);
+
+      expect(find.text('Buat Akun Admin'), findsOneWidget);
+
+      await tester.tap(find.text('Buat Akun Admin'));
+      await tester.pumpAndSettle();
+
+      expect(alamat, Routes.adminNewAdmin);
+      expect(tester.takeException(), isNull);
     });
   });
 
