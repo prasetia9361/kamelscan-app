@@ -9,7 +9,9 @@ Kamu adalah programmer Flutter profesional yang melanjutkan proyek **KamelScan**
 
 **Bab 10 (aplikasi web) SUDAH SELESAI dan terbukti di peramban.** Aplikasinya
 hidup di `https://kamelscan.com/app`, landing page di `https://kamelscan.com`.
-Yang tersisa: Tutorial (Bab 9.9), dua halaman Admin, dan sejumlah utang lama.
+**Prioritas sekarang: dua halaman Admin yang masih kosong** (Bab 11). Tutorial
+(Bab 9.9) sengaja ditunda menunggu channel YouTube-nya siap — lihat daftar
+utang di bawah.
 
 ## 🔴 Aturan nomor satu: BERTANYA DULU, jangan mengambil keputusan sendiri
 
@@ -271,19 +273,29 @@ Halaman Admin → Verifikasi Pembayaran sudah jadi dan dapat dibuka, tetapi
 daftarnya kosong saat diuji. Yang terbukti baru *"halamannya jalan"*, bukan
 *"tombolnya bekerja"*. Prosedur pengujian yang aman ada di **P.4**.
 
-### 3. Bab 9.9 Tutorial — belum dikerjakan
-
-Halaman daftar bernomor dari tabel `tutorials`, membuka YouTube lewat
-`url_launcher`. Versi webnya grid kartu (Bab 10.5). **Menunya sudah berdiri di
-sidebar web dan di Beranda HP, dan siapa pun yang menekannya sekarang mendapat
-halaman kosong** — satu-satunya menu yang terlihat rusak bagi pengguna biasa.
-Perkiraan ± 2 jam.
-
-### 4. Dua halaman Admin masih kosong
+### 3. 🔴 PRIORITAS: dua halaman Admin masih kosong
 
 `Admin → Kelola Pengguna` dan `Admin → Daftar Pelanggan`. Keduanya sudah
-tampil di menu dengan keterangan "Belum dikerjakan", jadi tidak menyesatkan.
+tampil di menu dengan keterangan "Belum dikerjakan", jadi tidak menyesatkan —
+tetapi panel admin baru berguna separuh tanpa keduanya. **Inilah yang saya
+minta dikerjakan lebih dulu** (keputusan saya 29 Agustus 2026).
 ± 2 jam masing-masing.
+
+Spesifikasinya Bab 11. `AdminRepository` sudah punya `fetchTenants`,
+`changeTier`, dan `setTenantStatus` — ketiganya belum dipakai layar mana pun.
+
+### 4. Bab 9.9 Tutorial — DITUNDA, menunggu channel YouTube
+
+Halaman daftar bernomor dari tabel `tutorials`, membuka YouTube lewat
+`url_launcher`. Versi webnya grid kartu (Bab 10.5).
+
+⚠️ **Bukan prioritas, dan bukan karena terlupa.** Isinya bergantung pada video
+tutorial yang belum dibuat; halaman yang jadi lebih dulu hanya akan menampilkan
+daftar kosong. Saya memutuskan 29 Agustus 2026 untuk menunggu channel-nya siap.
+
+Sampai saat itu, menu Tutorial di sidebar web dan di Beranda HP tetap mendarat
+di halaman kosong. **Itu keadaan yang saya terima, bukan cacat yang terlewat.**
+Perkiraan ± 2 jam begitu videonya ada.
 
 ### 5. Satu video sungguhan lewat jalur unggah latar belakang
 
