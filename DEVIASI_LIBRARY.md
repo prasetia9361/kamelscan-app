@@ -3375,3 +3375,111 @@ mengerjakan apa pun lebih merugikan daripada fitur yang memang tidak ada. Ia
 mengundang orang memakainya, lalu diam. Ketiganya juga punya bentuk yang sama
 dengan P.1 dan O.14 — sesuatu yang **tertulis** ada tetapi tidak pernah
 dikerjakan kodenya.
+
+---
+
+## R. Riwayat git ditulis ulang — 29 Agustus 2026
+
+### R.1 Apa yang terjadi dan kenapa
+
+Claude muncul sebagai **kontributor** di GitHub. Sebabnya baris
+`Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>` yang selama ini
+ditambahkan otomatis ke setiap pesan commit; GitHub membacanya sebagai
+penanda kontributor.
+
+Product Owner memutuskan menghapusnya. Yang dikerjakan:
+
+1. **Ke depan** — `includeCoAuthoredBy: false` dipasang di
+   `~/.claude/settings.json` (tingkat mesin, bukan tingkat proyek).
+2. **Riwayat yang sudah terbit** — 74 commit ditulis ulang dengan
+   `git filter-branch --msg-filter`, lalu `push --force`.
+3. **Cabang `worktree-bab-9` di GitHub dihapus** — isinya sudah seluruhnya ada
+   di master (nol commit unik), dan ia membawa 19 penanda lagi.
+
+Hasilnya: nol penanda di `origin/master`, dan seluruh 75 commit ditulis serta
+disimpan atas nama `Muhammad Ghofinda Prasetia`.
+
+⚠️ **Daftar kontributor GitHub tidak langsung berubah.** Ia dihitung di latar
+belakang dan bisa tertinggal beberapa jam sampai sehari setelah riwayat
+ditulis ulang. Jangan menyimpulkan "gagal" pada hari yang sama.
+
+### R.2 🔴 Cabang lama membawa jejak itu kembali
+
+Penulisan ulang hanya menyentuh `master`. **Setiap cabang lain masih menunjuk
+commit lama**, lengkap dengan penandanya:
+
+| Cabang | Commit ber-penanda |
+|---|---|
+| `worktree-desain-web` | 40 |
+| `worktree-bab-10` | 24 |
+| `worktree-bab-9` | 21 |
+| sepuluh cabang `claude/*` | banyak |
+
+**Menggabungkan salah satunya ke master mengembalikan seluruh jejak itu ke
+GitHub** — dan membatalkan seluruh pembersihan tanpa satu pun peringatan.
+
+Sudah diperiksa: tidak ada yang berharga di dalamnya. Satu-satunya berkas yang
+ada di `worktree-desain-web` tetapi tidak di master adalah dua halaman
+placeholder yang memang sengaja dihapus (Q). Seluruh isi lainnya sudah masuk.
+
+**Aturannya: jangan pernah menggabungkan cabang yang dibuat sebelum
+29 Agustus 2026. Buang saja.**
+
+### R.3 Jebakan saat melanjutkan pekerjaan di worktree lama
+
+Worktree yang sudah ada **saat** riwayat ditulis ulang tetap menunjuk commit
+lama. Melanjutkan bekerja di sana lalu meminta merge akan menyeret riwayat
+lama ikut masuk.
+
+Cara amannya, setelah memastikan isinya identik:
+
+```
+git diff <cabang> origin/master --stat   # harus kosong
+git reset --hard origin/master
+```
+
+Terjadi sungguhan pada worktree `selesaikan-bab-10`: cabangnya masih menunjuk
+commit pra-penulisan-ulang, dan satu commit berikutnya di sana akan membawa
+seluruh riwayat lama kembali ke master.
+
+### R.4 Pemeriksaan wajib sebelum push
+
+```
+git log master --grep="Co-Authored-By: Claude" --oneline
+```
+
+**Harus kosong.** Bila menghasilkan sesuatu, jangan di-push.
+
+⚠️ Pencarian yang tidak peduli huruf besar-kecil (`--regexp-ignore-case`) akan
+menemukan **satu** commit — itu **alarm palsu**. Yang tertangkap adalah kalimat
+di badan pesan yang kebetulan menyebut istilahnya, bukan penanda: GitHub hanya
+membaca bentuk `Co-authored-by: Nama <email>`, dan yang itu ada di tengah
+kalimat tanpa email.
+
+### R.5 `.claude/` tidak lagi masuk repositori
+
+Sempat dilacak agar setelannya ikut dibagi, lalu diabaikan seluruhnya. Setelan
+pindah ke tingkat mesin — tempat yang justru lebih benar, karena berlaku untuk
+setiap worktree dan setiap proyek tanpa perlu disalin ulang.
+
+🔴 Alasan keamanan yang lebih penting dan tetap berlaku:
+`.claude/worktrees/` berisi **salinan utuh repositori ini**, beberapa buah,
+masing-masing lengkap dengan `env.dev.json` dan `dataapp.md` yang justru
+sengaja dijaga agar tidak pernah masuk git. Sebelum 29 Agustus 2026, satu kali
+`git add -A` di checkout utama akan mencoba memasukkan ribuan berkas termasuk
+kredensial. Tidak terjadi hanya karena kebetulan tidak ada yang
+menjalankannya.
+
+### R.6 Cara Product Owner membuka kembali percakapan Claude Code
+
+Percakapan terikat pada **foldernya**. Harus dari folder yang sama:
+
+```
+cd E:\kamelscan\.claude\worktrees\<nama-worktree>
+claude --resume      # pilih dari daftar
+claude --continue    # langsung ke yang terakhir
+```
+
+⚠️ Dijalankan dari folder induk `E:\kamelscan`, percakapan milik worktree
+**tidak akan muncul** di daftarnya. Karena itu, jangan menghapus worktree yang
+percakapannya mungkin masih ingin dibuka.

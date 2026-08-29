@@ -105,6 +105,48 @@ fungsi yang menerima `isWeb`, lalu getter/widget-nya sekadar memanggil. Contoh:
 `Env.oauthRedirectFor(isWeb:)` dan `SettingsPage.tampil(...)`. Uraiannya di
 **O.14**.
 
+## 🔴 Kebersihan cabang dan merge — BACA SEBELUM MENYENTUH GIT
+
+Riwayat git ditulis ulang 29 Agustus 2026 untuk membuang penanda
+`Co-Authored-By` dari seluruh commit. Uraiannya di `DEVIASI_LIBRARY.md`
+bagian **R**. Tiga aturan yang lahir dari sana:
+
+**1. JANGAN PERNAH menggabungkan cabang yang dibuat sebelum 29 Agustus 2026.**
+
+Penulisan ulang hanya menyentuh `master`. Cabang lama (`worktree-desain-web`,
+`worktree-bab-10`, `worktree-bab-9`, seluruh `claude/*`) masih menunjuk commit
+lama lengkap dengan penandanya — sebagian membawa 40 commit sekaligus.
+Menggabungkannya **mengembalikan seluruh jejak itu ke GitHub tanpa satu pun
+peringatan**. Isinya sudah diperiksa dan tidak ada yang berharga; buang saja.
+
+**2. Worktree yang dibuat sebelum tanggal itu wajib disamakan dulu.**
+
+```
+git diff <cabang> origin/master --stat   # harus KOSONG
+git reset --hard origin/master
+```
+
+Nyaris terjadi: cabang `selesaikan-bab-10` masih menunjuk commit
+pra-penulisan-ulang, dan satu commit berikutnya di sana akan menyeret seluruh
+riwayat lama kembali.
+
+**3. Periksa sebelum setiap push.**
+
+```
+git log master --grep="Co-Authored-By: Claude" --oneline
+```
+
+Harus kosong. Bila menghasilkan sesuatu, **jangan di-push** — lapor ke saya.
+
+⚠️ Pencarian tanpa peduli huruf besar-kecil akan menemukan satu commit; itu
+alarm palsu, kalimat biasa di badan pesan. Lihat R.4.
+
+**Worktree baru selalu dibuat dari master:**
+
+```
+git worktree add .claude\worktrees\<nama> -b worktree-<nama> master
+```
+
 ## Dokumen acuan
 
 - `panduan_dokumentasi.md` — kitab suci proyek, Bab 0–17. **Baca bab yang sedang
