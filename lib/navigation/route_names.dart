@@ -98,6 +98,13 @@ class Routes {
   static const String adminUsers = '/admin/users';
   static const String adminPayments = '/admin/payments';
 
+  /// Bab 11.1 — angka ringkasan seluruh platform.
+  ///
+  /// ⚠️ Satu-satunya layar yang menampilkan data lintas pelanggan.
+  /// Penjagaannya ada di server (`get_platform_stats()` menolak yang bukan
+  /// admin), bukan hanya di penjagaan rute ini.
+  static const String adminStats = '/admin/stats';
+
   // ---------- Web ----------
   static const String webDashboard = '/dashboard';
 

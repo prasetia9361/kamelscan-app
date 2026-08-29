@@ -9,6 +9,7 @@ import '../pages/account/account_page.dart';
 import '../pages/account/edit_profile/edit_profile_page.dart';
 import '../pages/account/packers/packers_page.dart';
 import '../pages/admin/dashboard/admin_dashboard_page.dart';
+import '../pages/admin/dashboard/admin_stats_page.dart';
 import '../pages/admin/payments/admin_payments_page.dart';
 import '../pages/admin/users/admin_users_page.dart';
 import '../pages/auth/callback/auth_callback_page.dart';
@@ -160,6 +161,10 @@ GoRouter appRouter(Ref ref) {
           GoRoute(
             path: 'payments',
             builder: (_, _) => const AdminPaymentsPage(),
+          ),
+          GoRoute(
+            path: 'stats',
+            builder: (_, _) => const AdminStatsPage(),
           ),
         ],
       ),

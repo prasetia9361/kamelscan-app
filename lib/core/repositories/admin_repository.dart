@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/app_constants.dart';
 import '../models/enums.dart';
 import '../models/pending_payment.dart';
+import '../models/platform_stats.dart';
 import '../models/tenant.dart';
 import '../services/supabase_service.dart';
 import '../utils/result.dart';
@@ -20,6 +21,25 @@ class AdminRepository {
   const AdminRepository(this._client);
 
   final SupabaseClient _client;
+
+  /// Angka ringkasan seluruh platform (Bab 11.1) — RPC `get_platform_stats()`,
+  /// migrasi `30_platform_stats.sql`.
+  ///
+  /// 🔴 Satu-satunya panggilan di aplikasi ini yang **melintasi batas antar
+  /// pelanggan**. Fungsinya `security definer`, jadi RLS tidak berlaku di
+  /// dalamnya; penjagaannya `is_admin()` pada baris pertama fungsi itu.
+  ///
+  /// Yang bukan admin menerima **galat**, bukan angka nol. Angka nol akan
+  /// tampil di layar sebagai "platform ini belum punya pelanggan" — kalimat
+  /// yang salah dan terlihat masuk akal.
+  Future<Result<PlatformStats>> fetchPlatformStats() async {
+    try {
+      final json = await _client.rpc<Map<String, dynamic>>('get_platform_stats');
+      return Result.ok(PlatformStats.fromJson(json));
+    } on Object catch (e, s) {
+      return Result.err(SupabaseService.mapError(e, s));
+    }
+  }
 
   Future<Result<List<Tenant>>> fetchTenants({
     TenantStatus? status,

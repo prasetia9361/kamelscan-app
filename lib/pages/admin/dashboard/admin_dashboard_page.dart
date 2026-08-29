@@ -25,9 +25,11 @@ import '../payments/admin_payments_view_model.dart';
 /// dapat kembali ke akunnya sendiri tanpa membersihkan simpanan peramban.
 /// Terjadi sungguhan pada Product Owner, 28 Agustus 2026.
 ///
-/// Ringkasan angka platform (jumlah pelanggan, pendapatan) memang diminta
-/// Bab 11 dan belum dikerjakan — tetapi menu yang berfungsi lebih mendesak
-/// daripada angka yang enak dipandang.
+/// Ringkasan angka platform (Bab 11.1) berdiri sebagai halaman tersendiri,
+/// bukan di sini. Alasannya bukan tata letak: halaman ini dibuka setiap kali
+/// admin masuk, sedangkan angka itu menghitung seluruh baris `package_videos`
+/// di platform — pekerjaan yang tidak boleh dijalankan hanya karena seseorang
+/// lewat.
 class AdminDashboardPage extends ConsumerWidget {
   const AdminDashboardPage({super.key});
 
@@ -60,21 +62,24 @@ class AdminDashboardPage extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
 
-            // Kedua menu di bawah sengaja ditampilkan walau belum jadi, dengan
-            // keterangan apa adanya. Menyembunyikannya membuat panel admin
-            // terlihat hanya punya satu halaman, dan orang berikutnya akan
-            // mengira sisanya memang tidak direncanakan.
+            _MenuAdmin(
+              icon: Icons.query_stats_outlined,
+              title: t.adminStatsTitle,
+              subtitle: t.adminStatsMenuSubtitle,
+              onTap: () => context.go(Routes.adminStats),
+            ),
+            const SizedBox(height: 12),
+
+            // 🔴 SATU menu, bukan dua. Sampai 29 Agustus 2026 di sini berdiri
+            // "Kelola Pengguna" dan "Daftar Pelanggan" — keduanya karangan
+            // saya, bukan dari dokumen. Bab 11.2 hanya menyebut satu halaman:
+            // tabel seluruh pelanggan beserta tombol aksinya.
+            //
+            // Menu yang tidak ada di spesifikasi membuat orang berikutnya
+            // membangun dua halaman untuk pekerjaan yang satu.
             _MenuAdmin(
               icon: Icons.group_outlined,
               title: t.adminMenuUsers,
-              subtitle: t.adminNotYetBuilt,
-              enabled: false,
-              onTap: null,
-            ),
-            const SizedBox(height: 12),
-            _MenuAdmin(
-              icon: Icons.storefront_outlined,
-              title: t.adminMenuTenants,
               subtitle: t.adminNotYetBuilt,
               enabled: false,
               onTap: null,

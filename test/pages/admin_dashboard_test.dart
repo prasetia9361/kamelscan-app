@@ -62,6 +62,10 @@ void main() {
               path: 'payments',
               builder: (_, _) => const Scaffold(body: Text('halaman bayar')),
             ),
+            GoRoute(
+              path: 'stats',
+              builder: (_, _) => const Scaffold(body: Text('halaman angka')),
+            ),
           ],
         ),
       ],
@@ -137,6 +141,19 @@ void main() {
     });
   });
 
+  group('Dasbor Platform dapat dicapai', () {
+    testWidgets('menunya ada dan berpindah ke halaman angka', (tester) async {
+      await pasang(tester, menunggu: const []);
+
+      expect(find.text('Dasbor Platform'), findsOneWidget);
+
+      await tester.tap(find.text('Dasbor Platform'));
+      await tester.pumpAndSettle();
+
+      expect(alamat, Routes.adminStats);
+    });
+  });
+
   group('Menu yang belum jadi tetap ditampilkan', () {
     testWidgets('ditulis apa adanya "Belum dikerjakan", bukan disembunyikan',
         (tester) async {
@@ -146,8 +163,16 @@ void main() {
       await pasang(tester, menunggu: const []);
 
       expect(find.text('Kelola Pengguna'), findsOneWidget);
-      expect(find.text('Daftar Pelanggan'), findsOneWidget);
-      expect(find.text('Belum dikerjakan'), findsNWidgets(2));
+      expect(find.text('Belum dikerjakan'), findsOneWidget);
+    });
+
+    testWidgets('🔴 SATU menu pengguna, bukan dua', (tester) async {
+      // Sampai 29 Agustus 2026 ada "Kelola Pengguna" DAN "Daftar Pelanggan" —
+      // keduanya karangan, bukan dari dokumen. Bab 11.2 hanya menyebut satu
+      // halaman. Menu yang tidak ada di spesifikasi membuat orang berikutnya
+      // membangun dua halaman untuk pekerjaan yang satu.
+      await pasang(tester, menunggu: const []);
+      expect(find.text('Daftar Pelanggan'), findsNothing);
     });
 
     testWidgets('menekannya tidak berpindah ke mana pun', (tester) async {
