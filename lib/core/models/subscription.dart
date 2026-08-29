@@ -24,6 +24,19 @@ abstract class Subscription with _$Subscription {
     String? paymentMethod,
     String? proofUrl,
     String? verifiedBy,
+
+    /// Alasan Admin menolak pembayaran ini (Bab 11.7, migrasi 32).
+    ///
+    /// 🔴 **Dibaca pelanggan apa adanya** di halaman Pembayaran. Ia bukan
+    /// catatan internal: sampai 29 Agustus 2026 penolakan tidak terlihat sama
+    /// sekali dari sisi pelanggan — spanduk "menunggu verifikasi" lenyap dan
+    /// tidak ada apa pun yang menggantikannya, sehingga tagihannya seolah
+    /// menguap.
+    ///
+    /// Kosong pada baris yang ditolak sebelum kolomnya ada. Itu keadaan yang
+    /// benar; mengarang isinya lebih buruk daripada kosong.
+    String? rejectionReason,
+
     DateTime? periodStart,
     DateTime? periodEnd,
     DateTime? paidAt,
@@ -38,13 +51,17 @@ abstract class Subscription with _$Subscription {
   bool get isPending => status == SubStatus.pending;
   bool get isPaid => status == SubStatus.paid;
 
+  /// Ditolak Admin, dan pelanggannya belum tentu tahu.
+  bool get isRejected => status == SubStatus.failed;
+
   /// Bukti sudah diunggah, tinggal menunggu Admin.
   ///
   /// Dibedakan dari [isPending] karena dua keadaan ini terasa sangat berbeda
   /// bagi Owner: yang satu "giliran saya", yang lain "giliran mereka". Layar
   /// yang menyamakan keduanya akan menyuruh orang mentransfer ulang uang yang
   /// sudah ia kirim.
-  bool get isWaitingVerification => isPending && (proofUrl?.isNotEmpty ?? false);
+  bool get isWaitingVerification =>
+      isPending && (proofUrl?.isNotEmpty ?? false);
 
   /// Batas waktu transfer — 24 jam sejak barisnya dibuat (Bab 12.2 langkah 3).
   ///

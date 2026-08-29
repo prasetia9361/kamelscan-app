@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/config/tier_config.dart';
 import '../../core/models/enums.dart';
+import '../../core/models/subscription.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/app_state_views.dart';
@@ -54,6 +55,14 @@ class _Body extends ConsumerWidget {
             const SizedBox(height: 16),
           ],
 
+          // 🔴 Penolakan berdiri sama tinggi dengan tagihan yang menunggu.
+          // Keduanya tidak pernah muncul bersamaan: tagihan baru menjawab
+          // penolakan yang lama.
+          if (data.rejected != null) ...[
+            _RejectedBanner(subscription: data.rejected!),
+            const SizedBox(height: 16),
+          ],
+
           Text(t.paymentChoosePlan, style: theme.textTheme.titleMedium),
           const SizedBox(height: 12),
 
@@ -80,6 +89,76 @@ class _Body extends ConsumerWidget {
           const SizedBox(height: 20),
           _PayButton(data: data),
         ],
+      ),
+    );
+  }
+}
+
+/// Pembayaran yang ditolak Admin (Bab 11.7).
+///
+/// 🔴 Widget ini lahir dari cacat, bukan dari permintaan fitur. Sampai
+/// 29 Agustus 2026 menolak pembayaran hanya mengubah status menjadi `failed`,
+/// dan di layar ini akibatnya: spanduk "menunggu verifikasi" lenyap tanpa satu
+/// kalimat pun yang menggantikannya. Owner yang uangnya sudah keluar melihat
+/// halaman pilih paket biasa, seolah tagihannya tidak pernah ada.
+///
+/// ⚠️ Alasannya ditulis Admin dan ditampilkan **apa adanya**. Ia sudah dibatasi
+/// 200 huruf saat ditulis, tetapi tetap dibungkus agar kalimat panjang tidak
+/// merusak susunan kartunya.
+class _RejectedBanner extends StatelessWidget {
+  const _RejectedBanner({required this.subscription});
+
+  final Subscription subscription;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.l10n;
+    final theme = Theme.of(context);
+    final colors = theme.extension<AppColors>()!;
+    final alasan = subscription.rejectionReason?.trim();
+
+    return Card(
+      margin: EdgeInsets.zero,
+      color: colors.danger.withValues(alpha: 0.12),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.error_outline, size: 20, color: colors.danger),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    t.paymentRejectedTitle,
+                    style: theme.textTheme.titleSmall,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+
+            // Baris yang ditolak sebelum kolom alasannya ada memang tidak
+            // punya isi. Kalimat penggantinya mengatakan itu apa adanya
+            // alih-alih menampilkan ruang kosong.
+            Text(
+              alasan == null || alasan.isEmpty
+                  ? t.paymentRejectedNoReason
+                  : t.paymentRejectedReason(alasan),
+              style: theme.textTheme.bodySmall,
+            ),
+            const SizedBox(height: 6),
+            // Dikatakan apa adanya: uangnya tidak dikembalikan aplikasi.
+            // Menyembunyikannya hanya menunda pertanyaan yang pasti datang.
+            Text(
+              t.paymentRejectedNext,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

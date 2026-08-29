@@ -80,9 +80,54 @@ class AdminDashboardPage extends ConsumerWidget {
             _MenuAdmin(
               icon: Icons.group_outlined,
               title: t.adminMenuUsers,
-              subtitle: t.adminNotYetBuilt,
-              enabled: false,
-              onTap: null,
+              subtitle: t.adminUsersMenuSubtitle,
+              onTap: () => context.go(Routes.adminUsers),
+            ),
+
+            // 🔴 Batas antara dua jenis pekerjaan yang berbeda, dan bukan
+            // hiasan. Menu di ATAS mengubah SATU pelanggan; menu di BAWAH
+            // mengubah aturan yang berlaku bagi SELURUH pelanggan sekaligus.
+            //
+            // Keempatnya sengaja ditunda ke Fase 2 saat MVP disusun (Bab 11,
+            // "Keputusan lingkup MVP") dan dikerjakan lewat Supabase Dashboard
+            // — antarmuka teknis berbahasa Inggris berupa tabel database.
+            // Selesai 29 Agustus 2026, sehari sebelum integrasi Midtrans.
+            const SizedBox(height: 24),
+            _JudulKelompok(t.adminGroupPlatform),
+            const SizedBox(height: 8),
+
+            _MenuAdmin(
+              icon: Icons.sell_outlined,
+              title: t.adminPricingTitle,
+              subtitle: t.adminPricingMenuSubtitle,
+              onTap: () => context.go(Routes.adminPricing),
+            ),
+            const SizedBox(height: 12),
+
+            // Ditaruh sebelum Promo dengan sengaja: inilah satu-satunya menu
+            // yang dapat menghentikan seluruh pendapatan bila salah disetel,
+            // dan yang paling sering dibuka menjelang Midtrans dinyalakan.
+            _MenuAdmin(
+              icon: Icons.account_balance_wallet_outlined,
+              title: t.adminMethodsTitle,
+              subtitle: t.adminMethodsMenuSubtitle,
+              onTap: () => context.go(Routes.adminPaymentMethods),
+            ),
+            const SizedBox(height: 12),
+
+            _MenuAdmin(
+              icon: Icons.local_offer_outlined,
+              title: t.adminPromosTitle,
+              subtitle: t.adminPromosMenuSubtitle,
+              onTap: () => context.go(Routes.adminPromos),
+            ),
+            const SizedBox(height: 12),
+
+            _MenuAdmin(
+              icon: Icons.support_agent_outlined,
+              title: t.adminContactTitle,
+              subtitle: t.adminContactMenuSubtitle,
+              onTap: () => context.go(Routes.adminContact),
             ),
 
             const SizedBox(height: 28),
@@ -97,13 +142,33 @@ class AdminDashboardPage extends ConsumerWidget {
   }
 }
 
+/// Judul pemisah antar kelompok menu.
+class _JudulKelompok extends StatelessWidget {
+  const _JudulKelompok(this.teks);
+
+  final String teks;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: Text(
+        teks,
+        style: theme.textTheme.labelLarge?.copyWith(
+          color: theme.colorScheme.primary,
+        ),
+      ),
+    );
+  }
+}
+
 class _MenuAdmin extends StatelessWidget {
   const _MenuAdmin({
     required this.icon,
     required this.title,
     required this.subtitle,
     required this.onTap,
-    this.enabled = true,
     this.badge = 0,
   });
 
@@ -111,7 +176,6 @@ class _MenuAdmin extends StatelessWidget {
   final String title;
   final String subtitle;
   final VoidCallback? onTap;
-  final bool enabled;
 
   /// Jumlah yang menunggu. 0 berarti tidak ada lencana.
   final int badge;
@@ -122,33 +186,34 @@ class _MenuAdmin extends StatelessWidget {
     final scheme = theme.colorScheme;
     final colors = theme.extension<AppColors>()!;
 
-    return Opacity(
-      opacity: enabled ? 1 : 0.5,
-      child: Card(
-        margin: EdgeInsets.zero,
-        clipBehavior: Clip.antiAlias,
-        child: ListTile(
-          onTap: enabled ? onTap : null,
-          leading: Icon(icon, color: enabled ? scheme.primary : scheme.outline),
-          title: Text(title, style: theme.textTheme.titleMedium),
-          subtitle: Text(subtitle),
-          trailing: badge > 0
-              ? Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: colors.warning,
-                    borderRadius: BorderRadius.circular(999),
+    // Sampai 29 Agustus 2026 widget ini punya keadaan `enabled: false` yang
+    // meredupkan menu "Belum dikerjakan". Sejak Kelola Pengguna selesai, tidak
+    // ada lagi menu yang belum jadi — dan keadaan yang tidak dipakai siapa pun
+    // adalah jalur yang tidak pernah dilihat mata, jadi ia dibuang.
+    return Card(
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      child: ListTile(
+        onTap: onTap,
+        leading: Icon(icon, color: scheme.primary),
+        title: Text(title, style: theme.textTheme.titleMedium),
+        subtitle: Text(subtitle),
+        trailing: badge > 0
+            ? Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                decoration: BoxDecoration(
+                  color: colors.warning,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  Formatters.number(badge),
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: scheme.onPrimary,
                   ),
-                  child: Text(
-                    Formatters.number(badge),
-                    style: theme.textTheme.labelMedium
-                        ?.copyWith(color: scheme.onPrimary),
-                  ),
-                )
-              : (enabled ? const Icon(Icons.chevron_right) : null),
-          contentPadding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
-        ),
+                ),
+              )
+            : const Icon(Icons.chevron_right),
+        contentPadding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
       ),
     );
   }

@@ -167,6 +167,61 @@ void main() {
       );
       expect(vm.ditolak, isEmpty);
     });
+
+    testWidgets('🔴 tombol Tolak di dialog mati sampai alasannya terisi', (
+      tester,
+    ) async {
+      // Bab 11.7 meminta penolakan disertai alasan, dan alasannya DIBACA
+      // PELANGGAN. Sampai 29 Agustus 2026 dialog ini hanya bertanya "Anda
+      // yakin?", dan akibatnya di layar pelanggan: spanduk "menunggu
+      // verifikasi" lenyap tanpa satu kalimat pun yang menggantikannya.
+      await pasang(tester, daftar: [contoh(id: 'sub-1')]);
+
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Tolak'));
+      await tester.pumpAndSettle();
+
+      TextButton tombol() => tester.widget<TextButton>(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.widgetWithText(TextButton, 'Tolak'),
+        ),
+      );
+
+      expect(tombol().onPressed, isNull);
+
+      await tester.enterText(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.byType(TextField),
+        ),
+        'Nominal transfer tidak cocok',
+      );
+      await tester.pumpAndSettle();
+      expect(tombol().onPressed, isNotNull);
+    });
+
+    testWidgets('alasannya ikut terkirim, bukan hilang di jalan', (
+      tester,
+    ) async {
+      await pasang(tester, daftar: [contoh(id: 'sub-1')]);
+
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Tolak'));
+      await tester.pumpAndSettle();
+
+      // Contoh alasan siap pakai — supaya yang paling sering dipakai tidak
+      // perlu diketik ulang setiap kali.
+      await tester.tap(find.widgetWithText(ActionChip, 'Bukti transfer tidak terbaca'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.widgetWithText(TextButton, 'Tolak'),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(vm.ditolak, ['sub-1']);
+      expect(vm.alasanTolak, ['Bukti transfer tidak terbaca']);
+    });
   });
 
   group('Nama usaha yang kosong', () {
@@ -227,9 +282,14 @@ class _VmPalsu extends AdminPaymentsViewModel {
     return null;
   }
 
+  /// Alasan penolakan yang ikut terkirim. Diperiksa tesnya: alasan kosong
+  /// berarti pelanggan menerima spanduk merah tanpa penjelasan apa pun.
+  final List<String> alasanTolak = [];
+
   @override
-  Future<AppFailure?> reject(String subscriptionId) async {
+  Future<AppFailure?> reject(String subscriptionId, String reason) async {
     ditolak.add(subscriptionId);
+    alasanTolak.add(reason);
     return null;
   }
 

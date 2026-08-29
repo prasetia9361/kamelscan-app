@@ -11,6 +11,10 @@ import '../pages/account/packers/packers_page.dart';
 import '../pages/admin/dashboard/admin_dashboard_page.dart';
 import '../pages/admin/dashboard/admin_stats_page.dart';
 import '../pages/admin/payments/admin_payments_page.dart';
+import '../pages/admin/settings/admin_contact_page.dart';
+import '../pages/admin/settings/admin_payment_methods_page.dart';
+import '../pages/admin/settings/admin_pricing_page.dart';
+import '../pages/admin/settings/admin_promos_page.dart';
 import '../pages/admin/users/admin_users_page.dart';
 import '../pages/auth/callback/auth_callback_page.dart';
 import '../pages/auth/change_password/change_password_page.dart';
@@ -165,6 +169,19 @@ GoRouter appRouter(Ref ref) {
           GoRoute(
             path: 'stats',
             builder: (_, _) => const AdminStatsPage(),
+          ),
+          GoRoute(
+            path: 'pricing',
+            builder: (_, _) => const AdminPricingPage(),
+          ),
+          GoRoute(path: 'promos', builder: (_, _) => const AdminPromosPage()),
+          GoRoute(
+            path: 'payment-methods',
+            builder: (_, _) => const AdminPaymentMethodsPage(),
+          ),
+          GoRoute(
+            path: 'contact',
+            builder: (_, _) => const AdminContactPage(),
           ),
         ],
       ),

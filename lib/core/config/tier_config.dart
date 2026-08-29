@@ -28,7 +28,6 @@ class TierConfig {
   final int monthlyTokens;
   final num price;
 
-
   bool get hasUnlimitedPackers => maxPackers < 0;
 
   Duration get maxRecordingDuration => Duration(seconds: maxVideoSeconds);
@@ -57,18 +56,42 @@ class TierConfig {
     );
   }
 
+  /// Salinan dengan sebagian nilai diganti — dipakai formulir Bab 11.3.
+  ///
+  /// `plan` sengaja TIDAK dapat diganti: ia menentukan baris mana yang ditulis
+  /// di `platform_settings.pricing`, dan menukarnya berarti menyimpan harga
+  /// Pro ke tempat Standar tanpa satu pun galat.
+  TierConfig copyWith({
+    int? maxVideoSeconds,
+    int? retentionDays,
+    int? maxPackers,
+    int? monthlyTokens,
+    num? price,
+  }) => TierConfig(
+    plan: plan,
+    maxVideoSeconds: maxVideoSeconds ?? this.maxVideoSeconds,
+    retentionDays: retentionDays ?? this.retentionDays,
+    maxPackers: maxPackers ?? this.maxPackers,
+    monthlyTokens: monthlyTokens ?? this.monthlyTokens,
+    price: price ?? this.price,
+  );
+
   Map<String, dynamic> toJson() => {
-        'max_video_seconds': maxVideoSeconds,
-        'retention_days': retentionDays,
-        'max_packers': maxPackers,
-        'monthly_tokens': monthlyTokens,
-        'price': price,
-      };
+    'max_video_seconds': maxVideoSeconds,
+    'retention_days': retentionDays,
+    'max_packers': maxPackers,
+    'monthly_tokens': monthlyTokens,
+    'price': price,
+  };
 }
 
 /// Kumpulan tier yang sedang berlaku, hasil parse `platform_settings.pricing`.
 class TierCatalog {
-  const TierCatalog({required this.standar, required this.pro, required this.trial});
+  const TierCatalog({
+    required this.standar,
+    required this.pro,
+    required this.trial,
+  });
 
   final TierConfig standar;
   final TierConfig pro;
@@ -134,12 +157,15 @@ class TrialConfig {
   final TierPlan tier;
   final bool enabled;
 
-  static const TrialConfig fallback =
-      TrialConfig(tokens: 100, tier: TierPlan.standar, enabled: true);
+  static const TrialConfig fallback = TrialConfig(
+    tokens: 100,
+    tier: TierPlan.standar,
+    enabled: true,
+  );
 
   factory TrialConfig.fromJson(Map<String, dynamic> json) => TrialConfig(
-        tokens: (json['tokens'] as num?)?.toInt() ?? fallback.tokens,
-        tier: TierPlan.fromWire(json['tier'] as String?),
-        enabled: json['enabled'] as bool? ?? fallback.enabled,
-      );
+    tokens: (json['tokens'] as num?)?.toInt() ?? fallback.tokens,
+    tier: TierPlan.fromWire(json['tier'] as String?),
+    enabled: json['enabled'] as bool? ?? fallback.enabled,
+  );
 }

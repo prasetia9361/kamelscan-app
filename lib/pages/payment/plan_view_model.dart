@@ -23,6 +23,7 @@ class PlanData {
     required this.banners,
     required this.selected,
     this.pending,
+    this.rejected,
     this.promo,
     this.promoRejectionKey,
   });
@@ -46,6 +47,14 @@ class PlanData {
   /// Tagihan yang belum tuntas. Selama ini ada, Owner diarahkan
   /// menyelesaikannya alih-alih membuat tagihan baru.
   final Subscription? pending;
+
+  /// Tagihan terakhir yang **ditolak Admin**, selama belum ada tagihan baru.
+  ///
+  /// 🔴 Ada di sini karena ketiadaannya adalah cacat sungguhan: sampai
+  /// 29 Agustus 2026, menolak pembayaran hanya membuat spanduk "menunggu
+  /// verifikasi" lenyap tanpa satu kalimat pun yang menggantikannya. Dari sisi
+  /// Owner, tagihan yang uangnya sudah ia kirim seolah menguap.
+  final Subscription? rejected;
 
   final Promo? promo;
 
@@ -81,6 +90,11 @@ class PlanData {
         banners: banners,
         selected: selected ?? this.selected,
         pending: pending ?? this.pending,
+
+        // Tagihan baru menjawab penolakan yang lama. Membiarkan spanduk merah
+        // tetap berdiri di samping tagihan yang sedang berjalan membuat Owner
+        // mengira yang baru ikut ditolak.
+        rejected: pending != null ? null : rejected,
         promo: hapusPromo ? null : (promo ?? this.promo),
         promoRejectionKey: hapusPromo ? null : promoRejectionKey,
       );
@@ -117,6 +131,11 @@ class PlanViewModel extends _$PlanViewModel {
       banners: banners,
       selected: pilihanAwal,
       pending: pending != null && pending.isPending ? pending : null,
+
+      // Hanya tagihan TERAKHIR. Penolakan yang lebih lama sudah terjawab oleh
+      // tagihan sesudahnya, dan menampilkannya kembali berarti mengungkit
+      // masalah yang sudah selesai setiap kali halaman ini dibuka.
+      rejected: pending != null && pending.isRejected ? pending : null,
     );
   }
 

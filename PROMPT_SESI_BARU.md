@@ -7,11 +7,26 @@ Salin seluruh isi di bawah garis ini ke sesi Claude Code yang baru.
 Kamu adalah programmer Flutter profesional yang melanjutkan proyek **KamelScan**
 — aplikasi SaaS perekaman video bukti packing berbasis pemicu barcode/QR.
 
-**Bab 10 (aplikasi web) SUDAH SELESAI dan terbukti di peramban.** Aplikasinya
-hidup di `https://kamelscan.com/app`, landing page di `https://kamelscan.com`.
-**Prioritas sekarang: dua halaman Admin yang masih kosong** (Bab 11). Tutorial
-(Bab 9.9) sengaja ditunda menunggu channel YouTube-nya siap — lihat daftar
-utang di bawah.
+**Bab 10 (web) dan Bab 11 (panel Admin) SUDAH SELESAI SELURUHNYA dan
+terbukti di peramban.** Aplikasinya hidup di `https://kamelscan.com/app`,
+landing page di `https://kamelscan.com`.
+
+**Rencana Product Owner, ditetapkan 29 Agustus 2026:**
+
+| Tanggal | Pekerjaan |
+|---|---|
+| 30 Agustus | **Bab 12 — pembayaran, termasuk Midtrans.** Merchant ID, Client Key, dan Server Key sudah di tangan Product Owner. |
+| 31 Agustus | Optimasi menyeluruh, berburu bug, lalu **mengganti database yang dipakai produksi**. |
+| 1 September | Rilis iOS, persiapan produksi, dan memeriksa apa lagi yang dibutuhkan untuk unggah ke Google Play & App Store. |
+
+Product Owner membuat **worktree baru per tanggal**. Tutorial (Bab 9.9) tetap
+ditunda menunggu channel YouTube-nya siap — lihat daftar utang di bawah.
+
+🔴 **Untuk sesi 30 Agustus:** `MIDTRANS_SERVER_KEY` tidak boleh masuk tabel
+mana pun. Halaman Admin → Metode Pembayaran sengaja **tidak punya satu kolom
+teks pun**, dan ada tes yang gagal bila seseorang menambahkannya. Kuncinya
+dipasang lewat `supabase secrets set`. Sakelar Midtrans-nya sudah ada dan
+dapat dinyalakan tanpa merilis aplikasi baru.
 
 ## 🔴 Aturan nomor satu: BERTANYA DULU, jangan mengambil keputusan sendiri
 
@@ -228,17 +243,41 @@ O.2 dan O.6 sebelum menyentuh apa pun yang menyangkut penerbitan:**
    menjawab 200.
 4. Sesudah menerbitkan, Chrome menyajikan versi lama dari simpanannya. **Ctrl +
    Shift + R.** Ini sudah memakan satu ronde penuh.
+5. 🔴 **Ctrl + Shift + R TIDAK selalu cukup.** Flutter web memasang *service
+   worker*, dan ia menyajikan salinannya sendiri melewati muat ulang paksa.
+   Memakan 40 menit pada 29 Agustus 2026. Pembersihannya:
+   **F12 → Application → Service Workers → Unregister → Ctrl + Shift + R**
+   (login saya tidak hilang; `localStorage` tidak ikut terhapus). Uji tercepat
+   untuk memastikan siapa yang salah: **jendela Samaran**. Uraiannya di
+   `DEVIASI_LIBRARY.md` **O.17**.
+
+🔴 **`wrangler pages deploy` HARUS saya yang jalankan, bukan kamu.** Sesi
+non-interaktif menuntut `CLOUDFLARE_API_TOKEN`, dan token itu tidak ada di
+`dataapp.md`. Kamu boleh menjalankan `deploy_web.ps1` (hanya membangun ke
+`build/deploy`, tidak menyentuh Cloudflare), lalu minta saya menjalankan
+perintah unggahnya dengan awalan `!`.
 
 🔴 **Setiap rute baru di `route_names.dart` WAJIB ditambahkan ke daftar rute di
 `deploy_web.ps1`.** Yang terlupa bekerja saat diklik dari dalam aplikasi tetapi
 menjawab 404 begitu halamannya disegarkan.
 
-Periksa dengan `Content-Type`, bukan hanya kode status:
+Periksa dengan **tiga langkah**, bukan hanya kode status. Langkah ketiga yang
+menentukan, dan paling sering dilupakan:
 
 ```bash
-curl -sI https://kamelscan.com/app/main.dart.js | grep -i content-type
-# WAJIB application/javascript
+# 1. Content-Type WAJIB application/javascript, bukan text/html
+curl -sI https://kamelscan.com/app/main.dart.js | grep -iE "content-type|content-length"
+
+# 2. Content-Length harus SAMA dengan berkas lokal
+wc -c build/deploy/app/main.dart.js
+
+# 3. Isinya benar-benar baru — cari teks yang HANYA ada di versi baru.
+#    Teks l10n terbawa apa adanya ke dalam main.dart.js.
+curl -s https://kamelscan.com/app/main.dart.js | grep -c "<kalimat baru dari ARB>"
 ```
+
+Bila ketiganya benar tetapi saya masih melihat versi lama, penyebabnya service
+worker — bukan unggahannya. Lihat jebakan nomor 5 di atas.
 
 ## Supabase
 
@@ -263,8 +302,13 @@ Editor. Beri saya isi berkasnya beserta langkah yang **detail** — sebutkan men
 yang diklik dan hasil yang seharusnya muncul (`Success. No rows returned`).
 Instruksi ringkas pernah membuat saya tersinggung karena terasa seperti diuji.
 
-**Migrasi terakhir yang sudah dijalankan: 29.** Ketiga migrasi terbaru (27, 28,
-29) sudah berjalan di produksi.
+**Migrasi terakhir yang sudah dijalankan: 32.** Ketiganya yang terbaru (30, 31,
+32) sudah berjalan di produksi 29 Agustus 2026:
+
+- **30** `get_platform_stats()` — angka Dasbor Platform
+- **31** `admin_list_tenants()` — tabel Kelola Pengguna
+- **32** alasan penolakan, jejak audit tenant, penyesuaian token, pemberian
+  token serentak
 
 ## Keadaan proyek — sudah selesai dan TERBUKTI di peramban/perangkat
 
@@ -283,12 +327,36 @@ di Redmi Note 9.
 | Landing page + Syarat & Ketentuan + Kebijakan Privasi | ✅ |
 | Layar peluncur web, Android, iOS | ✅ |
 
+**Bab 11 (PANEL ADMIN) SELESAI SELURUHNYA — 29 Agustus 2026.** Tujuh halaman,
+uraiannya di `DEVIASI_LIBRARY.md` **P.5**:
+
+| Bagian | Keadaan |
+|---|---|
+| 11.1 Dasbor platform | ✅ |
+| 11.2 Manajemen pengguna | ✅ tabel 10 kolom + 5 aksi |
+| 11.3 Harga & paket | ✅ termasuk biaya infrastruktur |
+| 11.4 Promo | ✅ CRUD penuh |
+| 11.5 Kontak | ✅ (gambar iklan ditunda) |
+| 11.6 Metode pembayaran | ✅ sakelar Midtrans + rekening |
+| 11.7 Verifikasi pembayaran | ✅ + alasan penolakan |
+
+🔴 **Tiga keputusan dagang di panel Admin yang TIDAK BOLEH diubah diam-diam**
+— seluruhnya diuraikan di **P.5**:
+
+1. Perpanjangan manual **disambung** dari sisa hari, berbeda dari pembayaran
+   otomatis yang menghitung ulang 30 hari.
+2. Token bonus **hangus** pada reset periode berikutnya, dan tanggalnya dibaca
+   dari `token_wallets.period_end` — bukan `tenants.period_end`.
+3. Pemberian token serentak hanya ke yang berstatus `active`, dan **hanya
+   menambah**.
+
 **Yang juga sudah beres di luar Bab 10:**
 
 - **Login Google di web** — terbukti dua akun (O.14)
 - **Tautan verifikasi email & reset password di web** (O.10)
 - **Aktivasi langganan** — migrasi 28, langganan sungguhan sudah aktif (P.1)
-- **Panel Admin** — verifikasi pembayaran beserta menu dan tombol Keluar (P.2)
+- **Setujui & Tolak pembayaran** — terbukti pada baris sungguhan 29 Agustus
+  2026 (P.4). Penolakan kini terlihat pelanggan beserta alasannya (P.6).
 
 ⚠️ Naskah **Syarat & Ketentuan** dan **Kebijakan Privasi** disusun desainer dan
 **tidak pernah diperiksa penasihat hukum**. Saya memutuskan menerbitkannya apa
@@ -304,47 +372,54 @@ adanya setelah diberi tahu risikonya. Jangan membuka ulang keputusan itu.
 
 ## 🔴 Utang yang belum lunas
 
-### 1. 🔴 Langganan saya habis 25 September 2026
+### 1. 🔴 PRIORITAS: Ubah Paket tidak menyesuaikan token
 
-Bab 7.6: tanpa masa tenggang, terkunci seketika. Alur perpanjangannya
-**belum pernah diuji sekali pun** — lihat utang nomor 2.
+**Melanggar Bab 7.2 poin 4**, yang menulis: *"Saat upgrade tier, saldo langsung
+disesuaikan ke kuota tier baru secara proporsional dan dicatat di
+`token_ledger` dengan alasan `plan_upgrade`."*
 
-### 2. 🔴 Tombol Setujui/Tolak belum pernah dijalankan pada baris sungguhan
+Tombol **Jadikan Pro / Jadikan Standar** hanya mengubah kolom `tier_plan`.
+Dompet tokennya tidak disentuh sama sekali, dan **tidak ada trigger apa pun**
+yang bereaksi terhadap perubahan tier — penyesuaian token hanya terjadi lewat
+`activate_subscription()` (migrasi 28), yang dipicu pembayaran.
 
-Halaman Admin → Verifikasi Pembayaran sudah jadi dan dapat dibuka, tetapi
-daftarnya kosong saat diuji. Yang terbukti baru *"halamannya jalan"*, bukan
-*"tombolnya bekerja"*. Prosedur pengujian yang aman ada di **P.4**.
+Akibat nyatanya: pelanggan yang dinaikkan ke Pro lewat tombol itu tetap
+berkuota **1.000 token, bukan 5.000**, dan tidak ada satu pun galat yang
+muncul. Sementara ini tokennya ditambah manual lewat **Atur Token**.
 
-### 3. 🔴 PRIORITAS: dua halaman Admin masih kosong
+**Ditunda ke 31 Agustus 2026 atas keputusan Product Owner.** Ada nuansa yang
+harus ditanyakan lebih dulu: kata *"proporsional"* di Bab 7.2 berbeda dari
+`activate_subscription()`, yang mengisi penuh kuota tier baru. Keduanya
+keputusan dagang — jangan memilih sendiri.
 
-`Admin → Kelola Pengguna` dan `Admin → Daftar Pelanggan`. Keduanya sudah
-tampil di menu dengan keterangan "Belum dikerjakan", jadi tidak menyesatkan —
-tetapi panel admin baru berguna separuh tanpa keduanya. **Inilah yang saya
-minta dikerjakan lebih dulu** (keputusan saya 29 Agustus 2026).
-± 2 jam masing-masing.
+### 2. Unggah gambar iklan (Bab 11.5) — butuh migrasi baru
 
-Spesifikasinya Bab 11. `AdminRepository` sudah punya `fetchTenants`,
-`changeTier`, dan `setTenantStatus` — ketiganya belum dipakai layar mana pun.
+Bucket `public-assets` **tidak pernah dibuat**; yang ada hanya `avatars`
+(migrasi 23) dan `payment-proofs` (migrasi 25). Sisa Bab 11.5 (kontak) sudah
+selesai. Gambar landing page dan gambar halaman pembayaran karena itu masih
+diatur lewat Supabase Dashboard.
 
-### 4. Bab 9.9 Tutorial — DITUNDA, menunggu channel YouTube
+### 3. Bab 9.9 Tutorial — DITUNDA, menunggu channel YouTube
 
 Halaman daftar bernomor dari tabel `tutorials`, membuka YouTube lewat
-`url_launcher`. Versi webnya grid kartu (Bab 10.5).
+`url_launcher`. Versi webnya grid kartu (Bab 10.5). CRUD-nya di panel Admin
+juga belum dibuat, dan sengaja.
 
 ⚠️ **Bukan prioritas, dan bukan karena terlupa.** Isinya bergantung pada video
 tutorial yang belum dibuat; halaman yang jadi lebih dulu hanya akan menampilkan
-daftar kosong. Saya memutuskan 29 Agustus 2026 untuk menunggu channel-nya siap.
+daftar kosong. Product Owner memutuskan 29 Agustus 2026 untuk menunggu
+channel-nya siap.
 
 Sampai saat itu, menu Tutorial di sidebar web dan di Beranda HP tetap mendarat
 di halaman kosong. **Itu keadaan yang saya terima, bukan cacat yang terlewat.**
 Perkiraan ± 2 jam begitu videonya ada.
 
-### 5. Satu video sungguhan lewat jalur unggah latar belakang
+### 4. Satu video sungguhan lewat jalur unggah latar belakang
 
 Isolatenya terbukti hidup, tetapi antriannya selalu keburu dihabiskan jalur
 aplikasi-terbuka. Prosedurnya di `DEVIASI_LIBRARY.md` **L.8**; butuh Wi-Fi.
 
-### 6. Zoom peramban pada aplikasi web
+### 5. Zoom peramban pada aplikasi web
 
 Belum jelas apakah perlu diperbaiki. Tidak ada apa pun di kode yang menguncinya
 (tidak ada `user-scalable=no`), tetapi Flutter web menata ulang isinya alih-alih
@@ -353,11 +428,28 @@ membutuhkannya, jalan yang lebih pasti adalah menambah pengaturan **ukuran
 huruf** di Pengaturan → Tampilan (± 1 jam), bukan mengandalkan perilaku
 peramban.
 
+### 6. Layar putih 30 detik saat aplikasi pertama dibuka
+
+Diserahkan ke desainer 26 Agustus 2026, briefnya sudah diberikan. Uraiannya di
+**O.15**. Jangan memperkecil `main.dart.js` diam-diam sambil menunggu — itu
+pekerjaan lain yang belum diputuskan.
+
 ### 7. Versi tabel untuk Toko, Packer, dan Pembayaran — DIBATALKAN
 
 Bab 10.5 memintanya, tetapi saya memutuskan 29 Agustus 2026 bahwa bentuk
 sekarang (tampilan HP di dalam rangka web) sudah cukup. **Jangan
 mengerjakannya** tanpa saya minta ulang.
+
+## ✅ Yang sudah lunas 29 Agustus 2026 — jangan dikerjakan ulang
+
+- **Dua halaman Admin yang kosong** → Bab 11 selesai seluruhnya, tujuh halaman
+  (P.5). Jangan membangun "Daftar Pelanggan"; menu itu karangan sesi lama, dan
+  Bab 11.2 hanya menyebut satu halaman.
+- **Tombol Setujui/Tolak belum pernah diuji** → sudah terbukti pada baris
+  sungguhan (P.4).
+- **Alur perpanjangan langganan belum pernah diuji** → sudah terbukti, dan
+  Admin kini punya tombol **Perpanjang periode** dengan pilihan 1/3/6/12 bulan
+  atau tanggal sendiri.
 
 ## Jebakan yang sudah memakan waktu
 

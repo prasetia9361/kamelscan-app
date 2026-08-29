@@ -2,6 +2,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../repositories/admin_repository.dart';
+import '../repositories/admin_settings_repository.dart';
 import '../repositories/auth_repository.dart';
 import '../repositories/dashboard_repository.dart';
 import '../repositories/home_repository.dart';
@@ -141,3 +142,12 @@ SubscriptionRepository subscriptionRepository(Ref ref) =>
 @Riverpod(keepAlive: true)
 AdminRepository adminRepository(Ref ref) =>
     AdminRepository(ref.watch(supabaseClientProvider));
+
+/// Pengaturan platform yang dapat diubah Admin (Bab 11.3–11.6).
+///
+/// Dipisah dari [adminRepository] karena isinya berbeda sifat: yang satu
+/// mengubah **pelanggan**, yang ini mengubah **aturan yang berlaku bagi
+/// seluruh pelanggan sekaligus**.
+@Riverpod(keepAlive: true)
+AdminSettingsRepository adminSettingsRepository(Ref ref) =>
+    AdminSettingsRepository(ref.watch(supabaseClientProvider));

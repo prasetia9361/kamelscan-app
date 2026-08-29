@@ -68,17 +68,29 @@ class AdminPaymentsViewModel extends _$AdminPaymentsViewModel {
     return hasil.failureOrNull;
   }
 
-  /// Tolak satu pembayaran.
+  /// Tolak satu pembayaran, dengan alasan yang **dibaca pelanggan**.
   ///
   /// ⚠️ Tidak ada trigger apa pun yang bereaksi terhadap status `failed`.
   /// Menolak hanya menutup baris itu; uang yang terlanjur masuk **tidak**
-  /// dikembalikan aplikasi, dan pelanggannya tidak diberi tahu secara otomatis.
-  /// Keduanya urusan manusia, dan layar ini mengatakannya apa adanya.
-  Future<AppFailure?> reject(String subscriptionId) async {
+  /// dikembalikan aplikasi, dan tidak ada pemberitahuan yang dikirim ke mana
+  /// pun. Keduanya urusan manusia, dan layar ini mengatakannya apa adanya.
+  ///
+  /// 🔴 Yang berubah sejak 29 Agustus 2026 hanyalah bahwa penolakannya kini
+  /// **terlihat**: alasannya tersimpan di `subscriptions.rejection_reason` dan
+  /// muncul sebagai spanduk di halaman Pembayaran pelanggan. Sebelumnya
+  /// spanduk "menunggu verifikasi" lenyap begitu saja dan tagihannya seolah
+  /// menguap — ditemukan Product Owner saat menguji tombol ini pada baris
+  /// sungguhan.
+  Future<AppFailure?> reject(String subscriptionId, String reason) async {
     debugPrint('KAMELSCAN_ADMIN tolak $subscriptionId');
-    final hasil =
-        await ref.read(adminRepositoryProvider).rejectPayment(subscriptionId);
+    final hasil = await ref.read(adminRepositoryProvider).rejectPayment(
+          subscriptionId: subscriptionId,
+          reason: reason,
+        );
     if (hasil.isOk) await refresh();
+
+    debugPrint('KAMELSCAN_ADMIN tolak '
+        '${hasil.isOk ? 'BERHASIL' : 'GAGAL · ${hasil.failureOrNull}'}');
     return hasil.failureOrNull;
   }
 

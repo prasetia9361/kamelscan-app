@@ -191,33 +191,14 @@ class _KartuPembayaranState extends ConsumerState<_KartuPembayaran> {
     final t = context.l10n;
     final messenger = ScaffoldMessenger.of(context);
 
-    final yakin = await showDialog<bool>(
+    final alasan = await showDialog<String>(
       context: context,
-      builder: (d) => AlertDialog(
-        title: Text(t.adminPaymentsRejectTitle),
-        // Dikatakan apa adanya: aplikasi tidak mengembalikan uang dan tidak
-        // memberi tahu pelanggan. Dialog yang menyembunyikan itu membuat Admin
-        // mengira keduanya sudah diurus.
-        content: Text(t.adminPaymentsRejectBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(d, false),
-            child: Text(t.commonCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(d, true),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(d).colorScheme.error,
-            ),
-            child: Text(t.adminPaymentsReject),
-          ),
-        ],
-      ),
+      builder: (d) => const _DialogTolak(),
     );
-    if (yakin != true || !mounted) return;
+    if (alasan == null || !mounted) return;
 
     setState(() => _sedang = true);
-    final gagal = await _vm.reject(widget.item.subscription.id);
+    final gagal = await _vm.reject(widget.item.subscription.id, alasan);
     if (!mounted) return;
     setState(() => _sedang = false);
 
@@ -344,6 +325,106 @@ class _KartuPembayaranState extends ConsumerState<_KartuPembayaran> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Dialog penolakan — alasannya wajib, dan **dibaca pelanggan**.
+///
+/// 🔴 Sampai 29 Agustus 2026 dialog ini hanya bertanya "Anda yakin?". Yang
+/// terjadi sesudah Admin menekan Tolak: status berubah menjadi `failed`,
+/// spanduk "menunggu verifikasi" di layar pelanggan lenyap, dan tidak ada apa
+/// pun yang menggantikannya — tagihannya seolah menguap. Ditemukan Product
+/// Owner saat menguji tombol ini pada baris sungguhan.
+///
+/// Sekarang alasannya tersimpan di `subscriptions.rejection_reason` dan
+/// ditampilkan apa adanya kepada pelanggan. Karena itu labelnya menyebut hal
+/// itu dengan terang: ini bukan catatan internal, dan singkatan yang hanya
+/// dimengerti Admin akan sampai ke orang yang uangnya sudah keluar.
+class _DialogTolak extends StatefulWidget {
+  const _DialogTolak();
+
+  /// Alasan yang paling sering dipakai, supaya tidak perlu diketik ulang.
+  static const List<String> contohAlasan = [
+    'Nominal transfer tidak cocok',
+    'Bukti transfer tidak terbaca',
+    'Transfer tidak ditemukan di mutasi',
+  ];
+
+  @override
+  State<_DialogTolak> createState() => _DialogTolakState();
+}
+
+class _DialogTolakState extends State<_DialogTolak> {
+  final TextEditingController _alasan = TextEditingController();
+
+  @override
+  void dispose() {
+    _alasan.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.l10n;
+    final theme = Theme.of(context);
+    final isi = _alasan.text.trim();
+
+    return AlertDialog(
+      title: Text(t.adminPaymentsRejectTitle),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Dikatakan apa adanya: aplikasi tidak mengembalikan uang dan
+            // tidak mengirim pemberitahuan ke mana pun. Dialog yang
+            // menyembunyikan itu membuat Admin mengira keduanya sudah diurus.
+            Text(t.adminPaymentsRejectBody, style: theme.textTheme.bodyMedium),
+            const SizedBox(height: 14),
+            TextField(
+              controller: _alasan,
+              autofocus: true,
+              maxLength: 200,
+              maxLines: 2,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                labelText: t.adminPaymentsRejectReason,
+                helperText: t.adminPaymentsRejectReasonHelp,
+                helperMaxLines: 2,
+                isDense: true,
+              ),
+            ),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final contoh in _DialogTolak.contohAlasan)
+                  ActionChip(
+                    label: Text(contoh),
+                    onPressed: () => setState(() => _alasan.text = contoh),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(t.commonCancel),
+        ),
+        TextButton(
+          // Mati sampai alasannya terisi. Penjagaan sesungguhnya ada di server
+          // (`REASON_REQUIRED`); yang di sini hanya membuat penolakannya
+          // terjadi sebelum tombol ditekan, bukan sesudah.
+          onPressed: isi.isEmpty ? null : () => Navigator.pop(context, isi),
+          style: TextButton.styleFrom(
+            foregroundColor: Theme.of(context).colorScheme.error,
+          ),
+          child: Text(t.adminPaymentsReject),
+        ),
+      ],
     );
   }
 }

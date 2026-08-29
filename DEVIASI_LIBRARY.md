@@ -3225,6 +3225,87 @@ muncul pada dua tanggal berbeda. Selisihnya benar; yang salah adalah tidak
 menjelaskannya, dan Product Owner mengiranya kerusakan. Kini keduanya
 berketerangan.
 
+### O.17 🔴 Service worker menyajikan versi lama, dan Ctrl+Shift+R tidak mempan
+
+**Terjadi 29 Agustus 2026, memakan ± 40 menit.** Aplikasi web sudah terbit
+dengan benar, tetapi Product Owner melihat versi kemarin dan menyimpulkan
+unggahannya gagal. Ia benar bahwa layarnya lama; salah tentang sebabnya.
+
+**Kenapa Ctrl+Shift+R tidak cukup.** Muat ulang paksa melewati *simpanan
+peramban*, bukan *service worker*. Flutter web memasang satu lewat
+`flutter_bootstrap.js`, dan ia menyimpan salinan aplikasi lalu menyajikannya
+sendiri sampai ia sendiri memutuskan memperbarui diri. Jebakan O.6 nomor 4 di
+prompt serah terima (*"Chrome menyajikan versi lama dari simpanannya —
+Ctrl+Shift+R"*) karena itu **tidak lengkap**: ia hanya menyelesaikan separuh
+kasus, dan separuh yang lain terlihat persis sama.
+
+**Cara membersihkannya, tanpa membuat Product Owner keluar dari akunnya:**
+
+```
+F12 → tab Application → Service Workers → Unregister → Ctrl + Shift + R
+```
+
+Sesi Supabase disimpan di `localStorage`, yang tidak ikut terhapus. Jangan
+menyuruh "Clear site data" — itu memutus loginnya, dan pada akun admin
+memasukkannya kembali bukan pekerjaan sepele.
+
+#### 🔴 Yang membuat sesi ini panjang: menebak, bukan mengukur
+
+Urutan yang **benar** ketika Product Owner berkata *"kok sama saja"*, dan yang
+harusnya dipakai sejak menit pertama:
+
+| Langkah | Perintah | Yang dijawabnya |
+|---|---|---|
+| 1 | `curl -sI .../app/main.dart.js` | `Content-Type` **dan** `Content-Length` |
+| 2 | bandingkan `Content-Length` dengan `wc -c build/deploy/app/main.dart.js` | sama = unggahannya utuh |
+| 3 | `curl -s .../app/main.dart.js \| grep "<teks yang HANYA ada di versi baru>"` | isinya benar-benar baru, bukan sekadar seukuran |
+
+Langkah 3 adalah yang menentukan, dan paling sering dilupakan. Teks l10n
+terbawa apa adanya ke dalam `main.dart.js`, jadi satu kalimat baru dari ARB
+sudah cukup menjadi penanda. Malam itu penandanya `"Pengaturan Platform"`.
+
+⚠️ Ukur juga `flutter_bootstrap.js` dan `flutter_service_worker.js`, bukan
+hanya `main.dart.js`. Bila ketiganya sama dengan berkas lokal **dan**
+`serviceWorkerVersion` di dalam bootstrap sudah berganti, unggahannya pasti
+utuh — sisanya tinggal peramban.
+
+#### Uji yang menyelesaikan perdebatan dalam 20 detik
+
+**Jendela Samaran (Ctrl+Shift+N).** Ia tidak punya service worker maupun
+simpanan lama sama sekali. Bila di sana versinya baru, penyebabnya peramban;
+bila di sana pun lama, penyebabnya server dan yang diperiksa berikutnya adalah
+apakah Wrangler mengunggah ke *branch* produksi atau *preview*.
+
+Mintalah Product Owner menyebut **satu angka yang mudah dihitung**, bukan
+"sudah baru atau belum" — malam itu: *"menu Admin ada tujuh atau tiga?"*.
+Jawabannya satu kata, tidak dapat ditafsirkan dua arti, dan tidak menuntut ia
+memahami apa yang sedang diuji.
+
+#### Dua kesimpulan salah yang sempat diambil di sepanjang jalan
+
+1. **Claude sempat dikira membangun Android, bukan web.** Sebabnya masuk akal:
+   Product Owner menjalankan `run.ps1` sendiri, melihat menu baru muncul di HP,
+   lalu menyimpulkan yang diperbarui adalah Android. Dibantah dengan tanggal
+   berkas — `build/app/outputs/.../app-profile.apk` bertanggal 21:03 (miliknya),
+   `build/deploy/app/main.dart.js` bertanggal 20:12 (milik `deploy_web.ps1`).
+   **Bila Android menunjukkan fitur baru sementara web tidak, itu justru bukti
+   kodenya benar** — keduanya dibangun dari sumber yang sama.
+
+2. **Kegagalan `fetch failed` pada Wrangler dikira masalah jaringan menetap.**
+   Diukur dan ternyata sesaat: `curl` ke tiga tujuan berbeda tembus di bawah
+   setengah detik, dan `fetch` bawaan Node juga tembus ke `api.cloudflare.com`.
+   Sekali ulang, berhasil. Internet Product Owner berasal dari HP lewat kabel;
+   putus sekejap adalah keadaan wajar, bukan gejala yang perlu diselidiki.
+
+⚠️ **Wrangler tidak dapat dijalankan Claude.** Sesi non-interaktif menuntut
+`CLOUDFLARE_API_TOKEN`, dan token itu **tidak ada di `dataapp.md`** — yang
+tercatat di sana hanya kunci R2. Token OAuth Wrangler tersimpan di
+`AppData/Roaming/xdg.config/.wrangler/config/default.toml` beserta masa
+berlakunya, tetapi hanya dapat diperbarui dari sesi interaktif. Jadi
+`deploy_web.ps1` boleh dijalankan Claude (ia hanya membangun ke `build/deploy`,
+tidak menyentuh Cloudflare), sedangkan perintah `wrangler pages deploy`
+**harus** dijalankan Product Owner sendiri.
+
 ---
 
 ## P. Bab 12: pembayaran, aktivasi, dan panel Admin
@@ -3324,15 +3405,158 @@ tetapi masih tertulis "Uji Coba".
 memeriksa `isOwner`), jadi akun admin yang dibuat lewat Dashboard tidak
 tersangkut di formulir nomor HP.
 
-### P.4 Yang belum pernah diuji pada halaman ini
+### P.4 Setujui & Tolak — terbukti pada baris sungguhan
 
-Tombol **Setujui** dan **Tolak** belum pernah dijalankan pada baris sungguhan
-— daftarnya kosong saat diuji. Yang terbukti baru *"halamannya jalan"*, bukan
-*"tombolnya bekerja"*.
+**Terbukti 29 Agustus 2026.** Sampai hari itu keduanya belum pernah dijalankan
+sekali pun; daftarnya selalu kosong saat diuji, sehingga yang terbukti baru
+*"halamannya jalan"*, bukan *"tombolnya bekerja"*.
 
-Cara mengujinya tanpa uang berpindah: dari akun Owner, buka Pembayaran → pilih
-paket → unggah bukti apa pun; lalu dari akun admin tekan **Tolak**. Menolak
-hanya menutup barisnya dan tidak menyentuh langganan yang sudah aktif.
+Product Owner mengujinya sendiri dengan tagihan buatan: dari akun Owner buka
+Pembayaran → pilih paket → unggah bukti apa pun, lalu dari akun admin tekan
+tombolnya. **Setujui** menaikkan tier, mengisi ulang token, dan memulai periode
+30 hari lewat `activate_subscription()` — seluruhnya benar. **Tolak** menutup
+barisnya tanpa menyentuh langganan yang sudah aktif.
+
+🔴 **Cacat yang justru ditemukan oleh pengujian itu:** menolak pembayaran
+**tidak terlihat sama sekali oleh pelanggannya**. Spanduk "menunggu
+verifikasi" lenyap dan tidak ada apa pun yang menggantikannya — dari sisi
+Owner, tagihan yang uangnya sudah ia kirim seolah menguap. Diperbaiki hari itu
+juga; uraiannya di P.6.
+
+### P.5 Bab 11 selesai seluruhnya — 29 Agustus 2026
+
+Panel Admin ditutup dalam satu malam, dari tiga halaman menjadi tujuh. Migrasi
+**31** dan **32** sudah dijalankan di produksi.
+
+| Bagian | Keadaan |
+|---|---|
+| 11.1 Dasbor platform | ✅ sudah ada sebelumnya |
+| 11.2 Manajemen pengguna | ✅ tabel 10 kolom + 5 aksi |
+| 11.3 Harga & paket | ✅ termasuk biaya infrastruktur |
+| 11.4 Promo | ✅ CRUD penuh |
+| 11.5 Kontak | ✅ (gambar iklan ditunda — lihat di bawah) |
+| 11.6 Metode pembayaran | ✅ sakelar + rekening |
+| 11.7 Verifikasi pembayaran | ✅ + alasan penolakan |
+
+⚠️ **11.3, 11.4, dan 11.6 tidak butuh satu migrasi pun.** Izin
+`psettings_write_admin`, `promos_admin`, dan `tutorials_admin` sudah ada sejak
+migrasi 14 — semuanya `for all using (is_admin())`. Yang selama ini kurang
+hanyalah layarnya. Keempat bagian itu ditunda ke Fase 2 saat MVP disusun
+dengan perkiraan ± 12 jam; kenyataannya ± 5 jam karena databasenya sudah siap
+sejak awal.
+
+#### Keputusan dagang yang tidak boleh diubah diam-diam
+
+**1. Perpanjangan manual DISAMBUNG dari sisa hari** — berbeda dari pembayaran
+otomatis, yang selalu menghitung ulang 30 hari dari hari pembayaran (migrasi
+28 baris 110). Perbedaannya disengaja: tombol perpanjang dipakai memberi
+kompensasi, dan memotong 20 hari yang masih dimiliki pelanggan adalah kejutan
+yang tidak dapat dibatalkan. Dialognya menyebutkan perbedaan itu apa adanya.
+Aturannya hidup di `Perpanjangan` (`admin_users_view_model.dart`), terpisah
+dari widget supaya dapat diuji — lihat O.14.
+
+**2. Token bonus HANGUS pada reset periode berikutnya.** Cron
+`reset-monthly-tokens` menjalankan `balance = monthly_quota`; itu Bab 7.2 poin
+3 apa adanya. Yang menaikkan `monthly_quota` supaya bonusnya berulang tiap
+bulan adalah keputusan **lain** yang belum pernah diambil.
+
+🔴 Tanggal hangusnya dibaca dari **`token_wallets.period_end`, bukan
+`tenants.period_end`.** Keduanya berbeda sesudah bulan pertama: cron menyetel
+ulang periode dompet tiap reset, sementara periode langganan hanya bergerak
+saat membayar atau saat Admin memperpanjang. Menyamakannya menghasilkan
+tanggal yang salah di layar tanpa satu pun galat.
+
+**3. Pemberian token serentak hanya ke yang berstatus `active`.** Uji coba
+tidak ikut (kuotanya 100 sekali seumur akun), begitu pula yang ditangguhkan —
+tokennya bertambah tetapi mereka tetap tidak dapat merekam. Tombolnya juga
+**hanya menambah**: satu tombol yang mengurangi token seluruh pelanggan
+sekaligus tidak punya kegunaan sepadan dengan akibat salah tekannya.
+
+#### Tenant milik akun admin sendiri
+
+Setiap akun yang mendaftar memperoleh satu tenant, termasuk yang belakangan
+dinaikkan menjadi admin (P.3). Barisnya karena itu **nyata dan tetap
+ditampilkan** — keputusan Product Owner; baris yang hilang tanpa penjelasan
+membuat orang mencari-cari, dan akun itu tetap punya toko dan video sungguhan.
+
+Yang berubah: barisnya berlencana **Akun Admin** dan ketiga tombol aksinya
+mati, supaya tidak ada yang menangguhkan akunnya sendiri. Penjagaan itu ada di
+**layar saja** — server tetap mengizinkannya, karena admin memang berhak
+mengubah tenant mana pun.
+
+#### Jejak audit dipasang sebagai trigger, bukan ditempel di tombol
+
+Bab 11.2 menulis *"Setiap aksi tercatat di `audit_logs`"*, dan ketiga aksi yang
+dibangun 29 Agustus pagi tidak mencatat apa pun. Diperbaiki sebagai
+`trg_audit_tenant_admin_change` (migrasi 32), bukan dengan menambahkan
+pencatatan ke masing-masing tombol.
+
+Alasannya: `tenants_update_admin` membuat tabel itu hanya dapat diubah admin —
+lewat aplikasi, lewat SQL Editor, atau lewat cara apa pun yang belum
+terpikirkan. Menempelkannya pada tiga tombol hanya menjamin ketiga tombol itu.
+Product Owner mengubah tier lewat SQL Editor lebih dari sekali pada Agustus
+2026, dan tidak satu pun tercatat.
+
+⚠️ Akibatnya menyetujui pembayaran menghasilkan **dua** baris audit —
+`subscription.activate` dan `tenant.admin_update`. Keduanya benar dan memandang
+kejadian yang sama dari dua sisi. Buku audit boleh berulang; yang tidak boleh
+adalah bolong.
+
+#### 🔴 Kunci rahasia Midtrans tidak punya kolom, dan itu dijaga tes
+
+Halaman Metode Pembayaran sengaja **tidak punya satu kolom teks pun** — hanya
+dua sakelar dan daftar rekening. Ada tes yang gagal bila seseorang
+menambahkannya "supaya praktis". `platform_settings` dapat dibaca siapa pun
+yang berhasil masuk sebagai admin, dan kunci server Midtrans cukup untuk
+menagih atas nama Product Owner. Kuncinya dipasang lewat `supabase secrets
+set`.
+
+#### Yang masih terbuka sesudah malam ini
+
+| Utang | Keterangan |
+|---|---|
+| 🔴 Ubah Paket tidak menyesuaikan token | Melanggar Bab 7.2 poin 4. Pelanggan yang dinaikkan ke Pro lewat tombol tetap berkuota 1.000, bukan 5.000, **tanpa galat apa pun**. Ditunda ke 31 Agustus atas keputusan Product Owner; sementara itu tokennya ditambah manual lewat **Atur Token**. |
+| Unggah gambar iklan (11.5) | Bucket `public-assets` **tidak pernah dibuat** — yang ada hanya `avatars` (migrasi 23) dan `payment-proofs` (migrasi 25). Butuh migrasi tersendiri. |
+| CRUD Tutorial (11.5) | Menunggu channel YouTube. Bukan terlupa. |
+| *Masuk sebagai* (11.2) | Fase 2 menurut dokumen. |
+
+### P.6 🔴 Penolakan pembayaran yang tidak terlihat pelanggan
+
+**Ditemukan dan diperbaiki 29 Agustus 2026**, saat Product Owner menguji tombol
+Tolak pada baris sungguhan untuk pertama kalinya (P.4).
+
+Menolak hanya mengubah `subscriptions.status` menjadi `failed`. Di layar Owner
+akibatnya: spanduk *"Ada tagihan yang belum selesai"* lenyap dan **tidak ada
+apa pun yang menggantikannya** — halaman pilih paket biasa, seolah tagihannya
+tidak pernah ada. Yang disetujui masih agak terlihat (paketnya berubah jadi
+"Paket Aktif" sesudah keluar-masuk); yang ditolak benar-benar senyap.
+
+Dua hal yang diminta dokumen tetapi tidak pernah dibuat, keduanya lahir jauh
+sebelum sesi ini:
+
+- Bab 12.2 langkah 7: *"Owner menerima notifikasi"* — **tidak ada
+  infrastruktur notifikasi sama sekali** di proyek ini.
+  `flutter_local_notifications` yang terpasang hanya untuk progres unggah.
+- Bab 11.7: *"Tolak (**dengan alasan**)"* — kolomnya tidak pernah ada.
+
+**Yang dikerjakan:** kolom `subscriptions.rejection_reason` (migrasi 32),
+alasan wajib yang ditegakkan **di server** lewat `admin_reject_payment()`, dan
+spanduk merah di halaman Pembayaran Owner yang menampilkan alasan itu apa
+adanya.
+
+⚠️ Alasannya **dibaca pelanggan**. Ia bukan catatan internal; dialognya
+mengatakan hal itu kepada Admin sebelum ia mengetik, dan menyediakan tiga
+contoh siap tekan supaya yang paling sering dipakai tidak diketik ulang.
+
+⚠️ Yang **tetap tidak terjadi**: uang tidak dikembalikan aplikasi, dan tidak
+ada pemberitahuan yang dikirim ke mana pun. Keduanya urusan manusia, dan layar
+mengatakannya apa adanya. Yang berubah hanyalah bahwa penolakannya kini
+**terlihat** saat pelanggan membuka halamannya.
+
+🔴 Aturan yang lahir dari sini: **setiap aksi Admin yang mengubah nasib
+pelanggan wajib punya jejak yang dapat dilihat pelanggan itu sendiri.**
+Menutup baris di sisi Admin bukan menyelesaikan urusan — ia hanya memindahkan
+kebingungannya ke orang yang tidak dapat memperbaikinya.
 
 ---
 

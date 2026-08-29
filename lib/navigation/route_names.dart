@@ -105,6 +105,16 @@ class Routes {
   /// admin), bukan hanya di penjagaan rute ini.
   static const String adminStats = '/admin/stats';
 
+  // ---------- Admin: pengaturan platform (Bab 11.3–11.6) ----------
+  //
+  // 🔴 Keempatnya mengubah aturan yang berlaku bagi SELURUH pelanggan
+  // sekaligus, bukan satu pelanggan. Sampai 29 Agustus 2026 semuanya
+  // dikerjakan lewat Supabase Dashboard.
+  static const String adminPricing = '/admin/pricing';
+  static const String adminPromos = '/admin/promos';
+  static const String adminPaymentMethods = '/admin/payment-methods';
+  static const String adminContact = '/admin/contact';
+
   // ---------- Web ----------
   static const String webDashboard = '/dashboard';
 

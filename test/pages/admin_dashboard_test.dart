@@ -66,6 +66,26 @@ void main() {
               path: 'stats',
               builder: (_, _) => const Scaffold(body: Text('halaman angka')),
             ),
+            GoRoute(
+              path: 'users',
+              builder: (_, _) => const Scaffold(body: Text('halaman pengguna')),
+            ),
+            GoRoute(
+              path: 'pricing',
+              builder: (_, _) => const Scaffold(body: Text('halaman harga')),
+            ),
+            GoRoute(
+              path: 'promos',
+              builder: (_, _) => const Scaffold(body: Text('halaman promo')),
+            ),
+            GoRoute(
+              path: 'payment-methods',
+              builder: (_, _) => const Scaffold(body: Text('halaman metode')),
+            ),
+            GoRoute(
+              path: 'contact',
+              builder: (_, _) => const Scaffold(body: Text('halaman kontak')),
+            ),
           ],
         ),
       ],
@@ -130,6 +150,44 @@ void main() {
     });
   });
 
+  group('Pengaturan platform dapat dicapai (Bab 11.3–11.6)', () {
+    // 🔴 Keempatnya sengaja ditunda ke Fase 2 saat MVP disusun dan dikerjakan
+    // lewat Supabase Dashboard — antarmuka teknis berbahasa Inggris berupa
+    // tabel database. Halaman yang sudah dibangun tetapi tidak ada tautannya
+    // sama saja dengan halaman yang tidak ada (P.2), jadi keempat tautannya
+    // diuji satu per satu.
+
+    testWidgets('keempat menunya ada, di bawah judul kelompoknya', (
+      tester,
+    ) async {
+      await pasang(tester, menunggu: const []);
+
+      expect(find.text('Pengaturan Platform'), findsOneWidget);
+      expect(find.text('Harga & Paket'), findsOneWidget);
+      expect(find.text('Metode Pembayaran'), findsOneWidget);
+      expect(find.text('Kode Promo'), findsOneWidget);
+      expect(find.text('Kontak Dukungan'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    for (final (label, tujuan) in [
+      ('Harga & Paket', Routes.adminPricing),
+      ('Metode Pembayaran', Routes.adminPaymentMethods),
+      ('Kode Promo', Routes.adminPromos),
+      ('Kontak Dukungan', Routes.adminContact),
+    ]) {
+      testWidgets('menekan "$label" berpindah ke halamannya', (tester) async {
+        await pasang(tester, menunggu: const []);
+
+        await tester.tap(find.text(label));
+        await tester.pumpAndSettle();
+
+        expect(alamat, tujuan);
+        expect(tester.takeException(), isNull);
+      });
+    }
+  });
+
   group('🔴 Admin tidak boleh terkurung', () {
     testWidgets('tombol Keluar selalu ada di panel admin', (tester) async {
       await pasang(tester, menunggu: const []);
@@ -154,16 +212,17 @@ void main() {
     });
   });
 
-  group('Menu yang belum jadi tetap ditampilkan', () {
-    testWidgets('ditulis apa adanya "Belum dikerjakan", bukan disembunyikan',
+  group('Kelola Pengguna dapat dicapai', () {
+    testWidgets('menunya ada dan tidak lagi berkata "Belum dikerjakan"',
         (tester) async {
-      // Menyembunyikannya membuat panel admin terlihat hanya punya satu
-      // halaman, dan orang berikutnya akan mengira sisanya memang tidak
-      // direncanakan.
+      // Sampai 29 Agustus 2026 menu ini sengaja diredupkan dan diberi
+      // keterangan "Belum dikerjakan" — jujur, tetapi berarti panel admin
+      // hanya berguna separuh. Halamannya selesai hari itu juga, dan sejak
+      // itu tidak ada lagi satu pun menu admin yang belum jadi.
       await pasang(tester, menunggu: const []);
 
       expect(find.text('Kelola Pengguna'), findsOneWidget);
-      expect(find.text('Belum dikerjakan'), findsOneWidget);
+      expect(find.text('Belum dikerjakan'), findsNothing);
     });
 
     testWidgets('🔴 SATU menu pengguna, bukan dua', (tester) async {
@@ -175,13 +234,13 @@ void main() {
       expect(find.text('Daftar Pelanggan'), findsNothing);
     });
 
-    testWidgets('menekannya tidak berpindah ke mana pun', (tester) async {
+    testWidgets('menekannya berpindah ke tabel pelanggan', (tester) async {
       await pasang(tester, menunggu: const []);
 
       await tester.tap(find.text('Kelola Pengguna'));
       await tester.pumpAndSettle();
 
-      expect(alamat, Routes.adminDashboard);
+      expect(alamat, Routes.adminUsers);
       expect(tester.takeException(), isNull);
     });
   });
