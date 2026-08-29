@@ -90,13 +90,17 @@ supabase/.temp/
 # Cache Wrangler (Cloudflare Pages). Dibuat ulang otomatis tiap deploy.
 .wrangler/
 
-# Berkas kerja Claude Code.
+# Berkas kerja Claude Code — SELURUHNYA, tanpa kecuali.
 #
-# 🔴 `.claude/worktrees/` berisi SALINAN UTUH repositori ini — beberapa buah.
-# Tanpa baris ini, satu kali `git add -A` di checkout utama akan mencoba
-# memasukkan ribuan berkas, termasuk salinan yang berisi kredensial.
+# 🔴 `.claude/worktrees/` berisi SALINAN UTUH repositori ini — beberapa buah,
+# masing-masing lengkap dengan `env.dev.json` dan `dataapp.md` yang justru
+# sengaja dijaga agar tidak pernah masuk git. Satu kali `git add -A` di
+# checkout utama akan mencoba memasukkan ribuan berkas, termasuk kredensial.
 #
-# `settings.json` sengaja DIKECUALIKAN: ia setelan proyek yang memang dibagi,
-# dan di situlah `includeCoAuthoredBy: false` disimpan.
-.claude/*
-!.claude/settings.json
+# `settings.json` sempat dikecualikan agar setelan proyek ikut dibagi, lalu
+# ikut diabaikan atas keputusan Product Owner 29 Agustus 2026: repositori ini
+# tidak menyimpan jejak perkakas apa pun. Setelannya pindah ke tingkat mesin
+# (`~/.claude/settings.json`), yang justru berlaku untuk SETIAP worktree dan
+# setiap proyek — tempat yang lebih tepat, dan tidak mungkin terlupa saat
+# worktree baru dibuat.
+.claude/
