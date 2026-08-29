@@ -90,6 +90,36 @@ void main() {
       expect(find.text('Rp 546.000'), findsOneWidget);
     });
 
+    testWidgets('🔴 margin MINUS tidak boleh berwarna hijau', (tester) async {
+      // Terlihat pertama kali di layar Product Owner 29 Agustus 2026: margin
+      // -Rp 53.000 tertulis dengan warna keberhasilan. Pada dasbor keuangan
+      // itu jenis kesalahan yang paling menyesatkan — mata membaca warnanya
+      // lebih dulu daripada tanda minusnya.
+      await pasang(
+        tester,
+        stats: contoh(mrr: 447000, biaya: 500000, margin: -53000),
+      );
+
+      expect(find.text('-Rp 53.000'), findsOneWidget);
+
+      // Palet §7: makna tidak boleh disampaikan lewat warna saja, jadi
+      // ikonnya ikut berubah dan kalimatnya menyebutnya dengan kata.
+      expect(find.byIcon(Icons.trending_down_rounded), findsOneWidget);
+      expect(find.text('Rugi — biaya melebihi pendapatan'), findsOneWidget);
+    });
+
+    testWidgets('margin positif tetap memakai ikon dan kalimat untung',
+        (tester) async {
+      await pasang(
+        tester,
+        stats: contoh(mrr: 900000, biaya: 500000, margin: 400000),
+      );
+
+      expect(find.byIcon(Icons.savings_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.trending_down_rounded), findsNothing);
+      expect(find.text('Rugi — biaya melebihi pendapatan'), findsNothing);
+    });
+
     testWidgets('margin ditampilkan begitu biayanya diisi', (tester) async {
       await pasang(
         tester,

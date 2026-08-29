@@ -46,6 +46,7 @@
   "adminStatsInfraCost": "Biaya infrastruktur {value}",
   "@adminStatsInfraCost": {"placeholders": {"value": {"type": "String"}}},
   "adminStatsNoInfraCost": "Biaya infrastruktur belum diisi",
+  "adminStatsLoss": "Rugi — biaya melebihi pendapatan",
   "adminStatsVideos": "Total Video",
   "adminStatsVideosNote": "Termasuk yang sudah dihapus dan kedaluwarsa",
   "adminStatsStorage": "Perkiraan Penyimpanan",

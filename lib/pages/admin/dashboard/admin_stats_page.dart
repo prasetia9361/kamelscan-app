@@ -59,6 +59,10 @@ class _Isi extends StatelessWidget {
     final theme = Theme.of(context);
     final colors = theme.extension<AppColors>()!;
 
+    /// Margin negatif. Dihitung sekali di sini supaya warna, ikon, dan
+    /// kalimatnya tidak mungkin berbeda pendapat.
+    final rugi = (stats.margin ?? 0) < 0;
+
     return LayoutBuilder(
       builder: (context, batas) {
         final kolom = switch (batas.maxWidth) {
@@ -106,11 +110,24 @@ class _Isi extends StatelessWidget {
             color: colors.success,
           ),
 
-          // 🔴 Margin yang belum dapat dihitung ditulis sebagai belum diisi,
-          // BUKAN sama dengan MRR. MRR dikurangi nol menghasilkan angka yang
-          // persis sama, dan di layar ia terbaca sebagai "seluruh pendapatan
-          // adalah keuntungan" — kalimat yang paling tidak boleh dikarang
-          // oleh sebuah dasbor keuangan.
+          // 🔴 DUA hal yang keduanya soal kejujuran angka ini.
+          //
+          // Pertama: margin yang belum dapat dihitung ditulis sebagai belum
+          // diisi, BUKAN sama dengan MRR. MRR dikurangi nol menghasilkan angka
+          // yang persis sama, dan di layar ia terbaca sebagai "seluruh
+          // pendapatan adalah keuntungan".
+          //
+          // Kedua: margin MINUS tidak boleh berwarna hijau.
+          //
+          // Terlihat pertama kali di layar Product Owner 29 Agustus 2026:
+          // margin -Rp 53.000 tertulis dengan warna keberhasilan. Pada dasbor
+          // keuangan itu jenis kesalahan yang paling menyesatkan — mata
+          // membaca warnanya lebih dulu daripada tanda minusnya, dan yang
+          // membacanya sekilas akan menyimpulkan usahanya untung.
+          //
+          // Warnanya berubah DAN ikonnya ikut berubah: palet §7 melarang
+          // makna yang hanya disampaikan lewat warna, dan rugi-untung adalah
+          // makna yang paling mahal bila salah dibaca.
           _Kartu(
             label: t.adminStatsMargin,
             value: stats.margin == null
@@ -118,12 +135,19 @@ class _Isi extends StatelessWidget {
                 : Formatters.currency(stats.margin!),
             note: stats.needsInfraCost
                 ? t.adminStatsNoInfraCost
-                : t.adminStatsInfraCost(Formatters.currency(stats.infraCost!)),
-            noteWarning: stats.needsInfraCost,
-            icon: Icons.savings_outlined,
+                : (rugi
+                    ? t.adminStatsLoss
+                    : t.adminStatsInfraCost(
+                        Formatters.currency(stats.infraCost!))),
+            noteColor: stats.needsInfraCost
+                ? colors.warning
+                : (rugi ? colors.danger : null),
+            icon: rugi
+                ? Icons.trending_down_rounded
+                : Icons.savings_outlined,
             color: stats.needsInfraCost
                 ? theme.colorScheme.outline
-                : colors.success,
+                : (rugi ? colors.danger : colors.success),
           ),
 
           _Kartu(
@@ -169,7 +193,7 @@ class _Kartu extends StatelessWidget {
     required this.color,
     this.note,
     this.noteValue,
-    this.noteWarning = false,
+    this.noteColor,
   });
 
   final String label;
@@ -182,13 +206,17 @@ class _Kartu extends StatelessWidget {
   /// dua keadaan sekaligus (uji coba + ditangguhkan).
   final String? noteValue;
 
-  final bool noteWarning;
+  /// Warna keterangan bila ia membawa peringatan. null = warna biasa.
+  ///
+  /// 🔴 Dipisah dari warna angkanya supaya keduanya tidak mungkin berbeda
+  /// pendapat — kartu yang angkanya merah tetapi keterangannya oranye membuat
+  /// pembacanya berhenti menebak mana yang benar.
+  final Color? noteColor;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final colors = theme.extension<AppColors>()!;
     final keterangan = note;
 
     return Card(
@@ -232,7 +260,7 @@ class _Kartu extends StatelessWidget {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: noteWarning ? colors.warning : scheme.onSurfaceVariant,
+                  color: noteColor ?? scheme.onSurfaceVariant,
                 ),
               ),
             ],

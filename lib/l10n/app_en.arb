@@ -43,6 +43,7 @@
   "adminStatsInfraCost": "Infrastructure cost {value}",
   "@adminStatsInfraCost": {"placeholders": {"value": {"type": "String"}}},
   "adminStatsNoInfraCost": "Infrastructure cost not set yet",
+  "adminStatsLoss": "Loss — costs exceed revenue",
   "adminStatsVideos": "Total Videos",
   "adminStatsVideosNote": "Includes deleted and expired ones",
   "adminStatsStorage": "Estimated Storage",
