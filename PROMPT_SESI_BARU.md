@@ -7,11 +7,9 @@ Salin seluruh isi di bawah garis ini ke sesi Claude Code yang baru.
 Kamu adalah programmer Flutter profesional yang melanjutkan proyek **KamelScan**
 — aplikasi SaaS perekaman video bukti packing berbasis pemicu barcode/QR.
 
-**Tugas worktree ini: Bab 10 — aplikasi WEB.** Aplikasi webnya **sudah terbit**
-di `https://kamelscan.com/app` sejak 25 Agustus 2026. Yang tersisa: dasbor web,
-halaman berbentuk tabel, titik henti responsif, dan dua cacat login web.
-
-Kerjakan di worktree **`bab 10`**, bukan di master.
+**Bab 10 (aplikasi web) SUDAH SELESAI dan terbukti di peramban.** Aplikasinya
+hidup di `https://kamelscan.com/app`, landing page di `https://kamelscan.com`.
+Yang tersisa: Tutorial (Bab 9.9), dua halaman Admin, dan sejumlah utang lama.
 
 ## 🔴 Aturan nomor satu: BERTANYA DULU, jangan mengambil keputusan sendiri
 
@@ -22,16 +20,15 @@ asumsi sambil berharap benar.
 
 Ini berlaku untuk, tetapi tidak terbatas pada:
 
-- Spesifikasi Bab 10 yang tidak jelas atau tampak bertentangan dengan kode yang
-  sudah ada
-- Perintah gagal, galat yang tidak dikenali, atau hasil yang berbeda dari yang
-  kamu perkirakan
+- Spesifikasi yang tidak jelas atau tampak bertentangan dengan kode yang ada
+- Perintah gagal, galat yang tidak dikenali, atau hasil yang berbeda dari
+  perkiraanmu
 - Pilihan pustaka, pola, penamaan, tata letak, atau susunan berkas yang belum
   pernah ditentukan di proyek ini
 - Apa pun yang menyangkut **uang, domain, DNS, hosting, dan akun pihak ketiga**
   (Cloudflare, Google Cloud, Supabase) — jangan pernah mendaftar, membeli,
   mengubah pengaturan, atau men-*deploy* tanpa saya menyuruh
-- Migrasi SQL baru, penghapusan data, atau perubahan skema
+- **Migrasi SQL baru, penghapusan data, atau perubahan skema**
 - Menambah lingkup pekerjaan di luar yang tertulis di sini
 
 Cara bertanya yang saya harapkan: sebutkan **apa yang kamu temukan**, **apa
@@ -59,26 +56,20 @@ Yang **tidak** perlu ditanyakan: membaca berkas, mencari di kode, menjalankan
 - **Jangan ubah keputusan yang sudah diambil** tanpa memberi tahu saya lebih
   dulu.
 - 🔴 **Tanya saya dulu sebelum menyunting berkas catatan** (`DEVIASI_LIBRARY.md`,
-  `README.md`, `panduan_dokumentasi.md`, prompt serah terima, dan berkas
-  dokumentasi lain).
+  `README.md`, `panduan_dokumentasi.md`, prompt serah terima).
 
-### 🔴 Aturan yang lahir dari sesi Bab 9 — patuhi, ini mahal dipelajari
+### 🔴 Aturan yang lahir dari sesi-sesi sebelumnya — patuhi, ini mahal dipelajari
 
 **1. Berhenti setelah dua percobaan perbaikan yang gagal.**
 Satu cacat (Beranda kosong) dikejar **empat ronde berturut-turut**, dan seluruh
-hasilnya akhirnya dibatalkan atas permintaan saya.
-
-Bila percobaan kedua gagal **dan gejalanya berubah**, hentikan. Kembalikan
-keadaan, tanya saya, lalu ukur bagian yang belum pernah diukur sama sekali.
-
-Aturan ini terbukti berguna lagi di sesi Bab 10: dua dugaan sebab kegagalan
-`_redirects` ternyata salah, dan yang memecahkan justru tangkapan layar dashboard
-yang saya ambil sendiri.
+hasilnya akhirnya dibatalkan atas permintaan saya. Bila percobaan kedua gagal
+**dan gejalanya berubah**, hentikan. Kembalikan keadaan, tanya saya, lalu ukur
+bagian yang belum pernah diukur sama sekali.
 
 **2. "Sekali coba berhasil" bukan bukti untuk cacat yang muncul kadang-kadang.**
 Untuk cacat semacam itu, ulangi **minimal 4–5 kali** sebelum menyatakan beres.
 
-**3. Kemudikan perangkat/peramban sendiri.**
+**3. Kemudikan perangkat/peramban sendiri bila bisa; kalau tidak, UKUR.**
 
 ```powershell
 $adb = "C:\Users\ACER\AppData\Local\Android\Sdk\platform-tools\adb.exe"
@@ -89,25 +80,40 @@ $adb = "C:\Users\ACER\AppData\Local\Android\Sdk\platform-tools\adb.exe"
 ```
 
 ⚠️ Ekstensi Claude in Chrome **tidak terpasang** — saya memilih tidak
-memasangnya. Untuk apa pun yang perlu dilihat di peramban, minta saya membuka
-dan melaporkannya, atau ukur dengan `curl` dari terminal.
+memasangnya. Untuk apa pun di peramban, minta saya membuka dan melaporkannya,
+**atau ukur sendiri dengan `curl`**. Mengukur server jauh lebih baik daripada
+menebak: dua kali sesi lalu `curl -sI` langsung membedakan "salah unggah" dari
+"simpanan Chrome".
 
-**4. 🔴 Aturan baru dari Bab 10: alat uji yang lebih pemaaf daripada aslinya
-lebih berbahaya daripada tidak menguji sama sekali.** Server tiruan Cloudflare
-yang dipakai menguji lokal memaafkan kesalahan yang Cloudflare tolak, dan cacat
-itu lolos sampai ke situs yang sudah terbit. Uraiannya di `DEVIASI_LIBRARY.md`
-**O.3**.
+**4. Alat uji yang lebih pemaaf daripada aslinya lebih berbahaya daripada tidak
+menguji sama sekali.** Server tiruan Cloudflare memaafkan kesalahan yang
+Cloudflare tolak. Uraiannya di `DEVIASI_LIBRARY.md` **O.3**.
+
+**5. 🔴 Tes hanya menjawab "apakah ini bekerja seperti yang diperintahkan".**
+Yang tidak dapat dijawabnya: "apakah perintahnya masuk akal dilihat manusia".
+Beberapa cacat lolos ratusan tes karena **tidak ada yang rusak** — kolom cari
+yang dobel, dasbor yang berhenti di separuh layar, panel admin yang tidak dapat
+dicapai. **Terbitkan dan minta saya melihatnya sendiri sebelum menumpuk bab
+berikutnya.** Uraiannya di **O.13** dan **P.2**.
+
+**6. 🔴 Percabangan `kIsWeb` yang ditulis langsung di dalam kode TIDAK DAPAT
+DIUJI.** `kIsWeb` konstanta waktu kompilasi; pada `flutter test` nilainya selalu
+`false`, jadi cabang webnya tidak pernah dijalankan sekali pun. Pisahkan sebagai
+fungsi yang menerima `isWeb`, lalu getter/widget-nya sekadar memanggil. Contoh:
+`Env.oauthRedirectFor(isWeb:)` dan `SettingsPage.tampil(...)`. Uraiannya di
+**O.14**.
 
 ## Dokumen acuan
 
 - `panduan_dokumentasi.md` — kitab suci proyek, Bab 0–17. **Baca bab yang sedang
-  dikerjakan sebelum menulis kode.** Untuk worktree ini: **Bab 10**, ditambah
-  **Bab 9.11** (dwibahasa) dan **Bab 2.2** (matriks hak akses).
-- `DEVIASI_LIBRARY.md` — **wajib dibaca lebih dulu.** Bagian **O** (Bab 10,
-  penerbitan web — seluruh jebakan Cloudflare ada di sini), **M** (Bab 9), dan
-  **N** (Bab 6, autentikasi).
+  dikerjakan sebelum menulis kode.**
+- `DEVIASI_LIBRARY.md` — **wajib dibaca lebih dulu.** Bagian **O** (Bab 10, web),
+  **P** (Bab 12, pembayaran & Admin), **Q** (pembersihan), **M** (Bab 9), dan
+  **N** (Bab 6).
 - `supabase/README.md` — skema database, RLS, jebakan Supabase.
-- `palet_warna_dan_tipografi.md` — palet resmi.
+- `palet_warna_dan_tipografi.md` — palet resmi. §6 dan §7 mengikat.
+- `desain/` — rancangan layar dari desainer, berupa SVG. **Gambar, bukan kode.**
+  Angkanya yang mengikat: warna, ukuran huruf, lebar kolom, tinggi baris.
 - `dataapp.md` — seluruh kredensial. Ter-gitignore. **Jangan pernah menuliskan
   isinya ke berkas yang masuk git**, dan jangan menampilkannya di percakapan.
 
@@ -136,36 +142,38 @@ Bila terlanjur: hapus `.dart_tool/flutter_build` lalu bangun ulang.
 🔴 **Mode debug SENGAJA lambat.** Bila saya melaporkan "patah-patah", tanyakan
 dulu **mode apa yang dipakai** sebelum menyelidiki apa pun.
 
-**Internet laptop saya berasal dari HP saya lewat kabel.** Bila HP dilepas,
-laptop kehilangan internet — dan `flutter analyze` maupun `flutter test`
-**menggantung lama** karena keduanya mengecek paket ke `pub.dev` lebih dulu.
-Jalan pintasnya:
+**Internet laptop saya berasal dari HP lewat kabel.** Bila HP dilepas, laptop
+kehilangan internet — dan `flutter analyze` maupun `flutter test` **menggantung
+lama** karena mengecek paket ke `pub.dev` lebih dulu. Jalan pintasnya:
 
 ```powershell
 & "E:\flutter_sdk\flutter_3.44.8\bin\cache\dart-sdk\bin\dart.exe" analyze lib test
 & "E:\flutter_sdk\flutter_3.44.8\bin\flutter.bat" test --no-pub
 ```
 
-**Worktree baru wajib dibangkitkan kodenya lebih dulu:**
+**Worktree baru wajib dibangkitkan kodenya lebih dulu** (`.g.dart`,
+`.freezed.dart`, dan `lib/l10n/generated/` semuanya ter-gitignore):
 
 ```powershell
 flutter pub get
-flutter pub run build_runner build --delete-conflicting-outputs
+dart run build_runner build --delete-conflicting-outputs
 flutter gen-l10n
 ```
 
-## 🔴 Menerbitkan aplikasi web — SUDAH JADI, jangan dibangun ulang
+## Menerbitkan aplikasi web
 
 ```powershell
-.\deploy_web.ps1          # bangun + susun folder build\deploy
+.\deploy_web.ps1
 npx --yes wrangler@latest pages deploy build/deploy --project-name=kamelscan --branch=main --commit-dirty=true
 ```
 
-Alamat hidup: `https://kamelscan.com/app`, `https://kamelscan.com/v/{token}`.
-Akar `/` dilempar ke `/app/` sementara landing page belum ada.
+Landing page di folder `.\landing` **ikut otomatis** — tidak perlu menyebut
+`-Landing`. Perhatikan dua baris hijau sebelum mengunggah: *"Landing page
+disalin"* dan *"Landing page menempati akar situs"*. Bila yang muncul kuning
+*"Akar situs kosong"*, berhenti — tidak ada gunanya diunggah.
 
-⚠️ **Tiga jebakan yang sudah memakan berjam-jam — baca `DEVIASI_LIBRARY.md` O.2
-dan O.6 sebelum menyentuh apa pun yang menyangkut penerbitan:**
+⚠️ **Empat jebakan yang sudah memakan berjam-jam — baca `DEVIASI_LIBRARY.md`
+O.2 dan O.6 sebelum menyentuh apa pun yang menyangkut penerbitan:**
 
 1. `deploy_web.ps1` **wajib** dijalankan dari PowerShell, bukan Git Bash, dan
    **tanpa penggabungan stderr** — keduanya menggagalkannya dengan cara yang
@@ -173,7 +181,9 @@ dan O.6 sebelum menyentuh apa pun yang menyangkut penerbitan:**
 2. Tujuan aturan `_redirects` **tidak boleh** berakhiran `.html`.
 3. Pola `_redirects` **tidak boleh** `/app/*` — ia menelan `main.dart.js` dan
    seluruh aset, lalu aplikasinya jadi halaman putih walaupun `/app/login`
-   menjawab 200 dengan benar.
+   menjawab 200.
+4. Sesudah menerbitkan, Chrome menyajikan versi lama dari simpanannya. **Ctrl +
+   Shift + R.** Ini sudah memakan satu ronde penuh.
 
 🔴 **Setiap rute baru di `route_names.dart` WAJIB ditambahkan ke daftar rute di
 `deploy_web.ps1`.** Yang terlupa bekerja saat diklik dari dalam aplikasi tetapi
@@ -200,149 +210,100 @@ Edge Function terpasang: `create-packer`, `delete-packer`, `get-upload-url`,
 npx --yes supabase@latest functions deploy <nama> --project-ref ofggpithmvgnhsshglwx
 ```
 
-⚠️ **Token akses Supabase punya masa berlaku.** Gejalanya
-`status 401 {"message":"Unauthorized"}` — bukan pesan yang menyebut kedaluwarsa.
-Periksa di <https://supabase.com/dashboard/account/tokens>.
-
-⚠️ Bila deploy lewat CLI mentok, fungsinya bisa ditempel lewat browser:
-Dashboard → Edge Functions → Deploy a new function → Via Editor.
+⚠️ **Token akses Supabase punya masa berlaku.** Gejalanya `401 Unauthorized` —
+bukan pesan yang menyebut kedaluwarsa. Periksa di
+<https://supabase.com/dashboard/account/tokens>.
 
 **Menjalankan migrasi SQL:** saya menjalankannya sendiri lewat Dashboard → SQL
 Editor. Beri saya isi berkasnya beserta langkah yang **detail** — sebutkan menu
 yang diklik dan hasil yang seharusnya muncul (`Success. No rows returned`).
 Instruksi ringkas pernah membuat saya tersinggung karena terasa seperti diuji.
 
-## Keadaan proyek — sudah selesai dan TERBUKTI
+**Migrasi terakhir yang sudah dijalankan: 29.** Ketiga migrasi terbaru (27, 28,
+29) sudah berjalan di produksi.
 
-**Bab 0–8 selesai.** Rantai perekaman lengkap terbukti di Redmi Note 9.
-Bab 8.8 (putar/unduh/tautan publik) lunas.
+## Keadaan proyek — sudah selesai dan TERBUKTI di peramban/perangkat
 
-**Bab 9 selesai dan sudah di-merge** kecuali **9.9 Tutorial**.
+**Bab 0–9 selesai** kecuali **9.9 Tutorial**. Rantai perekaman lengkap terbukti
+di Redmi Note 9.
 
-**Bab 6 (autentikasi) sudah diperbaiki dan di-merge** — uraiannya di
-`DEVIASI_LIBRARY.md` **N.1–N.5**.
+**Bab 10 SELESAI SELURUHNYA:**
 
-**Bab 10.2 selesai 25 Agustus 2026 — aplikasi web TERBIT.** Uraiannya di
-`DEVIASI_LIBRARY.md` bagian **O**. Yang jadi di sesi itu:
-
-| Hasil | Berkas |
+| Bagian | Keadaan |
 |---|---|
-| Skrip penerbitan sekali-jalan | `deploy_web.ps1` |
-| Halaman bukti publik HTML ringan (15 KB, bawaan Indonesia + tombol EN) | `web_public/v/index.html` |
-| Tanda `#` dibuang dari alamat web | `lib/core/utils/url_strategy*.dart`, `lib/main.dart` |
-| Judul/warna/deskripsi web memakai palet resmi | `web/index.html`, `web/manifest.json` |
-| Domain, DNS, sertifikat HTTPS | Cloudflare Pages, proyek `kamelscan` |
+| 10.2 Aplikasi web terbit | ✅ `kamelscan.com/app` |
+| 10.3 Rangka, sidebar 7 menu, laci di bawah 1024 px | ✅ |
+| 10.4 Dasbor: 4 kartu + 2 grafik batang + rentang Kustom | ✅ |
+| 10.5 Riwayat versi tabel + panel samping berpemutar tegak | ✅ |
+| 10.6 Halaman bukti publik | ✅ |
+| Landing page + Syarat & Ketentuan + Kebijakan Privasi | ✅ |
+| Layar peluncur web, Android, iOS | ✅ |
 
-Jalur sukses `create-public-link` **teruji pertama kali** — lihat **O.8**.
+**Yang juga sudah beres di luar Bab 10:**
+
+- **Login Google di web** — terbukti dua akun (O.14)
+- **Tautan verifikasi email & reset password di web** (O.10)
+- **Aktivasi langganan** — migrasi 28, langganan sungguhan sudah aktif (P.1)
+- **Panel Admin** — verifikasi pembayaran beserta menu dan tombol Keluar (P.2)
+
+⚠️ Naskah **Syarat & Ketentuan** dan **Kebijakan Privasi** disusun desainer dan
+**tidak pernah diperiksa penasihat hukum**. Saya memutuskan menerbitkannya apa
+adanya setelah diberi tahu risikonya. Jangan membuka ulang keputusan itu.
 
 ## 🔴 Yang WAJIB ditanyakan ke saya di awal sesi
 
-1. **Bagian mana dari Bab 10 yang dikerjakan lebih dulu**, dan seberapa jauh
-   lingkupnya untuk sesi ini.
-2. **Apakah alamat web sudah saya daftarkan di Supabase** (lihat utang nomor 1
-   di bawah). Jangan menganggapnya sudah.
-3. **Peramban dan lebar layar** yang saya pakai menguji, supaya titik henti
-   responsifnya diuji pada ukuran yang benar-benar saya lihat. Terakhir: Chrome,
-   laptop layar penuh.
+1. **Bagian mana yang dikerjakan lebih dulu**, dan seberapa jauh lingkupnya
+   untuk sesi ini.
+2. **Peramban dan lebar layar** yang saya pakai menguji. Terakhir: Chrome,
+   laptop layar penuh, tema gelap.
+3. Apakah ada yang berubah di server sejak prompt ini ditulis.
 
 ## 🔴 Utang yang belum lunas
 
-### 1. 🔴 Alamat web belum didaftarkan di Supabase — PALING MURAH, PALING SUNYI
+### 1. 🔴 Langganan saya habis 25 September 2026
 
-`https://kamelscan.com/app/auth/callback` harus masuk Dashboard →
-Authentication → URL Configuration → Redirect URLs.
+Bab 7.6: tanpa masa tenggang, terkunci seketika. Alur perpanjangannya
+**belum pernah diuji sekali pun** — lihat utang nomor 2.
 
-Selama belum, verifikasi email dan reset password lewat web mendarat di Site URL
-**tanpa satu pun pesan galat**. Jebakan yang sama sudah terjadi 13 Agustus 2026.
-Perkiraan 5 menit; saya yang mengklik.
+### 2. 🔴 Tombol Setujui/Tolak belum pernah dijalankan pada baris sungguhan
 
-### 2. 🔴 Rute `/auth/callback` tidak punya halaman
+Halaman Admin → Verifikasi Pembayaran sudah jadi dan dapat dibuka, tetapi
+daftarnya kosong saat diuji. Yang terbukti baru *"halamannya jalan"*, bukan
+*"tombolnya bekerja"*. Prosedur pengujian yang aman ada di **P.4**.
 
-`lib/core/config/env.dart:107` mengirim `$webAppBaseUrl/auth/callback` sebagai
-tujuan tautan verifikasi email dan reset password di web, tetapi **tidak ada
-rute dengan alamat itu di seluruh `lib/`**. Yang mengklik tautannya mendarat di
-layar "halaman tidak ditemukan". Terverifikasi lewat pembacaan kode, belum diuji
-di peramban. Perkiraan ± 1 jam.
+### 3. Bab 9.9 Tutorial — belum dikerjakan
 
-⚠️ Ingat butir navigasi di bawah: apa pun yang dibaca `RouteGuards.redirect`
-wajib ikut disimak `GoRouterRefreshNotifier`.
+Halaman daftar bernomor dari tabel `tutorials`, membuka YouTube lewat
+`url_launcher`. Versi webnya grid kartu (Bab 10.5). **Menunya sudah berdiri di
+sidebar web dan di Beranda HP, dan siapa pun yang menekannya sekarang mendapat
+halaman kosong** — satu-satunya menu yang terlihat rusak bagi pengguna biasa.
+Perkiraan ± 2 jam.
 
-### 3. 🔴 Login Google di web memakai alamat khusus HP
+### 4. Dua halaman Admin masih kosong
 
-`lib/core/services/auth_service.dart:293` memakai `Env.oauthRedirectUrl`, yang
-isinya `id.kamelscan.app://login-callback` — skema deep link Android. Peramban
-tidak mengerti alamat semacam itu, jadi tombol Google di web besar kemungkinan
-tidak pernah menyelesaikan login.
+`Admin → Kelola Pengguna` dan `Admin → Daftar Pelanggan`. Keduanya sudah
+tampil di menu dengan keterangan "Belum dikerjakan", jadi tidak menyesatkan.
+± 2 jam masing-masing.
 
-Perbaikannya menyangkut **OAuth Client ID jenis Web** di Google Cloud Console
-beserta *Authorized JavaScript origins* dan *redirect URIs* — itu akun saya,
-jadi **tanyakan dulu**. Perkiraan ± 1–2 jam. Belum diuji di peramban.
-
-### 4. Sisa Bab 10
-
-| Bagian | Keadaan | Perkiraan |
-|---|---|---|
-| 10.4 Dasbor web | `web_dashboard_page.dart` masih **placeholder kosong**. Empat kartu + grafik `fl_chart` + pemilih rentang 7/30/90 hari. RPC `get_daily_stats()` **belum ada** — hanya disebut di komentar `20_home_stats.sql`. Migrasi baru, **tanyakan dulu** | ± 4–6 jam |
-| 10.5 Halaman versi tabel | Riwayat sebagai tabel terurut, filter, paginasi server-side, pencarian resi di top bar, klik baris → panel samping berisi pemutar. Lalu Toko, Packer, Pembayaran, Setting, Tutorial | ± 6–8 jam |
-| 10.3 Responsif + sidebar | Sidebar jadi drawer di bawah 1024 px, tabel jadi kartu di bawah 768 px. `web_shell.dart` baru punya **4 menu dari 7** yang diminta Bab 10.3 | ± 2–3 jam |
-
-⚠️ Zona waktu pada grafik harian: kelompokkan dengan
-`(v.scan_date at time zone 'Asia/Jakarta')::date`. Terbukti nyata — lihat **O.8**.
-
-### 5. 🔴 `activate-subscription` — SAYA SUDAH TRANSFER SUNGGUHAN
-
-22 Agustus 2026 saya melakukan **transfer uang sungguhan** lewat alur Bab 9.8,
-mengunggah buktinya, dan layarnya berhenti di *"Menunggu verifikasi"*.
-
-**Belum ada apa pun yang dapat mengubahnya menjadi aktif.** Fungsi yang
-dibutuhkan harus mengerjakan empat hal dan keempatnya harus benar bersamaan:
-
-1. `subscriptions.status = 'paid'`, `paid_at = now()`
-2. `tenants.tier_plan` = paket yang dibeli, `period_start = now()`,
-   `period_end = now() + 30 hari`
-3. `token_wallets.monthly_quota` & `balance` = kuota tier baru
-4. `token_ledger` catat `plan_upgrade`, `audit_logs` catat aksi admin
-
-Perkiraan **± 2 jam**. Saya sudah diberi tahu ini penambahan lingkup dan
-**belum memutuskan** kapan dikerjakan.
-
-⚠️ Trigger `guard_subscription_owner_update` (migrasi 25) mengunci seluruh kolom
-`subscriptions` bagi Owner kecuali `proof_url`. Ia **dilewati** oleh
-`service_role` dan Admin. Jangan menghapus trigger itu untuk "memudahkan".
-
-### 6. Landing page `/` — bagian DESAINER, bukan programmer
-
-Belum diserahkan. Sementara ini akar situs dilempar ke `/app/` dengan status
-302. **Hapus baris `/  /app/  302` di `deploy_web.ps1` begitu landing page
-dipasang.**
-
-### 7. Bab 9.9 Tutorial — belum dikerjakan
-
-Ditunda atas keputusan saya. Halaman daftar bernomor dari tabel `tutorials`,
-membuka YouTube lewat `url_launcher`. Versi web-nya (grid kartu, Bab 10.5) ikut
-menunggu ini.
-
-### 8. Halaman `/settings/watermark` masih placeholder
-
-Khusus tier Pro; seluruh tenant saat ini masih trial/Standar.
-
-### 9. Satu video sungguhan lewat jalur unggah latar belakang
+### 5. Satu video sungguhan lewat jalur unggah latar belakang
 
 Isolatenya terbukti hidup, tetapi antriannya selalu keburu dihabiskan jalur
 aplikasi-terbuka. Prosedurnya di `DEVIASI_LIBRARY.md` **L.8**; butuh Wi-Fi.
 
-### 10. Akun packer uji yang perlu dibersihkan
+### 6. Zoom peramban pada aplikasi web
 
-`ujiberanda@ramirez-corp.com` (nama **Uji Beranda**) dibuat untuk mereproduksi
-cacat Beranda, dan **belum dihapus**. Kuota packer saya jadi 4 dari 5.
+Belum jelas apakah perlu diperbaiki. Tidak ada apa pun di kode yang menguncinya
+(tidak ada `user-scalable=no`), tetapi Flutter web menata ulang isinya alih-alih
+memperbesar, sehingga tidak terasa seperti zoom biasa. Bila saya
+membutuhkannya, jalan yang lebih pasti adalah menambah pengaturan **ukuran
+huruf** di Pengaturan → Tampilan (± 1 jam), bukan mengandalkan perilaku
+peramban.
 
-### 11. `server_now` ditolak sebelum login
+### 7. Versi tabel untuk Toko, Packer, dan Pembayaran — DIBATALKAN
 
-`permission denied for function server_now (42501)` di HP, dan `401` di web,
-muncul tiap kali aplikasi dibuka sebelum sesi ada. Sebabnya sudah diketahui:
-`19_server_time.sql` sengaja `revoke ... from anon, public`. Ia pulih sendiri
-sesudah login. **Jangan mengubah hak aksesnya tanpa bertanya**; ini keputusan
-keamanan, bukan kelalaian.
+Bab 10.5 memintanya, tetapi saya memutuskan 29 Agustus 2026 bahwa bentuk
+sekarang (tampilan HP di dalam rangka web) sudah cukup. **Jangan
+mengerjakannya** tanpa saya minta ulang.
 
 ## Jebakan yang sudah memakan waktu
 
@@ -351,126 +312,61 @@ keamanan, bukan kelalaian.
 1. `flutter run` polos meracuni cache kernel — lihat di atas
 2. Ekstensi Supabase ada di schema `extensions`, bukan `public`. Pakai
    `gen_random_uuid()`
-3. Redirect URL tidak cocok → tidak ada error, diam-diam pakai Site URL
+3. Redirect URL tidak cocok → **tidak ada error**, diam-diam pakai Site URL.
+   Sudah memakan waktu **tiga kali** (13 Agu, 25 Agu, 26 Agu)
 4. Auth Hook wajib aktif, kalau tidak semua tabel mengembalikan **nol baris**
    tanpa pesan apa pun
 5. `AppColors` adalah `ThemeExtension`, diakses lewat
    `Theme.of(context).extension<AppColors>()!`
 6. `flutter analyze` di akar melaporkan error dari `tool/db_migrate`. Pakai
-   `flutter analyze lib`
+   `dart analyze lib test`
 7. **Periksa worktree sebelum mempercayai hasil `analyze`/`test`.** Sesi pernah
-   terlempar ke worktree lain diam-diam. Jalur berkas pada keluaran tes
-   menyebutkan worktree-nya — baca itu
+   terlempar ke worktree lain diam-diam
+8. **Peran dibawa di dalam JWT.** Sesudah mengubah `role` atau `tier_plan`,
+   akunnya wajib keluar lalu masuk lagi. Gejalanya: layar masih menulis keadaan
+   lama padahal database sudah benar
 
 **Diagnosis:**
 
-8. 🔴 **`AppLogger` tidak pernah sampai ke logcat.** Ia memakai
+9. 🔴 **`AppLogger` tidak pernah sampai ke logcat.** Ia memakai
    `dart:developer`. Untuk jejak yang perlu dibaca dari perangkat, pakai
-   `debugPrint` (tembus sebagai `I/flutter`).
+   `debugPrint` (tembus sebagai `I/flutter`). **Bila jalur berhasilnya dicetak,
+   jalur gagalnya WAJIB ikut.**
+10. Jejak `KAMELSCAN_*` yang sudah ada **sengaja permanen** — jangan dihapus
+    sebagai sisa lupa dibersihkan
 
-   **Aturan yang lahir dari sini: bila jalur berhasilnya dicetak dengan
-   `debugPrint`, jalur gagalnya WAJIB ikut.**
+**Navigasi:**
 
-9. Jejak `KAMELSCAN_*` yang sudah ada **sengaja permanen** — jangan dihapus
-   sebagai sisa lupa dibersihkan.
+11. 🔴 **Apa pun yang dibaca `RouteGuards.redirect` WAJIB ikut disimak
+    `GoRouterRefreshNotifier`.** Nilai yang dibaca guard tetapi tidak disimak di
+    sana menghasilkan **layar yang seharusnya berpindah, diam di tempat** —
+    tanpa error apa pun.
+12. **Alamat rute anak selalu disambung ke induknya.** `'/tutorial'` yang
+    didaftarkan di bawah `/home` menjadi `/home/tutorial`; menuliskannya salah
+    mendarat di "halaman tidak ditemukan" tanpa satu pun galat.
+13. 🔴 **Layar yang berdiri di luar rangka aplikasi wajib punya dua jalan:
+    masuk dan keluar.** Panel admin sempat tidak punya keduanya (P.2).
 
-**Navigasi — temuan terpenting Bab 6:**
+**Tata letak — sudah terjadi berkali-kali:**
 
-10. 🔴 **Apa pun yang dibaca `RouteGuards.redirect` WAJIB ikut disimak
-    `GoRouterRefreshNotifier`.** GoRouter tidak mengintip provider; ia hanya
-    menghitung ulang tujuan bila ada yang memberitahunya. Nilai yang dibaca
-    guard tetapi tidak disimak di sana menghasilkan cacat berbentuk sama:
-    **layar yang seharusnya berpindah, diam di tempat** — tanpa error apa pun.
-    Ini akan berulang saat menambah rute web baru.
+14. 🔴 **Tombol bertema proyek ini menuntut lebar TAK TERHINGGA.**
+    `filledButtonTheme` memakai `minimumSize: Size.fromHeight(...)`.
+    Menaruhnya di dalam `Row` membuatnya melahap seluruh lebar. Batasnya harus
+    datang dari `Expanded`. (M.12, M.17)
+15. 🔴 **Chip ber-`mainAxisSize.min` menolak menyusut** dan meluber di kolom
+    sempit. Teksnya wajib dibungkus `Flexible` + ellipsis. Tertangkap tes pada
+    selisih **0,29 piksel**.
+16. **`DropdownButtonFormField` wajib `isExpanded: true`**, dan nilai
+    terpilihnya wajib ada di daftar pilihan — bila tidak, ia **melempar** dan
+    meruntuhkan seluruh halaman.
+17. **`LayoutBuilder` yang mengukur tinggi harus berdiri DI LUAR gulir.** Di
+    dalam `SingleChildScrollView` tinggi yang tersedia tak terhingga.
 
-**Tata letak — sudah terjadi DUA KALI:**
+**Uji tata letak:**
 
-11. 🔴 **Tombol bertema di proyek ini menuntut lebar TAK TERHINGGA.**
-    `filledButtonTheme` memakai `minimumSize: Size.fromHeight(...)`. Menaruhnya
-    di dalam `Row` membuatnya melahap seluruh lebar, dan `Expanded` di
-    sebelahnya tergencet jadi nol.
-
-    Pertama kali: judul halaman Toko tergambar satu huruf per baris (M.12).
-    Kedua kali: kolom kode promo hilang sama sekali (M.17).
-
-    Membungkusnya dengan `SizedBox(height: ...)` **tidak menolong** — yang
-    merusak lebarnya. Batasnya harus datang dari `Expanded`.
-
-    ⚠️ Layar web jauh lebih lebar daripada HP, jadi jebakan ini akan tampak
-    berbeda di sana — tetapi sebabnya sama. Bab 10.5 penuh tabel dan tombol
-    dalam baris; ia akan muncul lagi.
-
-    ⚠️ **Tes tata letak yang tidak memakai `AppTheme` tidak membuktikan apa
-    pun.** Percobaan pertama memakai tema bawaan Flutter dan **lulus**.
-
-**Pesan error:**
-
-12. 🔴 **Menambah kegagalan baru menuntut TIGA tempat disentuh**, dan
-    melewatkan yang ketiga tidak menimbulkan gejala apa pun:
-
-    1. `AppFailure` — kunci pesannya
-    2. `app_id.arb` / `app_en.arb` — kalimatnya
-    3. `failure_messages.dart` — sambungan antara keduanya
-
-    Yang terlewat diam-diam berubah jadi *"Terjadi kesalahan"*. Dijaga
-    `test/core/failure_message_keys_test.dart`.
-
-13. Penolakan Edge Function membawa kodenya di **badan balasan**, bukan di
-    pesannya. Pemetaannya di `SupabaseService._mapFunctions`. Kelas dasarnya
-    `FunctionException` (tanpa `s`).
-
-**Riverpod:**
-
-14. 🔴 **Semua `ref.watch` dan `ref.listen` harus dipanggil SEBELUM `await`
-    pertama** di dalam `build()`. Yang didaftarkan sesudahnya tidak tersambung
-    dengan benar, dan gejalanya layar yang memuat selamanya tanpa error apa pun.
-15. Riverpod yang sedang **mengulang percobaan** membungkus kegagalannya dalam
-    `AsyncLoading` yang membawa error — bukan `AsyncError`.
-
-**Pemasangan APK (MIUI) — bila sesi ini sampai menyentuh mobile:**
-
-16. `adb install` ditolak `INSTALL_FAILED_USER_RESTRICTED`. Pesannya
-    menyesatkan. **Minta saya menjalankan perintah `adb install`-nya sendiri**.
-17. `adb install` pernah mengembalikan exit code 0 walaupun gagal. **Baca
-    keluarannya**, jangan percaya kode keluarnya saja. Bentuk yang sama muncul
-    lagi di Bab 10 pada `flutter build web` lewat Git Bash — lihat **O.6**.
-18. **Memasang ulang APK menghapus cache aplikasi**, termasuk sesi login.
-
-## Di mana kodenya
-
-| Bagian | Berkas |
-|---|---|
-| Rangka web (sidebar/top bar) | `lib/navigation/shells/web_shell.dart` |
-| Dasbor web | `lib/pages/web/dashboard/` |
-| Pendaftaran rute & pemisahan web/mobile | `lib/navigation/app_router.dart` |
-| Nama rute | `lib/navigation/route_names.dart` |
-| Penjagaan rute | `lib/navigation/route_guards.dart` |
-| Halaman bukti publik versi Flutter (tidak dipakai di web) | `lib/pages/public/` |
-| Halaman bukti publik versi HTML (yang terbit) | `web_public/v/index.html` |
-| Strategi alamat web | `lib/core/utils/url_strategy*.dart` |
-| Riwayat versi mobile (acuan) | `lib/pages/history/` |
-| Statistik beranda (pola RPC) | `lib/core/repositories/home_repository.dart` |
-| Konfigurasi env & alamat web | `lib/core/config/env.dart` |
-| Kerangka HTML web | `web/index.html` |
-| Skrip penerbitan | `deploy_web.ps1` |
-| Migrasi database | `supabase/migrations/` |
-
-## Penyangga jadwal
-
-Bab 0.2 mewajibkan tiap penambahan lingkup disertai pengurangan setara atau
-geser tanggal. Penyangga **minus ± 9–10 jam** (halaman `/v/` versi HTML menambah
-2–3 jam yang saya setujui 25 Agustus 2026). Beri tahu saya setiap kali ada
-tambahan baru; jangan diam-diam menyerapnya.
-
-## Mulai dari mana
-
-1. Salin `env.dev.json`, `panduan_dokumentasi.md`, dan `dataapp.md` dari
-   `E:\kamelscan\` (ketiganya ter-gitignore)
-2. Bangkitkan kode: `pub get` → `build_runner build` → `gen-l10n`
-3. Pastikan `analyze` dan `test` hijau **sebelum** menyentuh apa pun
-4. Baca **Bab 10** di `panduan_dokumentasi.md`, lalu `DEVIASI_LIBRARY.md`
-   bagian **O** seluruhnya, lalu **M.10** dan **N**
-5. Lihat sendiri keadaan web sekarang — ia sudah terbit:
-   `https://kamelscan.com/app`
-6. 🔴 **Tanyakan tiga hal di daftar "Yang WAJIB ditanyakan" di atas**, dan tunggu
-   jawaban saya sebelum menulis kode apa pun
+18. 🔴 **Tes tata letak WAJIB memakai `AppTheme` sungguhan.** Percobaan pertama
+    pada M.12 memakai tema bawaan Flutter dan **lulus**, sehingga susunan yang
+    rusak sempat dinyatakan baik-baik saja.
+19. **`expect(tester.takeException(), isNull)`** adalah yang menangkap luberan
+    `RenderFlex`. Tanpa baris itu, tesnya lulus sambil layarnya bergaris
+    kuning-hitam.

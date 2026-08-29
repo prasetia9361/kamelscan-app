@@ -3153,3 +3153,225 @@ terunduh.
 ⚠️ Memperkecil 4,6 MB itu sendiri adalah pekerjaan lain (± 3–4 jam, hasil
 belum pasti) dan **belum diputuskan**. Jangan mengerjakannya diam-diam sambil
 memasang layar tunggu.
+
+### O.16 Bab 10.5-B & 10.4-C — layar mengikuti rancangan desainer
+
+**Dikerjakan 26–28 Agustus 2026.** Rancangannya berupa SVG di `desain/`,
+dibuat desainer **sebelum** kedua layar itu dibangun. Angkanya diambil apa
+adanya; yang berbeda ditulis di sini beserta alasannya.
+
+#### Tabel Riwayat
+
+🔴 **Urutan kolom yang dibuang saat ruang menyempit ditetapkan desainer dan
+bukan selera:** Aksi → Durasi → Packer → Toko. Resi, Tipe, Tanggal, dan Status
+**tidak pernah** dibuang. Keempatnya yang dibutuhkan saat menangani komplain,
+dan komplain adalah satu-satunya alasan halaman itu dibuka dalam keadaan
+terburu-buru.
+
+Lebar kolomnya dipakai sebagai **perbandingan**, bukan ukuran mati, supaya
+tabelnya tumbuh mengisi layar lebar tanpa menyisakan jalur kosong di kanan.
+
+**Kolom yang bisa diurutkan tapi belum dipakai diberi panah dua arah abu-abu.**
+Tanpa itu ia terlihat persis sama dengan kolom yang memang tidak dapat
+diurutkan — dan pengurutan yang tidak pernah ditemukan sama saja dengan
+pengurutan yang tidak ada.
+
+**Tipe dibedakan TIGA cara:** Packing chip berisi penuh, Retur chip bergaris
+tepi, masing-masing berikon dan berteks. Biru dan ungu adalah pasangan yang
+paling sering tertukar bagi pengguna buta warna.
+
+⚠️ Status `uploaded` dulu satu-satunya yang ikonnya `null`, sehingga justru
+menjadi satu-satunya yang hanya dapat dibedakan lewat warna. Kini keenam
+status berikon, tanpa syarat.
+
+#### Dasbor
+
+Grafik berubah dari **garis** menjadi **batang bertumpuk**. Konsekuensi yang
+mudah terlewat: puncak sumbunya menjadi **jumlah** packing + retur, bukan yang
+tertinggi di antaranya. Pada grafik garis justru sebaliknya, dan salah memilih
+membuat batang tertinggi terpotong di ujung atas.
+
+**90 hari dikelompokkan per minggu menjadi 13 batang.** Keputusan **tampilan** —
+RPC tetap mengembalikan harian, dan pengelompokannya terjadi di Flutter supaya
+server tidak perlu tahu apa pun tentang lebar layar.
+
+🔴 **Dua kartu menyimpang dari Bab 10.4, dan desainer sendiri yang menandainya.**
+Dokumen meminta keempat kartu membandingkan dengan periode sebelumnya. Untuk
+*Token Tersedia* dan *Menunggu Unggah* itu tidak bermakna: keduanya keadaan
+**saat ini**, bukan jumlah satu periode. Diganti perkiraan sisa hari dan umur
+antrean tertua.
+
+⚠️ **Arsir tidak dapat dikerjakan.** Desainer meminta segmen Retur diarsir agar
+batas antar segmen tetap terlihat pada layar hitam-putih; fl_chart tidak
+menyediakan pola arsir. Diganti **garis tepi** pada segmen itu — tujuan yang
+sama dengan cara yang tersedia.
+
+#### Yang TIDAK diikuti, atas keputusan Product Owner
+
+Kedua rancangan menaruh kolom **Cari nomor resi** kembali di bilah atas.
+Gambarnya dibuat sebelum keputusan 26 Agustus 2026 yang membuangnya dari sana
+(lihat O.13). **Keputusan Product Owner berlaku di atas gambar.**
+
+Bentuk grafik dibiarkan apa adanya atas keputusan Product Owner 28 Agustus
+2026, sesudah ia melihatnya di peramban dan mengatakan sulit dibaca. Sebabnya
+bukan bentuknya melainkan datanya: 4 video dalam 7 hari pada grafik selebar
+1600 px. Jangan mengubah bentuknya sampai gudangnya benar-benar dipakai
+sehari-hari.
+
+⚠️ **Kedua grafik dasbor menghitung TANGGAL YANG BERBEDA** — video menurut
+`scan_date` (kapan direkam), token menurut `token_ledger.created_at` (kapan
+unggahannya berhasil). Video yang direkam malam lalu terunggah besok paginya
+muncul pada dua tanggal berbeda. Selisihnya benar; yang salah adalah tidak
+menjelaskannya, dan Product Owner mengiranya kerusakan. Kini keduanya
+berketerangan.
+
+---
+
+## P. Bab 12: pembayaran, aktivasi, dan panel Admin
+
+### P.1 🔴 Langganan yang dibayar tidak pernah berlaku
+
+**Beres 26 Agustus 2026.** Uraiannya di `28_activate_subscription.sql`.
+
+Tidak ada apa pun di server yang bereaksi ketika `subscriptions.status`
+menjadi `paid`. `AdminRepository.approvePayment()` sudah ada di Flutter sejak
+lama, dan komentarnya berbunyi *"penyesuaian tier, periode langganan, dan reset
+saldo token dilakukan trigger di server"* — trigger yang **tidak pernah
+dibuat**.
+
+Gagalnya diam dan mahal sekaligus: menyetujui pembayaran mengubah status
+menjadi `paid` tanpa keluhan apa pun, lalu **tidak terjadi apa-apa**. Product
+Owner mentransfer uang sungguhan 22 Agustus 2026 dan layarnya berhenti di
+*"Menunggu verifikasi"* selama empat hari.
+
+**Pelajarannya bukan soal trigger.** Komentar yang menjanjikan pekerjaan yang
+belum ada lebih berbahaya daripada tidak ada komentar: ia membuat orang
+berikutnya yakin bagian itu sudah selesai, sehingga tidak ada yang
+memeriksanya. Bentuk yang sama muncul lagi pada `Env.oauthRedirectUrl` (O.14).
+
+#### Empat keputusan di dalam triggernya
+
+1. **Trigger, bukan Edge Function.** Trigger **tidak dapat dilewati**: siapa
+   pun yang mengubah status menjadi `paid` — aplikasi Admin, SQL Editor, atau
+   perbaikan darurat suatu malam — tetap menghasilkan tenant yang benar-benar
+   aktif.
+2. **`before update`, bukan `after`.** Barisnya sendiri ikut diisi
+   (`period_start`, `period_end`, `paid_at`); pada `after` itu menuntut
+   `update` kedua ke tabel yang sama, yang memanggil trigger ini lagi.
+3. **Kuota dibaca dari `platform_settings.pricing`** (Bab 7.1), tidak ditulis
+   mati.
+4. 🔴 **Pricing yang hilang MEMBATALKAN aktivasi, bukan diberi nol.**
+   `coalesce(..., 0)` menghasilkan dompet bersaldo nol — pelanggan yang baru
+   membayar tidak dapat merekam satu video pun, tanpa satu pun pesan. Lebih
+   baik menolak dengan galat yang jelas: uangnya sudah masuk, dan Admin masih
+   bisa memperbaiki pengaturannya lalu menyetujui ulang.
+
+⚠️ Hanya bereaksi pada **perpindahan** ke `paid`. Menyimpan ulang baris yang
+sudah lunas tidak mengisi ulang dompet — itu jalan pintas menuju token gratis
+tanpa batas.
+
+⚠️ Periode dihitung dari **sekarang**, bukan disambung dari sisa periode lama.
+Benar untuk uji coba; perpanjangan yang dibayar lebih awal akan kehilangan sisa
+harinya. Belum pernah terjadi. **Aturan perpanjangan adalah keputusan dagang,
+bukan teknis** — jangan mengubahnya sendiri.
+
+### P.2 🔴 Dua cacat panel Admin yang hanya ketahuan dengan benar-benar masuk
+
+**28 Agustus 2026.** Keduanya lolos 438 tes, dengan alasan yang sama seperti
+O.13: tidak ada yang rusak.
+
+**1. Panel admin tidak dapat dicapai.** Halaman Verifikasi Pembayaran selesai
+dibangun, tetapi `_homeFor(admin)` mendaratkan admin di `/admin` yang masih
+placeholder — dan tidak ada satu pun tautan menuju halaman itu. Satu-satunya
+cara membukanya adalah mengetik alamatnya.
+
+*Halaman yang tidak dapat dicapai bukan halaman yang selesai.*
+
+**2. Admin terkurung, tidak bisa keluar.** Rute admin berdiri **di luar**
+`StatefulShellRoute`, jadi tidak ada menu bawah maupun sidebar. Sementara
+`RouteGuards` melempar siapa pun yang sudah masuk kembali ke beranda perannya
+— termasuk dari `/login`. Tanpa tombol Keluar, tidak ada jalan kembali ke akun
+sendiri selain membersihkan simpanan peramban.
+
+🔴 Yang kedua lebih berbahaya dan lebih mudah terlewat: **seorang programmer
+yang menguji dengan akun admin miliknya sendiri tidak akan pernah
+merasakannya.** Ia baru terasa oleh orang yang punya akun lain dan ingin
+kembali ke sana.
+
+**Aturan yang lahir dari sini: setiap kali menambah layar yang berdiri di luar
+rangka aplikasi, periksa dua hal — bagaimana orang sampai ke sana, dan
+bagaimana ia keluar.**
+
+### P.3 Membuat akun Admin — dua jebakan
+
+`users.tenant_id` **NOT NULL**, jadi admin pun harus punya tenant. Akun baru
+selalu lahir sebagai `owner` beserta tenant uji cobanya sendiri; promosi ke
+admin dilakukan sesudahnya dengan `update public.users set role = 'admin'`.
+Tenant sisanya tidak terpakai dan tidak mengganggu.
+
+🔴 **Alias Gmail TIDAK BISA dipakai.** `normalize_email` (Bab 7.5) membuang
+titik dan segala yang setelah `+` untuk domain gmail, dan `email_normalized`
+unik. Jadi `nama+admin@gmail.com` dianggap **sama persis** dengan
+`nama@gmail.com` dan ditolak sebagai duplikat. Aturan anti-penyalahgunaan itu
+mengenai pemiliknya sendiri saat hendak membuat akun admin.
+
+⚠️ Peran dibawa di dalam **JWT** lewat Auth Hook. Sesudah `role` diubah,
+akunnya **wajib keluar lalu masuk lagi** — sebelum itu aplikasi masih
+menganggapnya peran lama. Gejalanya sama persis dengan tier yang baru naik
+tetapi masih tertulis "Uji Coba".
+
+✅ Admin **dikecualikan** dari *Lengkapi Profil* (`needsProfileCompletion`
+memeriksa `isOwner`), jadi akun admin yang dibuat lewat Dashboard tidak
+tersangkut di formulir nomor HP.
+
+### P.4 Yang belum pernah diuji pada halaman ini
+
+Tombol **Setujui** dan **Tolak** belum pernah dijalankan pada baris sungguhan
+— daftarnya kosong saat diuji. Yang terbukti baru *"halamannya jalan"*, bukan
+*"tombolnya bekerja"*.
+
+Cara mengujinya tanpa uang berpindah: dari akun Owner, buka Pembayaran → pilih
+paket → unggah bukti apa pun; lalu dari akun admin tekan **Tolak**. Menolak
+hanya menutup barisnya dan tidak menyentuh langganan yang sudah aktif.
+
+---
+
+## Q. Pembersihan 29 Agustus 2026
+
+Tiga hal yang dihapus, seluruhnya atas keputusan Product Owner.
+
+**1. "Bersihkan cache" dibuang dari web.** Ia selalu menjawab *"Tidak ada
+berkas sementara untuk dihapus"* — bukan karena bersih, melainkan karena
+peramban memang tidak menyimpan berkas video sementara.
+`getTemporaryDirectory()` melempar di web dan `on Object catch` menelannya,
+sehingga tombolnya **tidak melakukan apa pun dan mengaku berhasil**.
+
+**2. Rute mati `/record/result` dibuang.** Terdaftar di router lengkap dengan
+halaman placeholder, tetapi tidak ada satu pun kode yang menuju ke sana — layar
+kamera menangani hasilnya sendiri.
+
+**3. 🔴 Logo watermark dihapus — dan ternyata tidak pernah ada.**
+
+Yang dihapus **hanya logonya**. Watermark yang terbakar ke video — GPS,
+tanggal, nama toko, nomor resi — utuh seluruhnya, begitu pula posisi dan
+transparansinya (keduanya dipakai teksnya).
+
+Temuan saat mengerjakannya: `watermark_command.dart` **sama sekali tidak punya
+lapisan gambar**; isinya murni teks. Kolom `watermark_logo_url` hanya disimpan
+dan dibaca, dan `hasCustomLogo` tidak pernah dipanggil dari mana pun. Yang
+dihapus karena itu adalah **janji yang tidak pernah ditepati** — termasuk
+barisnya di kartu harga, yang mengiklankannya sebagai keunggulan paket Pro.
+
+⚠️ Kolom `tenant_settings.watermark_logo_url` di database **sengaja
+dibiarkan**. Menghapus kolom tidak dapat dibatalkan, dan tidak diminta. Ia
+hanya berhenti diisi.
+
+Kelompok **Merek** ikut hilang karena tinggal berisi satu sakelar GPS, dan
+sakelar itu pindah ke Perekaman. Judul kelompok yang isinya tidak lagi sesuai
+namanya terbaca seperti judul yang lupa dihapus.
+
+🔴 **Pelajaran yang berulang di ketiganya:** fitur yang tampak ada tetapi tidak
+mengerjakan apa pun lebih merugikan daripada fitur yang memang tidak ada. Ia
+mengundang orang memakainya, lalu diam. Ketiganya juga punya bentuk yang sama
+dengan P.1 dan O.14 — sesuatu yang **tertulis** ada tetapi tidak pernah
+dikerjakan kodenya.
