@@ -258,27 +258,40 @@ class AdminRepository {
     }
   }
 
-  /// Ubah tier tenant secara manual.
+  /// Ubah tier tenant secara manual — RPC `admin_change_tier()`, migrasi
+  /// `35_admin_change_tier.sql`.
+  ///
+  /// 🔴 Lewat RPC, bukan `update` biasa, karena mengubah paket **wajib** ikut
+  /// mengubah dompet tokennya (Bab 7.2 poin 4) — dan `token_wallets` beserta
+  /// `token_ledger` sengaja tidak punya izin tulis dari aplikasi sama sekali
+  /// (migrasi 14).
+  ///
+  /// Sampai 30 Agustus 2026 metode ini hanya menyentuh kolom `tier_plan`.
+  /// Akibat terbesarnya bukan saldo hari itu, melainkan `monthly_quota` yang
+  /// tertinggal: cron reset bulanan menjalankan `balance = monthly_quota`,
+  /// jadi pelanggan yang dinaikkan ke Pro **selamanya** kembali ke 1.000 token
+  /// tiap bulan, bukan 5.000 — tanpa satu pun galat, dan hanya tampak seperti
+  /// pelanggan yang boros.
+  ///
+  /// ⚠️ **Status tenant tidak ikut berubah.** Kode lama menyetel
+  /// `status = 'active'` setiap kali tier diubah, sehingga mengubah paket
+  /// pelanggan yang sedang ditangguhkan diam-diam mencabut penangguhannya.
+  /// Mencabut penangguhan punya tombolnya sendiri, dan aturan yang sama sudah
+  /// disepakati untuk Perpanjang Periode.
   ///
   /// ⚠️ Bab 5.3 — JWT pelanggan masih membawa `tier_plan` lama sampai token
-  /// disegarkan. Aplikasi pelanggan harus memanggil `refreshSession()` setelah
-  /// perubahan ini agar batas tier baru langsung berlaku.
+  /// disegarkan. Pelanggannya wajib keluar lalu masuk lagi sebelum batas tier
+  /// baru terasa; sampai saat itu layarnya masih menulis keadaan lama padahal
+  /// database sudah benar.
   Future<Result<void>> changeTier({
     required String tenantId,
     required TierPlan plan,
-    DateTime? periodEnd,
   }) async {
     try {
-      await _client
-          .from(AppConstants.tblTenants)
-          .update({
-            'tier_plan': plan.wire,
-            'status': TenantStatus.active.wire,
-            if (periodEnd != null)
-              'period_end': periodEnd.toUtc().toIso8601String(),
-            'updated_at': DateTime.now().toUtc().toIso8601String(),
-          })
-          .eq('id', tenantId);
+      await _client.rpc<Object?>(
+        'admin_change_tier',
+        params: {'p_tenant_id': tenantId, 'p_plan': plan.wire},
+      );
       return okVoid;
     } on Object catch (e, s) {
       return Result.err(SupabaseService.mapError(e, s));
