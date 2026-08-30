@@ -31,8 +31,10 @@ class CheckoutPage extends ConsumerWidget {
       appBar: AppBar(title: Text(t.checkoutTitle)),
       body: switch (async) {
         AsyncValue(:final value?) => _Body(data: value),
-        AsyncError(:final error) =>
-          AppErrorView(failure: error, onRetry: vm.refresh),
+        AsyncError(:final error) => AppErrorView(
+          failure: error,
+          onRetry: vm.refresh,
+        ),
         _ => const AppListSkeleton(),
       },
     );
@@ -138,8 +140,10 @@ class _CountdownState extends State<_Countdown> {
                   Icon(Icons.timer_off_rounded, size: 20, color: colors.danger),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text(t.checkoutExpiredTitle,
-                        style: theme.textTheme.titleSmall),
+                    child: Text(
+                      t.checkoutExpiredTitle,
+                      style: theme.textTheme.titleSmall,
+                    ),
                   ),
                 ],
               ),
@@ -162,7 +166,8 @@ class _CountdownState extends State<_Countdown> {
     final jam = _sisa.inHours;
     final menit = _sisa.inMinutes % 60;
     final detik = _sisa.inSeconds % 60;
-    final teks = '${jam}j ${menit.toString().padLeft(2, '0')}m '
+    final teks =
+        '${jam}j ${menit.toString().padLeft(2, '0')}m '
         '${detik.toString().padLeft(2, '0')}d';
 
     return Row(
@@ -243,7 +248,11 @@ class _AmountCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.info_outline_rounded, size: 16, color: colors.warning),
+                Icon(
+                  Icons.info_outline_rounded,
+                  size: 16,
+                  color: colors.warning,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -275,8 +284,7 @@ class _BankList extends StatelessWidget {
         margin: EdgeInsets.zero,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-          child: Text(t.paymentNoMethodBody,
-              style: theme.textTheme.bodyMedium),
+          child: Text(t.paymentNoMethodBody, style: theme.textTheme.bodyMedium),
         ),
       );
     }
@@ -413,8 +421,9 @@ class _UploadCardState extends ConsumerState<_UploadCard> {
     if (!mounted) return;
 
     setState(() => _sedangKirim = true);
-    final failure =
-        await ref.read(checkoutViewModelProvider.notifier).uploadProof(bytes);
+    final failure = await ref
+        .read(checkoutViewModelProvider.notifier)
+        .uploadProof(bytes);
 
     if (!mounted) return;
     setState(() => _sedangKirim = false);
@@ -422,7 +431,9 @@ class _UploadCardState extends ConsumerState<_UploadCard> {
     messenger.showSnackBar(
       SnackBar(
         content: Text(
-          failure == null ? t.checkoutUploaded : context.failureMessage(failure),
+          failure == null
+              ? t.checkoutUploaded
+              : context.failureMessage(failure),
         ),
       ),
     );
@@ -531,8 +542,10 @@ class _HelpCard extends StatelessWidget {
         child: Row(
           children: [
             Expanded(
-              child: Text(t.checkoutHelpTitle,
-                  style: theme.textTheme.bodyMedium),
+              child: Text(
+                t.checkoutHelpTitle,
+                style: theme.textTheme.bodyMedium,
+              ),
             ),
             TextButton.icon(
               onPressed: () => launchUrl(

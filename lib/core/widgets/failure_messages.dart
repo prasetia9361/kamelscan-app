@@ -88,6 +88,19 @@ extension FailureMessages on BuildContext {
       'errorWatermarkFontMissing' => t.errorWatermarkFontMissing,
       'packersEmailTaken' => t.packersEmailTaken,
       'packersCannotDeleteTitle' => t.packersCannotDeleteTitle,
+
+      // Bab 12.3 — kegagalan Midtrans. Masing-masing punya kalimatnya sendiri
+      // karena tindakan yang benar berbeda-beda: menunggu Admin, mencoba lagi
+      // nanti, atau menyelesaikan tagihan yang sudah ada. "Terjadi kesalahan"
+      // membuat ketiganya diperlakukan sama, yaitu dicoba ulang berkali-kali.
+      'errorMidtransDisabled' => t.errorMidtransDisabled,
+      'errorMidtransNotConfigured' => t.errorMidtransNotConfigured,
+      'errorMidtransUnreachable' => t.errorMidtransUnreachable,
+      'errorBillPendingExists' => t.errorBillPendingExists,
+      'errorPricingMissing' => t.errorPricingMissing,
+      'errorAmountZero' => t.errorAmountZero,
+      'promoNotFound' => t.promoNotFound,
+
       _ => t.errorUnknown,
     };
   }

@@ -30,6 +30,7 @@ import '../pages/history/history_page.dart';
 import '../pages/home/home_page.dart';
 import '../pages/not_found_page.dart';
 import '../pages/payment/checkout/checkout_page.dart';
+import '../pages/payment/payment_access.dart';
 import '../pages/payment/plan_page.dart';
 import '../pages/public/public_video_page.dart';
 import '../pages/recording/camera/recording_camera_page.dart';
@@ -313,11 +314,23 @@ GoRouter appRouter(Ref ref) {
                 path: Routes.payment,
                 builder: (_, _) => const PlanPage(),
                 routes: [
-                  GoRoute(
-                    path: 'checkout',
-                    parentNavigatorKey: _rootNavigatorKey,
-                    builder: (_, _) => const CheckoutPage(),
-                  ),
+                  // 🔴 Bab 12.5 — halaman Checkout TIDAK didaftarkan di HP.
+                  //
+                  // Google Play dan Apple App Store mewajibkan pembelian dalam
+                  // aplikasi untuk konten digital; melewatkannya berisiko
+                  // aplikasi ditolak saat review, tepat di akhir proyek.
+                  // Keputusan Product Owner 30 Agustus 2026: di HP paketnya
+                  // tetap terlihat, pembayarannya diselesaikan di dasbor web.
+                  //
+                  // Rutenya dibuang, bukan sekadar tombolnya disembunyikan —
+                  // alamat yang masih hidup dapat dicapai dengan mengetiknya,
+                  // dan itu persis yang diperiksa saat review.
+                  if (PaymentAccess.canPayHere)
+                    GoRoute(
+                      path: 'checkout',
+                      parentNavigatorKey: _rootNavigatorKey,
+                      builder: (_, _) => const CheckoutPage(),
+                    ),
                 ],
               ),
             ],

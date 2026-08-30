@@ -11,11 +11,7 @@ part 'checkout_view_model.g.dart';
 
 /// Isi halaman instruksi transfer (Bab 12.2 langkah 3–5).
 class CheckoutData {
-  const CheckoutData({
-    required this.accounts,
-    this.bill,
-    this.whatsapp,
-  });
+  const CheckoutData({required this.accounts, this.bill, this.whatsapp});
 
   /// Tagihan yang sedang berjalan. Null bila tidak ada satu pun yang menunggu
   /// diselesaikan — misalnya Owner membuka tautan ini langsung, atau tagihannya
@@ -37,8 +33,9 @@ class CheckoutViewModel extends _$CheckoutViewModel {
     final repo = ref.read(subscriptionRepositoryProvider);
 
     final tagihan = (await repo.fetchLatest()).unwrap();
-    final metode = (await repo.fetchPaymentMethods())
-        .getOrElse((_) => PaymentMethods.fallback);
+    final metode = (await repo.fetchPaymentMethods()).getOrElse(
+      (_) => PaymentMethods.fallback,
+    );
     final wa = (await repo.fetchSupportWhatsapp()).valueOrNull;
 
     return CheckoutData(
@@ -62,7 +59,9 @@ class CheckoutViewModel extends _$CheckoutViewModel {
     final tagihan = data?.bill;
     if (tagihan == null) return AppFailure.notFound;
 
-    final hasil = await ref.read(subscriptionRepositoryProvider).uploadProof(
+    final hasil = await ref
+        .read(subscriptionRepositoryProvider)
+        .uploadProof(
           tenantId: tagihan.tenantId,
           subscriptionId: tagihan.id,
           bytes: bytes,
@@ -86,8 +85,9 @@ class CheckoutViewModel extends _$CheckoutViewModel {
     final path = state.value?.bill?.proofUrl;
     if (path == null || path.isEmpty) return null;
 
-    final hasil =
-        await ref.read(subscriptionRepositoryProvider).signedProofUrl(path);
+    final hasil = await ref
+        .read(subscriptionRepositoryProvider)
+        .signedProofUrl(path);
     return hasil.valueOrNull;
   }
 }

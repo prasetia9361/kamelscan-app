@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/config/tier_config.dart';
 import '../../core/models/enums.dart';
@@ -10,6 +11,7 @@ import '../../core/utils/formatters.dart';
 import '../../core/widgets/app_state_views.dart';
 import '../../core/widgets/failure_messages.dart';
 import '../../navigation/route_names.dart';
+import 'payment_access.dart';
 import 'plan_view_model.dart';
 import 'widgets/promo_field.dart';
 
@@ -25,8 +27,10 @@ class PlanPage extends ConsumerWidget {
     return SafeArea(
       child: switch (async) {
         AsyncValue(:final value?) => _Body(data: value),
-        AsyncError(:final error) =>
-          AppErrorView(failure: error, onRetry: vm.refresh),
+        AsyncError(:final error) => AppErrorView(
+          failure: error,
+          onRetry: vm.refresh,
+        ),
         _ => const AppListSkeleton(),
       },
     );
@@ -51,7 +55,7 @@ class _Body extends ConsumerWidget {
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
         children: [
           if (data.pending != null) ...[
-            _PendingBanner(),
+            _PendingBanner(subscription: data.pending),
             const SizedBox(height: 16),
           ],
 
@@ -73,9 +77,13 @@ class _Body extends ConsumerWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Expanded(child: _PlanCard(data: data, plan: TierPlan.standar)),
+                Expanded(
+                  child: _PlanCard(data: data, plan: TierPlan.standar),
+                ),
                 const SizedBox(width: 12),
-                Expanded(child: _PlanCard(data: data, plan: TierPlan.pro)),
+                Expanded(
+                  child: _PlanCard(data: data, plan: TierPlan.pro),
+                ),
               ],
             ),
           ),
@@ -170,6 +178,13 @@ class _RejectedBanner extends StatelessWidget {
 /// nominal yang berbeda dari tagihan pertama, dan pembayarannya tidak akan
 /// cocok dengan satu pun di antaranya.
 class _PendingBanner extends ConsumerWidget {
+  const _PendingBanner({required this.subscription});
+
+  /// Tagihan yang sedang berjalan. Dibawa masuk, bukan dibaca ulang dari
+  /// provider — spanduknya harus menjelaskan tagihan YANG ITU, dan cara
+  /// menyelesaikannya berbeda antara transfer manual dan Midtrans.
+  final Subscription? subscription;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = context.l10n;
@@ -186,26 +201,62 @@ class _PendingBanner extends ConsumerWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.pending_actions_rounded,
-                    size: 20, color: colors.warning),
+                Icon(
+                  Icons.pending_actions_rounded,
+                  size: 20,
+                  color: colors.warning,
+                ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Text(t.paymentPendingTitle,
-                      style: theme.textTheme.titleSmall),
+                  child: Text(
+                    t.paymentPendingTitle,
+                    style: theme.textTheme.titleSmall,
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 6),
             Text(t.paymentPendingBody, style: theme.textTheme.bodySmall),
             const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.tonalIcon(
-                onPressed: () => context.push(Routes.checkout),
-                icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-                label: Text(t.paymentContinue),
+
+            // 🔴 Tagihan Midtrans TIDAK boleh diarahkan ke halaman Checkout.
+            //
+            // Halaman itu berisi instruksi transfer bank: nomor rekening,
+            // nominal unik, batas 24 jam. Untuk tagihan yang dibuat lewat
+            // Midtrans, seluruh isinya salah — dan yang membacanya akan
+            // mentransfer ke rekening manual untuk tagihan yang menunggu
+            // pembayaran kartu. Uangnya masuk, tagihannya tetap menggantung.
+            //
+            // Sesi Snap tidak dapat dilanjutkan dari sini: `redirect_url`
+            // hanya hidup sekali dan tidak disimpan di mana pun. Yang benar
+            // adalah mengatakan keadaannya apa adanya.
+            if (subscription?.paymentMethod == 'midtrans')
+              Text(
+                t.paymentPendingMidtrans,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              )
+            // 🔴 Di HP tombolnya tidak ada sama sekali — halaman Checkout
+            // memang tidak terdaftar di sana (Bab 12.5). Menampilkannya lalu
+            // mendarat di "halaman tidak ditemukan" jauh lebih buruk daripada
+            // satu kalimat yang menjelaskan ke mana harus pergi.
+            else if (PaymentAccess.canPayHere)
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.tonalIcon(
+                  onPressed: () => context.push(Routes.checkout),
+                  icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+                  label: Text(t.paymentContinue),
+                ),
+              )
+            else
+              Text(
+                t.paymentContinueOnWeb,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
-            ),
           ],
         ),
       ),
@@ -239,8 +290,8 @@ class _PlanCard extends ConsumerWidget {
           color: aktif
               ? colors.success
               : dipilih
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.outlineVariant,
+              ? theme.colorScheme.primary
+              : theme.colorScheme.outlineVariant,
           width: aktif || dipilih ? 2 : 1,
         ),
       ),
@@ -296,16 +347,16 @@ class _PlanCard extends ConsumerWidget {
                         child: Text(t.paymentActivePlan),
                       )
                     : dipilih
-                        ? FilledButton(
-                            onPressed: null,
-                            child: Text(t.paymentSelected),
-                          )
-                        : FilledButton.tonal(
-                            onPressed: () => ref
-                                .read(planViewModelProvider.notifier)
-                                .select(plan),
-                            child: Text(t.paymentChoosePackage),
-                          ),
+                    ? FilledButton(
+                        onPressed: null,
+                        child: Text(t.paymentSelected),
+                      )
+                    : FilledButton.tonal(
+                        onPressed: () => ref
+                            .read(planViewModelProvider.notifier)
+                            .select(plan),
+                        child: Text(t.paymentChoosePackage),
+                      ),
               ),
             ],
           ),
@@ -343,7 +394,9 @@ class _PlanIllustration extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.extension<AppColors>()!;
-    final warna = plan == TierPlan.pro ? colors.packing : theme.colorScheme.primary;
+    final warna = plan == TierPlan.pro
+        ? colors.packing
+        : theme.colorScheme.primary;
 
     final cadangan = Container(
       height: 64,
@@ -404,8 +457,9 @@ class _Feature extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.onSurface),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface,
+              ),
             ),
           ),
         ],
@@ -425,32 +479,37 @@ class _BillSummary extends StatelessWidget {
     final theme = Theme.of(context);
     final colors = theme.extension<AppColors>()!;
 
-    Widget baris(String label, String nilai, {bool tebal = false, Color? warna}) =>
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  label,
-                  style: tebal
-                      ? theme.textTheme.titleSmall
-                      : theme.textTheme.bodyMedium,
-                ),
-              ),
-              Text(
-                nilai,
-                style: (tebal
+    Widget baris(
+      String label,
+      String nilai, {
+      bool tebal = false,
+      Color? warna,
+    }) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: tebal
+                  ? theme.textTheme.titleSmall
+                  : theme.textTheme.bodyMedium,
+            ),
+          ),
+          Text(
+            nilai,
+            style:
+                (tebal
                         ? theme.textTheme.titleMedium
                         : theme.textTheme.bodyMedium)
                     ?.copyWith(
-                  fontWeight: tebal ? FontWeight.w700 : null,
-                  color: warna,
-                ),
-              ),
-            ],
+                      fontWeight: tebal ? FontWeight.w700 : null,
+                      color: warna,
+                    ),
           ),
-        );
+        ],
+      ),
+    );
 
     return Card(
       margin: EdgeInsets.zero,
@@ -489,7 +548,59 @@ class _PayButtonState extends ConsumerState<_PayButton> {
   @override
   Widget build(BuildContext context) {
     final t = context.l10n;
+    final theme = Theme.of(context);
+    final colors = theme.extension<AppColors>()!;
     final data = widget.data;
+
+    // 🔴 Bab 12.5 — di HP pembayaran tidak diselesaikan di dalam aplikasi.
+    //
+    // Diperiksa PALING DULU, sebelum keadaan lain apa pun. Kalau metode
+    // pembayaran kebetulan sedang kosong, yang perlu dibaca pengguna HP bukan
+    // "belum ada metode pembayaran" — itu masalah yang tidak dapat ia
+    // selesaikan dari sana, dan menyuruhnya menunggu sesuatu yang tidak akan
+    // datang. Yang benar tetap: selesaikan di dasbor web.
+    if (!PaymentAccess.canPayHere) {
+      return Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.open_in_browser_outlined,
+                    size: 20,
+                    color: colors.packing,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      t.paymentOnWebTitle,
+                      style: theme.textTheme.titleSmall,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(t.paymentOnWebBody, style: theme.textTheme.bodySmall),
+              const SizedBox(height: 8),
+              // Alamatnya ditulis lengkap dan dapat disalin. Pelanggan sedang
+              // memegang HP; menyuruhnya "buka dasbor web" tanpa alamat berarti
+              // menyuruhnya menebak.
+              SelectableText(
+                'kamelscan.com/app',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontFamily: 'monospace',
+                  color: colors.packing,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     // Tidak ada satu pun metode pembayaran yang hidup — biasanya karena daftar
     // rekening di `platform_settings` masih kosong. Tombol Bayar yang tetap
@@ -503,14 +614,73 @@ class _PayButtonState extends ConsumerState<_PayButton> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(t.paymentNoMethodTitle,
-                  style: Theme.of(context).textTheme.titleSmall),
+              Text(
+                t.paymentNoMethodTitle,
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
               const SizedBox(height: 6),
-              Text(t.paymentNoMethodBody,
-                  style: Theme.of(context).textTheme.bodySmall),
+              Text(
+                t.paymentNoMethodBody,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
             ],
           ),
         ),
+      );
+    }
+
+    final nominal = Formatters.currency(data.total);
+    final terkunci = _sedangKirim || data.pending != null;
+
+    // 🔴 Kedua metode dapat hidup berdampingan (Bab 12.1), dan Admin yang
+    // menentukan lewat `platform_settings.payment_methods`. Seluruh gunanya
+    // adalah agar Midtrans dapat dinyalakan begitu verifikasi merchant selesai
+    // — 5 sampai 14 hari kerja yang sepenuhnya di luar kendali tim — **tanpa
+    // merilis aplikasi baru**.
+    //
+    // Karena itu susunannya mengikuti data, bukan ditulis mati: satu tombol
+    // bila hanya satu metode hidup, dua tombol bila keduanya hidup.
+    if (data.methods.midtransEnabled) {
+      return Column(
+        children: [
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: FilledButton.icon(
+              onPressed: terkunci ? null : _bayarMidtrans,
+              icon: _sedangKirim
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.bolt_rounded, size: 18),
+              label: Text('${t.paymentPayInstant} · $nominal'),
+            ),
+          ),
+          if (data.methods.canTransferManually) ...[
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: OutlinedButton.icon(
+                onPressed: terkunci ? null : _bayar,
+                icon: const Icon(Icons.account_balance_outlined, size: 18),
+                label: Text(t.paymentPayManual),
+              ),
+            ),
+          ],
+          const SizedBox(height: 8),
+          // Dikatakan apa adanya: uangnya diproses pihak ketiga, dan
+          // langganannya aktif sendiri tanpa menunggu siapa pun.
+          Text(
+            t.paymentInstantNote,
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
       );
     }
 
@@ -518,7 +688,7 @@ class _PayButtonState extends ConsumerState<_PayButton> {
       width: double.infinity,
       height: 52,
       child: FilledButton.icon(
-        onPressed: _sedangKirim || data.pending != null ? null : _bayar,
+        onPressed: terkunci ? null : _bayar,
         icon: _sedangKirim
             ? const SizedBox(
                 width: 18,
@@ -531,12 +701,91 @@ class _PayButtonState extends ConsumerState<_PayButton> {
     );
   }
 
+  /// Membuka halaman pembayaran Snap (Bab 12.3).
+  ///
+  /// 🔴 Yang dibuka adalah `redirect_url` dari Midtrans — halaman Snap yang
+  /// dihosting Midtrans sendiri, bukan jendela mengambang di dalam aplikasi.
+  /// Dua alasan: Bab 12.5 (alur bayar di dalam aplikasi adalah bentuk yang
+  /// paling sering ditolak toko aplikasi), dan karena halaman Snap milik
+  /// Midtrans selalu mengikuti metode pembayaran terbaru tanpa kita rilis apa
+  /// pun.
+  ///
+  /// ⚠️ Aktivasi langganan TIDAK terjadi saat pelanggan kembali ke sini.
+  /// Halaman `finish` hanya menampilkan keadaan; yang melunaskan tagihan
+  /// adalah webhook server-to-server (Bab 12.3 aturan 1), karena callback di
+  /// sisi aplikasi mudah dipalsukan.
+  Future<void> _bayarMidtrans() async {
+    setState(() => _sedangKirim = true);
+
+    final t = context.l10n;
+    final messenger = ScaffoldMessenger.of(context);
+    final (tagihan, gagal) = await ref
+        .read(planViewModelProvider.notifier)
+        .createMidtransBill();
+
+    if (!mounted) return;
+    setState(() => _sedangKirim = false);
+
+    if (tagihan == null) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            gagal == null ? t.errorUnknown : context.failureMessage(gagal),
+          ),
+        ),
+      );
+      return;
+    }
+
+    // 🔴 Lingkungan Sandbox dikatakan SEBELUM halaman bayarnya terbuka.
+    //
+    // Halaman pembayaran sandbox terlihat persis seperti aslinya, lengkap
+    // dengan pilihan bank dan kartu. Tidak ada yang lebih mahal daripada
+    // menyangka sudah menerima uang yang tidak pernah masuk — dan itu baru
+    // ketahuan saat rekeningnya diperiksa berhari-hari kemudian.
+    if (!tagihan.isProduction) {
+      final lanjut = await showDialog<bool>(
+        context: context,
+        builder: (d) => AlertDialog(
+          title: Text(t.paymentSandboxTitle),
+          content: Text(t.paymentSandboxBody),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(d, false),
+              child: Text(t.commonCancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(d, true),
+              child: Text(t.paymentSandboxConfirm),
+            ),
+          ],
+        ),
+      );
+      if (lanjut != true || !mounted) return;
+    }
+
+    // `_self` pada web: pelanggan berpindah di tab yang sama, lalu Snap
+    // mengembalikannya ke halaman ini setelah selesai. Membuka tab baru
+    // membuat sebagian peramban memblokirnya sebagai popup, dan pelanggan
+    // hanya melihat tombol yang seolah tidak melakukan apa-apa.
+    final dibuka = await launchUrl(
+      Uri.parse(tagihan.redirectUrl),
+      webOnlyWindowName: '_self',
+      mode: LaunchMode.platformDefault,
+    );
+
+    if (!dibuka && mounted) {
+      messenger.showSnackBar(SnackBar(content: Text(t.paymentOpenFailed)));
+    }
+  }
+
   Future<void> _bayar() async {
     setState(() => _sedangKirim = true);
 
     final messenger = ScaffoldMessenger.of(context);
-    final (tagihan, failure) =
-        await ref.read(planViewModelProvider.notifier).createBill();
+    final (tagihan, failure) = await ref
+        .read(planViewModelProvider.notifier)
+        .createBill();
 
     if (!mounted) return;
     setState(() => _sedangKirim = false);
