@@ -310,8 +310,8 @@ Editor. Beri saya isi berkasnya beserta langkah yang **detail** — sebutkan men
 yang diklik dan hasil yang seharusnya muncul (`Success. No rows returned`).
 Instruksi ringkas pernah membuat saya tersinggung karena terasa seperti diuji.
 
-**Migrasi terakhir yang sudah dijalankan: 36.** Seluruhnya sudah berjalan di
-produksi:
+**Migrasi terakhir yang sudah dijalankan: 42** (1 September 2026). Seluruhnya
+sudah berjalan di produksi:
 
 - **30** `get_platform_stats()` — angka Dasbor Platform
 - **31** `admin_list_tenants()` — tabel Kelola Pengguna
@@ -321,9 +321,32 @@ produksi:
 - **34** `promos.used_count` akhirnya dihitung — batas pemakaian promo berlaku
 - **35** `admin_change_tier()` — ubah paket kini menyesuaikan kuota & saldo token
 - **36** `cancel_pending_subscription()` — pelanggan dapat membatalkan tagihannya
+- **37** hapus akun Owner + antrean `storage_purge_queue`
+- **38** tiga bug akun packer
+- **39** enum `bisnis` + `token_expired`, harga 3 paket, trial 5 packer
+- **40** rollover token, cabut cron isi ulang, token hangus, `admin_change_tier`
+- **41** antrean retensi 30 hari, cabut `mark-expired-videos`
+- **42** `get_capacity_stats()` — RPC kartu Kapasitas
 
-**Edge Function terpasang: 9.** Dua yang terbaru `create-payment` dan
-`midtrans-webhook`.
+**Edge Function terpasang: 10.** Dua yang terbaru `delete-packer` (versi 6,
+di-deploy ulang 1 Sep 2026 karena memanggil RPC migrasi 38) dan `purge-storage`
+(versi 1, baru).
+
+🔴 **`npx supabase@latest` TIDAK LAGI JALAN DI WINDOWS.** Galatnya
+`No matching Supabase CLI binary package found for win32-x64`, dan itu
+menyesatkan — Windows *didukung*, tetapi paket binari
+`@supabase/cli-windows-x64` gagal terpasang sebagai *optional dependency*
+sehingga folder `node_modules/@supabase` tinggal kosong. Jalan pintasnya:
+
+```powershell
+npm install --prefix <folder> --include=optional supabase@2.116.0
+& '<folder>\node_modules\@supabase\cli-windows-x64\bin\supabase.exe' functions deploy <nama> --project-ref ofggpithmvgnhsshglwx
+```
+
+⚠️ `dart run build_runner build` sekarang menolak `--delete-conflicting-outputs`
+(*"These options have been removed and were ignored"*). Bukan galat, hanya
+peringatan — tetapi perintah di bagian Lingkungan di atas perlu dibaca dengan
+itu di kepala.
 
 🔴 `midtrans-webhook` WAJIB di-deploy dengan `--no-verify-jwt`. Periksa dengan
 `supabase functions list` — kolom `verify_jwt` harus `False` untuk webhook itu
@@ -396,6 +419,189 @@ adanya setelah diberi tahu risikonya. Jangan membuka ulang keputusan itu.
 2. **Peramban dan lebar layar** yang saya pakai menguji. Terakhir: Chrome,
    laptop layar penuh, tema gelap.
 3. Apakah ada yang berubah di server sejak prompt ini ditulis.
+
+## 🔴 SESI 31 AGUSTUS – 1 SEPTEMBER 2026 — BACA INI LEBIH DULU
+
+Seluruh pekerjaan di bawah ada di worktree **`31-agustus`** (cabang
+`worktree-31-agustus`, lahir dari master `4cb9cbc`).
+
+**Keadaannya:** `dart analyze lib test` bersih, **623 uji lolos**, dan seluruh
+pekerjaannya **sudah di-commit** di cabang `worktree-31-agustus` (1 September
+2026). Belum di-push, belum digabung ke `master`.
+
+### ✅ TABRAKAN NOMOR MIGRASI — SUDAH BERES 1 September 2026
+
+Sempat ada **dua berkas migrasi bernomor 37** di dua worktree berbeda. Product
+Owner menomori ulang yang di `revisi-desain-aplikasimobile` menjadi
+`43_user_settings_show_record_fab.sql`, dan itu arah yang benar — menomori ulang
+migrasi yang sudah terlanjur berjalan di produksi hanya merusak catatannya.
+
+⚠️ **43 masih BELUM dijalankan.** Kolom `show_record_fab` belum ada, dan
+worktree `revisi-desain-aplikasimobile` masih mengerjakan UI aplikasi HP di
+atasnya. Jangan menyimpulkan "42 sudah, berarti aman" — 43 lahir belakangan
+justru karena penomoran ulang ini.
+
+### Migrasi yang dibuat sesi ini
+
+Seluruhnya **sudah dijalankan Product Owner di produksi, 1 September 2026.**
+
+| No | Berkas | Isi | Status |
+|---|---|---|---|
+| 37 | `account_deletion` | Hapus akun Owner + antrean `storage_purge_queue` | ✅ terverifikasi |
+| 38 | `packer_fixes` | 3 bug akun packer | ✅ |
+| 39 | `tier_bisnis` | Enum `bisnis` + `token_expired`, harga 3 paket, trial 5 packer | ✅ |
+| 40 | `token_rollover` | Rollover, cabut cron isi ulang, token hangus, `admin_change_tier` | ✅ |
+| 41 | `retention_purge` | Antrean retensi 30 hari, cabut `mark-expired-videos` | ✅ |
+| 42 | `capacity_stats` | RPC kartu Kapasitas | ✅ |
+
+🔴 **39 WAJIB dijalankan terpisah dari 40.** PostgreSQL menolak memakai nilai
+enum baru di transaksi yang sama dengan penambahannya; digabung, galatnya
+berbunyi *"unsafe use of new value of enum type"* — menyesatkan, karena
+masalahnya bukan nilai itu.
+
+### Edge Function
+
+- ✅ **`delete-packer` sudah di-deploy ulang** (versi 6, 1 Sep 2026) — ia
+  memanggil RPC `purge_packer_soft_deleted_videos()` dari migrasi 38.
+- ✅ **`purge-storage` sudah terbit** (versi 1) — penguras antrean R2.
+  `verify_jwt` sengaja **`true`**: fungsinya sudah memeriksa
+  `Authorization` lawan service role key secara *constant-time* di dalam
+  dirinya sendiri, dan service role key sendiri adalah JWT yang sah sehingga
+  lolos gerbangnya. `midtrans-webhook` tetap satu-satunya yang `false`.
+- 🔴 **Pemicu antrean R2 MASIH belum ada.** `pg_net` belum aktif di proyek ini.
+  Product Owner **sengaja menundanya** sampai database produksi final, supaya
+  tidak dipasang dua kali.
+
+  ⚠️ Akibatnya sekarang: `purge-storage` sudah terpasang tetapi **tidak ada
+  satu pun yang memanggilnya**. Antreannya terisi, berkas R2-nya tetap utuh
+  dan tetap ditagihkan. Ini keadaan yang diterima, bukan cacat yang terlewat —
+  tetapi ia berhenti diterima begitu database produksi final.
+
+### Keputusan produk yang FINAL (jangan diperdebatkan ulang)
+
+**Tiga paket, hanya berbeda pada harga, jumlah token, dan durasi:**
+
+| | Standar | Pro | Bisnis |
+|---|---|---|---|
+| Harga | Rp 149.000 | Rp 299.000 | Rp 1.490.000 |
+| Token | 2.000 | 5.000 | 30.000 |
+| Durasi | 30 detik | 60 detik | **3 menit** |
+
+Retensi **30 hari ketiganya**. Packer **tak terbatas ketiganya**; masa uji coba
+**5 packer** dengan pengaturannya sendiri.
+
+**Model token — akumulatif (rollover):**
+- Beli lagi → token **ditambahkan**, sisa hari **ditambahkan**, tier mengikuti
+  **pembelian terakhir** (dua arah, naik maupun turun).
+- Token **hidup selama langganannya hidup**, hangus saat langganan berakhir
+  (pilihan B, dipilih Product Owner). Bukan 30 hari sejak pembelian.
+- **Tidak ada lagi isi ulang bulanan otomatis.** Token hanya datang dari
+  pembelian. Cron `reset-monthly-tokens` dicabut migrasi 40.
+- Tombol **Ubah Paket** milik Admin hanya mengubah tier, **tidak menyentuh
+  saldo**.
+
+**Dibatalkan, tidak jadi ada:**
+- **Watermark logo kustom** (1 Sep 2026) — seluruh paket memakai watermark
+  teks. Pembedanya sudah dibuang dari aplikasi 29 Agustus; dokumen menyusul.
+- **`package_videos.thumbnail_key`** — tidak dipakai, tidak akan dibuat.
+  Diukur 1 Sep 2026: 0 dari 50 baris terisi. Kolomnya **sengaja tidak
+  dihapus**.
+
+⚠️ **Harga Bisnis tetap Rp 1.490.000.** Claude menyarankan menurunkannya ke
+kisaran Rp 800.000 (lompatannya 5x harga untuk 3x durasi, sementara pembeda
+sesungguhnya bagi pelanggan bervolume rendah hanya durasi). Product Owner
+menimbangnya dan memutuskan tetap. Tercatat di Bab 7.1 — jangan diangkat lagi
+kecuali Product Owner yang memulai.
+
+### Yang dibangun di aplikasi
+
+1. **Hapus akun Owner** — penghalang App Store 5.1.1(v). Konfirmasi ketik nama
+   usaha (diverifikasi di server), akun langsung terkunci, data musnah 7 hari,
+   trial musnah seketika. Penjaga rute mengunci **setiap** rute.
+2. **Tiga bug akun packer** — hitungan video mengecualikan `status='deleted'`,
+   `is_active` ditegakkan di jalur masuk **dan** di `before_video_insert()`,
+   batas packer menghitung yang aktif saja.
+3. **Ekspor CSV** di Riwayat web, Owner saja. Mengekspor **hasil saringan**
+   (maks 20.000 baris), bukan halaman yang terlihat.
+4. **Kartu Kapasitas** di Statistik Platform — menonjolkan *"batas tercapai
+   sekitar N bulan lagi"*, bukan angka mentah.
+5. **Tombol ke dasbor web** di kartu peringatan bayar versi HP.
+
+### Angka biaya yang sudah diukur (bukan tebakan)
+
+Dari 50 video sungguhan di produksi: **3,49 MB per menit**
+(rata-rata 1,07 MB pada 18,4 detik). Dipakai menghitung simpanan R2 per paket.
+Kalau perlu menghitung ulang margin, mulai dari angka ini.
+
+### 🔴 Dua klaim Claude yang TERBUKTI SALAH di sesi ini
+
+Ditulis di sini supaya tidak diulang:
+
+1. **"`delete from tenants` gagal karena FK RESTRICT"** — **salah**. Diukur di
+   produksi: justru **berhasil**, karena cascade menghapus `package_videos`
+   sebelum `users`. Yang gagal adalah menghapus lewat `auth.users`
+   (`23503 package_videos_user_id_fkey`) — dan itu kebetulan memang jalur yang
+   ditempuh `purge_tenant()`. Urutannya tetap perlu; alasan yang semula
+   ditulis karangan. Sudah diperbaiki di kepala migrasi 37.
+2. **"Bug batas packer tidak tereproduksi"** — **salah**. Hanya sisi server
+   yang diperiksa. Bugnya nyata dan ada di aplikasi: `packers_page.dart`
+   memakai `items.length` yang memuat packer nonaktif.
+
+**Pelajarannya sama untuk keduanya: ukur, jangan menyimpulkan dari ingatan.**
+
+### 🔴 Dua cacat yang ditemukan 1 September 2026, SESUDAH migrasi dijalankan
+
+Keduanya lahir dari migrasi 39/40, dan **tidak satu pun tertangkap oleh 620 tes
+yang lolos** — karena tidak ada yang rusak. Keduanya sudah diperbaiki.
+
+**1. `LedgerReason` melempar untuk `token_expired`.**
+Migrasi 39 menambahkan nilai enum `token_expired`; migrasi 40 memasang cron
+`expire-tenant-tokens` (tiap 01:45) yang menulisnya ke `token_ledger`. Di Dart,
+`LedgerReason` adalah **satu-satunya** enum di `enums.dart` yang tidak punya
+nilai jatuhan — `TierPlan`, `SubStatus`, dan `VideoType` semuanya punya
+`fromWire`. Jadi ia di-decode `$enumDecode` yang **melempar**.
+
+Terpendam saat ditemukan karena `fetchLedger()` belum punya satu pun pemanggil.
+Ia akan menggigit pada hari layar riwayat token dibuat.
+
+Perbaikannya: nilai `tokenExpired`, nilai jatuhan `unknown`, `fromWire`, dan
+`@JsonKey(fromJson: LedgerReason.fromWire)` di `token_wallet.dart` supaya
+jatuhannya benar-benar dijalankan. Jatuhannya sengaja **bukan** alasan yang
+sudah ada: buku besar token dipakai menyelesaikan sengketa dengan pelanggan
+(Bab 7.2 poin 5), dan melabeli baris sistem sebagai `admin_adjust` berarti
+memalsukan bukti di dokumen yang gunanya justru membuktikan. Aman karena
+aplikasi tidak punya izin tulis ke `token_ledger` sama sekali (migrasi 14).
+
+**2. Lima kalimat Admin menjanjikan "reset" yang sudah dicabut.**
+Migrasi 40 baris 36 menjalankan `cron.unschedule('reset-monthly-tokens')` —
+tidak ada lagi reset bulanan. Tetapi lima kalimat masih menjanjikannya, dan
+dialog atur token bahkan menampilkan **tanggal dari `token_wallets.period_end`**
+untuk peristiwa yang tidak akan pernah terjadi lagi.
+
+Aturan yang berlaku sekarang: token hangus saat **langganan berakhir** —
+`expire-tenants` (01:30) membalik tenant `active` menjadi `expired`, lalu
+`expire-tenant-tokens` (01:45) menghanguskan saldonya. `expire-tenants` **tidak
+menyentuh `trial` maupun `suspended`**, jadi keduanya memang tidak hangus
+dengan sendirinya.
+
+Sumber tanggalnya dipindah ke `tenants.period_end`
+(`AdminTenantRow.tokenResetsAt` → `tokenExpiresAt`).
+
+🔴 **Yang paling perlu diingat dari cacat kedua:** ada satu tes yang justru
+**mengunci perilaku lama** — `admin_users_table_test.dart`, *"pelanggan aktif —
+memakai tanggal reset DOMPET"*. Tes itu benar saat ditulis dan menjadi salah
+tanpa pernah gagal. Sesudah mengubah aturan dagang di SQL, **tes yang lulus
+adalah tempat pertama yang harus dicurigai**, bukan yang terakhir.
+
+### Catatan berkas
+
+- **`panduan_dokumentasi.md` ada di `.gitignore`.** Revisi besar sesi ini
+  (Bab 0, 2.2, 5.2, 5.6, 7.1, 7.2, 7.5, 9.6, 9.8, 12.4) **hanya hidup di
+  worktree `31-agustus`**. Salin ke checkout utama bila ingin disimpan.
+- **Dependensi baru:** `web: ^1.1.1` di `pubspec.yaml`. Sudah ada di
+  `pubspec.lock` sebagai transitif dengan versi sama, jadi tidak menarik paket
+  baru — hanya dinyatakan karena `file_download_web.dart` mengimpornya
+  langsung.
 
 ## 🔴 Utang yang belum lunas
 
