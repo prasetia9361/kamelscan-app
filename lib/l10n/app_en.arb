@@ -41,7 +41,13 @@
   "adminStatsMrrNote": "From active plan prices, not from money received",
   "adminStatsMargin": "Estimated Margin",
   "adminStatsInfraCost": "Infrastructure cost {value}",
-  "@adminStatsInfraCost": {"placeholders": {"value": {"type": "String"}}},
+  "@adminStatsInfraCost": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "adminStatsNoInfraCost": "Infrastructure cost not set yet",
   "adminStatsLoss": "Loss — costs exceed revenue",
   "adminStatsVideos": "Total Videos",
@@ -49,9 +55,24 @@
   "adminStatsStorage": "Estimated Storage",
   "adminStatsStorageNote": "Only videos still stored",
   "adminStatsPlanBreakdown": "Standard {standar} · Pro {pro}",
-  "@adminStatsPlanBreakdown": {"placeholders": {"standar": {"type": "String"}, "pro": {"type": "String"}}},
+  "@adminStatsPlanBreakdown": {
+    "placeholders": {
+      "standar": {
+        "type": "String"
+      },
+      "pro": {
+        "type": "String"
+      }
+    }
+  },
   "adminPendingCount": "{count} waiting for verification",
-  "@adminPendingCount": {"placeholders": {"count": {"type": "String"}}},
+  "@adminPendingCount": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "adminNotYetBuilt": "Not built yet",
   "adminPaymentsEmptyTitle": "No payments waiting",
   "adminPaymentsEmptyBody": "Payments with an uploaded proof will show up here.",
@@ -61,7 +82,16 @@
   "adminPaymentsReject": "Reject",
   "adminPaymentsApproveTitle": "Approve this payment?",
   "adminPaymentsApproveBody": "{business} becomes active on the {plan} plan for 30 days and its tokens are refilled. There is no undo.",
-  "@adminPaymentsApproveBody": {"placeholders": {"business": {"type": "String"}, "plan": {"type": "String"}}},
+  "@adminPaymentsApproveBody": {
+    "placeholders": {
+      "business": {
+        "type": "String"
+      },
+      "plan": {
+        "type": "String"
+      }
+    }
+  },
   "adminPaymentsRejectTitle": "Reject this payment?",
   "adminPaymentsRejectBody": "The app does not refund the money and does not notify the customer. Both are up to you.",
   "adminPaymentsApproved": "Payment approved. The subscription is now active.",
@@ -70,7 +100,13 @@
   "adminUsersMenuSubtitle": "Plan, active period, and suspension",
   "adminUsersSearchHint": "Search business name or email",
   "adminUsersCount": "{count} customers",
-  "@adminUsersCount": {"placeholders": {"count": {"type": "String"}}},
+  "@adminUsersCount": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "adminUsersEmptyTitle": "No customers yet",
   "adminUsersEmptyBody": "Everyone who signs up will appear here.",
   "adminUsersNoMatchTitle": "No matches",
@@ -82,10 +118,22 @@
   "adminUsersNoEmail": "Email unknown",
   "adminUsersTrialNoPeriod": "No time limit — trial is capped by video count",
   "adminUsersDaysLeft": "{count} days left",
-  "@adminUsersDaysLeft": {"placeholders": {"count": {"type": "String"}}},
+  "@adminUsersDaysLeft": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "adminUsersEndsToday": "Ends today",
   "adminUsersEndedDaysAgo": "Ended {count} days ago",
-  "@adminUsersEndedDaysAgo": {"placeholders": {"count": {"type": "String"}}},
+  "@adminUsersEndedDaysAgo": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "adminUsersVideosNote": "Includes deleted and expired videos",
   "tenantStatusTrial": "Trial",
   "tenantStatusActive": "Active",
@@ -102,34 +150,85 @@
   "tableColTokens": "Tokens",
   "adminUsersChangeTier": "Change plan",
   "adminUsersMakePlan": "Make {plan}",
-  "@adminUsersMakePlan": {"placeholders": {"plan": {"type": "String"}}},
+  "@adminUsersMakePlan": {
+    "placeholders": {
+      "plan": {
+        "type": "String"
+      }
+    }
+  },
   "adminUsersChangeTierTitle": "Change the plan for this customer?",
   "adminUsersChangeTierBody": "{business} moves to the {plan} plan immediately, and their token balance is refilled to that plan quota.",
-  "@adminUsersChangeTierBody": {"placeholders": {"business": {"type": "String"}, "plan": {"type": "String"}}},
+  "@adminUsersChangeTierBody": {
+    "placeholders": {
+      "business": {
+        "type": "String"
+      },
+      "plan": {
+        "type": "String"
+      }
+    }
+  },
   "adminUsersJwtWarning": "Moving up adds tokens; moving down can cut unused tokens. The new plan limits only take effect after the customer signs out and back in.",
   "adminUsersTierChanged": "Plan changed.",
   "adminUsersSuspend": "Suspend",
   "adminUsersActivate": "Activate",
   "adminUsersSuspendTitle": "Suspend this customer?",
   "adminUsersSuspendBody": "{business} immediately cannot record or watch their videos. There is no grace period.",
-  "@adminUsersSuspendBody": {"placeholders": {"business": {"type": "String"}}},
+  "@adminUsersSuspendBody": {
+    "placeholders": {
+      "business": {
+        "type": "String"
+      }
+    }
+  },
   "adminUsersActivateTitle": "Activate this customer?",
   "adminUsersActivateBody": "{business} can record again immediately.",
-  "@adminUsersActivateBody": {"placeholders": {"business": {"type": "String"}}},
+  "@adminUsersActivateBody": {
+    "placeholders": {
+      "business": {
+        "type": "String"
+      }
+    }
+  },
   "adminUsersSuspendedDone": "Customer suspended.",
   "adminUsersActivatedDone": "Customer activated.",
   "adminUsersExtend": "Extend period",
   "adminUsersExtendTitle": "Extend period for {business}",
-  "@adminUsersExtendTitle": {"placeholders": {"business": {"type": "String"}}},
+  "@adminUsersExtendTitle": {
+    "placeholders": {
+      "business": {
+        "type": "String"
+      }
+    }
+  },
   "adminUsersExtendMonths": "{count} months",
-  "@adminUsersExtendMonths": {"placeholders": {"count": {"type": "int"}}},
+  "@adminUsersExtendMonths": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "adminUsersExtendPickDate": "Pick a date",
   "adminUsersExtendContinues": "Continues from the current period end, {date}.",
-  "@adminUsersExtendContinues": {"placeholders": {"date": {"type": "String"}}},
+  "@adminUsersExtendContinues": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "adminUsersExtendFromToday": "The period has already passed, so it counts from today.",
   "adminUsersExtendFromTrial": "Still on trial with no period yet, so it counts from today.",
   "adminUsersExtendNewEnd": "New period end: {date}",
-  "@adminUsersExtendNewEnd": {"placeholders": {"date": {"type": "String"}}},
+  "@adminUsersExtendNewEnd": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "adminUsersExtendReactivate": "The status is also set back to Active.",
   "adminUsersExtendKeepSuspended": "The status stays Suspended — extending does not lift a suspension.",
   "adminUsersExtendVsPayment": "Different from automatic payment, which always recomputes 30 days from the payment date.",
@@ -139,36 +238,87 @@
   "adminUsersOwnAccountBody": "This is the tenant belonging to the admin account you are signed in with. Its action buttons are disabled on purpose, so you cannot suspend or change your own account.",
   "adminUsersTokenAction": "Adjust tokens",
   "adminUsersTokenTitle": "Adjust tokens for {business}",
-  "@adminUsersTokenTitle": {"placeholders": {"business": {"type": "String"}}},
+  "@adminUsersTokenTitle": {
+    "placeholders": {
+      "business": {
+        "type": "String"
+      }
+    }
+  },
   "adminUsersTokenCurrent": "Current balance {value} tokens",
-  "@adminUsersTokenCurrent": {"placeholders": {"value": {"type": "String"}}},
+  "@adminUsersTokenCurrent": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "adminUsersTokenAdd": "Add",
   "adminUsersTokenSubtract": "Subtract",
   "adminUsersTokenAmount": "Number of tokens",
   "adminUsersTokenReason": "Reason",
   "adminUsersTokenReasonHelp": "Required. Recorded permanently in the token ledger and used if the customer disputes it.",
   "adminUsersTokenPreview": "Balance {dari} → {jadi}",
-  "@adminUsersTokenPreview": {"placeholders": {"dari": {"type": "String"}, "jadi": {"type": "String"}}},
+  "@adminUsersTokenPreview": {
+    "placeholders": {
+      "dari": {
+        "type": "String"
+      },
+      "jadi": {
+        "type": "String"
+      }
+    }
+  },
   "adminUsersTokenClamped": "The subtraction exceeds the balance. It stops at 0, and the ledger records the difference that actually happened.",
-  "adminUsersTokenExpires": "Extra tokens are wiped when the balance resets on {date}.",
-  "@adminUsersTokenExpires": {"placeholders": {"date": {"type": "String"}}},
-  "adminUsersTokenNeverExpires": "Trial customers are never reset, so these extra tokens do not expire.",
-  "adminUsersTokenExpiresAfterActive": "While the customer is not active their balance is not reset. These extra tokens are wiped at the first reset after they are activated again.",
+  "adminUsersTokenExpires": "Extra tokens are wiped when the subscription ends on {date}.",
+  "@adminUsersTokenExpires": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "adminUsersTokenNeverExpires": "Trial customers have no end date, so these extra tokens do not expire on their own.",
+  "adminUsersTokenExpiresAfterActive": "While the customer is not active they have no end date. These extra tokens are wiped when their next subscription ends.",
   "adminUsersTokenDone": "Tokens adjusted.",
   "adminUsersGrantAllTitle": "Give tokens to all active customers",
   "adminUsersGrantAllBody": "Tokens will be added to {count} customers with Active status at once. There is no undo.",
-  "@adminUsersGrantAllBody": {"placeholders": {"count": {"type": "String"}}},
+  "@adminUsersGrantAllBody": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "adminUsersGrantAllExcluded": "Trial, suspended, and ended customers are not included.",
   "adminUsersGrantAllReasonHelp": "Required, for example \"Independence Day bonus\". Recorded in the token ledger of every customer.",
-  "adminUsersGrantAllExpires": "Extra tokens are wiped when the balance of each customer resets.",
+  "adminUsersGrantAllExpires": "Extra tokens are wiped when the subscription of each customer ends.",
   "adminUsersGrantAllConfirm": "Give now",
   "adminUsersGrantAllDone": "{delta} tokens given to {granted} of {target} active customers.",
-  "@adminUsersGrantAllDone": {"placeholders": {"delta": {"type": "String"}, "granted": {"type": "String"}, "target": {"type": "String"}}},
+  "@adminUsersGrantAllDone": {
+    "placeholders": {
+      "delta": {
+        "type": "String"
+      },
+      "granted": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
   "adminPaymentsRejectReason": "Reason for rejection",
   "adminPaymentsRejectReasonHelp": "Required, and it will be READ BY THE CUSTOMER as written on their Payment page.",
   "paymentRejectedTitle": "Your payment was rejected",
   "paymentRejectedReason": "Reason: {reason}",
-  "@paymentRejectedReason": {"placeholders": {"reason": {"type": "String"}}},
+  "@paymentRejectedReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
   "paymentRejectedNoReason": "No reason was recorded for this rejection.",
   "paymentRejectedNext": "Money already sent is not refunded automatically. Contact us before choosing a plan again.",
   "adminGroupPlatform": "Platform Settings",
@@ -183,7 +333,7 @@
   "adminPricingMaxPackers": "Maximum packer accounts",
   "adminPricingMaxPackersHelp": "Enter -1 for unlimited. Lowering it does not remove existing packers, but the customer cannot add more until they remove some.",
   "adminPricingMonthlyTokens": "Token quota per month",
-  "adminPricingTokensHelp": "1 token = 1 successfully uploaded video. The new quota applies at the next period reset.",
+  "adminPricingTokensHelp": "1 token = 1 successfully uploaded video. The new quota applies at the next purchase; balances already running are unchanged.",
   "adminPricingInfraTitle": "Infrastructure Cost",
   "adminPricingInfraBody": "Used by the Estimated Margin card on the Platform Dashboard.",
   "adminPricingInfraLabel": "Cost per month (Rp)",
@@ -213,7 +363,16 @@
   "adminMethodsBankEmptyWarning": "Manual transfer is on but there is not a single account. Customers will see a transfer page with no destination.",
   "adminMethodsBankDeleteTitle": "Delete this account?",
   "adminMethodsBankDeleteBody": "{bank} {number} will no longer be shown to customers.",
-  "@adminMethodsBankDeleteBody": {"placeholders": {"bank": {"type": "String"}, "number": {"type": "String"}}},
+  "@adminMethodsBankDeleteBody": {
+    "placeholders": {
+      "bank": {
+        "type": "String"
+      },
+      "number": {
+        "type": "String"
+      }
+    }
+  },
   "adminContactTitle": "Support Contact",
   "adminContactMenuSubtitle": "WhatsApp number, email, and address",
   "adminContactIntro": "This number is the only way customers can reach you when a payment is rejected, tokens run out, or a subscription locks.",
@@ -224,7 +383,13 @@
   "adminContactAddressHelp": "Shown on the Terms and Privacy Policy pages.",
   "adminContactWaFormatTitle": "This number may not work",
   "adminContactWaFormatBody": "\"{number}\" does not start with 62. The WhatsApp link still opens but reaches nobody, and no error appears at all.",
-  "@adminContactWaFormatBody": {"placeholders": {"number": {"type": "String"}}},
+  "@adminContactWaFormatBody": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
   "adminContactWaFormatConfirm": "Save as is",
   "adminPromosTitle": "Promo Codes",
   "adminPromosMenuSubtitle": "Create, disable, and track code usage",
@@ -242,29 +407,92 @@
   "adminPromosAppliesTo": "Applies to",
   "adminPromosAllPlans": "All plans",
   "adminPromosOnePlan": "{plan} plan only",
-  "@adminPromosOnePlan": {"placeholders": {"plan": {"type": "String"}}},
+  "@adminPromosOnePlan": {
+    "placeholders": {
+      "plan": {
+        "type": "String"
+      }
+    }
+  },
   "adminPromosValidUntilLabel": "Valid until",
   "adminPromosValidUntil": "Valid until {date}",
-  "@adminPromosValidUntil": {"placeholders": {"date": {"type": "String"}}},
+  "@adminPromosValidUntil": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "adminPromosMaxUses": "Usage limit",
   "adminPromosMaxUsesHelp": "Left empty means unlimited.",
   "adminPromosDescription": "Description",
   "adminPromosValuePercent": "{value}% off",
-  "@adminPromosValuePercent": {"placeholders": {"value": {"type": "String"}}},
+  "@adminPromosValuePercent": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "adminPromosValueFixed": "{value} off",
-  "@adminPromosValueFixed": {"placeholders": {"value": {"type": "String"}}},
+  "@adminPromosValueFixed": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "adminPromosUsedUnlimited": "Used {count} times",
-  "@adminPromosUsedUnlimited": {"placeholders": {"count": {"type": "String"}}},
+  "@adminPromosUsedUnlimited": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "adminPromosUsedOf": "Used {count} of {max}",
-  "@adminPromosUsedOf": {"placeholders": {"count": {"type": "String"}, "max": {"type": "String"}}},
+  "@adminPromosUsedOf": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "max": {
+        "type": "String"
+      }
+    }
+  },
   "adminPromosPreviewTitle": "Worked example",
   "adminPromosPreviewLine": "{plan}: off {potong}, pays {bayar}",
-  "@adminPromosPreviewLine": {"placeholders": {"plan": {"type": "String"}, "potong": {"type": "String"}, "bayar": {"type": "String"}}},
+  "@adminPromosPreviewLine": {
+    "placeholders": {
+      "plan": {
+        "type": "String"
+      },
+      "potong": {
+        "type": "String"
+      },
+      "bayar": {
+        "type": "String"
+      }
+    }
+  },
   "adminPromosDeleteTitle": "Delete code {code}?",
-  "@adminPromosDeleteTitle": {"placeholders": {"code": {"type": "String"}}},
+  "@adminPromosDeleteTitle": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
   "adminPromosDeleteBody": "This code has never been used, so deleting it is safe.",
   "adminPromosDeleteUsed": "This code has been used {count} times. Disabling is better than deleting — older payment records would lose the explanation of their discount.",
-  "@adminPromosDeleteUsed": {"placeholders": {"count": {"type": "String"}}},
+  "@adminPromosDeleteUsed": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "adminPromosDeleted": "Promo code deleted.",
   "adminNewAdminTitle": "Create Admin Account",
   "adminNewAdminMenuSubtitle": "How to promote someone to platform admin",
@@ -291,7 +519,13 @@
   "adminNewAdminSqlDemote": "Undo — turn back into Owner",
   "adminNewAdminDashboardWarning": "Do not give Supabase Dashboard access to anyone but an Admin. The commands on this page are run there, and anyone with that access can change prices, tokens, and the role of any user without going through the app.",
   "adminPaymentsWaitingSince": "Waiting since {date}",
-  "@adminPaymentsWaitingSince": {"placeholders": {"date": {"type": "String"}}},
+  "@adminPaymentsWaitingSince": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "navDashboard": "Dashboard",
   "emptyTitle": "No data yet",
   "emptyHistoryTitle": "No recordings yet",
@@ -418,7 +652,13 @@
   "settingsClearCache": "Clear cache",
   "settingsClearCacheBody": "Removes temporary files. Videos not yet uploaded are not deleted.",
   "settingsCacheCleared": "{count, plural, =0{No temporary files to remove.} one{{count} temporary file removed.} other{{count} temporary files removed.}}",
-  "@settingsCacheCleared": {"placeholders": {"count": {"type": "int"}}},
+  "@settingsCacheCleared": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "settingsVersion": "App version",
   "settingsTerms": "Terms & Conditions",
   "settingsPrivacy": "Privacy Policy",
@@ -516,22 +756,52 @@
     }
   },
   "trialLowBanner": "{count} trial videos left. Pick a plan to avoid interruption.",
-  "@trialLowBanner": {"placeholders": {"count": {"type": "int"}}},
+  "@trialLowBanner": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "trialExhaustedBanner": "Your free trial has run out. Pick a plan to continue.",
   "quotaLowBanner": "{count} tokens left. Consider upgrading your plan.",
-  "@quotaLowBanner": {"placeholders": {"count": {"type": "int"}}},
+  "@quotaLowBanner": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "quotaExhaustedBanner": "Out of tokens. Renew or upgrade to record again.",
   "subscriptionExpiryWarning": "Subscription ends in {days} days. Renew now.",
-  "@subscriptionExpiryWarning": {"placeholders": {"days": {"type": "int"}}},
+  "@subscriptionExpiryWarning": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
   "subscriptionExpiryToday": "Subscription ends today. Renew now.",
   "tokenBalanceLabel": "Tokens available",
   "trialQuotaLabel": "Free trial",
   "commonUpgrade": "Upgrade",
   "commonRenew": "Renew",
   "recordingStillRecording": "Still recording {resi}. Scan the same code to stop.",
-  "@recordingStillRecording": {"placeholders": {"resi": {"type": "String"}}},
+  "@recordingStillRecording": {
+    "placeholders": {
+      "resi": {
+        "type": "String"
+      }
+    }
+  },
   "recordingStopTooEarly": "Wait {seconds} more seconds before scanning can stop it.",
-  "@recordingStopTooEarly": {"placeholders": {"seconds": {"type": "int"}}},
+  "@recordingStopTooEarly": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
   "recordingShortConfirmTitle": "Video is still short",
   "recordingShortConfirmBody": "A video under 5 seconds may not be enough as evidence. Stop anyway?",
   "completeProfileTitle": "Complete your profile",
@@ -586,10 +856,22 @@
   "recordCheckingResi": "Checking the tracking number…",
   "recordDuplicateTitle": "Already recorded",
   "recordDuplicateBody": "Tracking number {resi} is already in your history. A new video cannot be made until the old one is deleted.",
-  "@recordDuplicateBody": {"placeholders": {"resi": {"type": "String"}}},
+  "@recordDuplicateBody": {
+    "placeholders": {
+      "resi": {
+        "type": "String"
+      }
+    }
+  },
   "recordDuplicateViewOld": "View old video",
   "recordAlreadyRecordedShort": "Tracking number {resi} has already been recorded.",
-  "@recordAlreadyRecordedShort": {"placeholders": {"resi": {"type": "String"}}},
+  "@recordAlreadyRecordedShort": {
+    "placeholders": {
+      "resi": {
+        "type": "String"
+      }
+    }
+  },
   "recordNotAResi": "This code is not a tracking number.",
   "recordLimitReached": "Duration limit reached. Recording stopped.",
   "recordFinishedTitle": "Recording finished",
@@ -599,31 +881,73 @@
   "recordNoAudioWarning": "Microphone denied — recording without sound.",
   "recordNoLocationWarning": "Location unavailable — the video is still valid as evidence.",
   "recordVoiceStart": "Recording started. Tracking number {resi}.",
-  "@recordVoiceStart": {"placeholders": {"resi": {"type": "String"}}},
+  "@recordVoiceStart": {
+    "placeholders": {
+      "resi": {
+        "type": "String"
+      }
+    }
+  },
   "recordVoiceFiveSeconds": "Five seconds left.",
   "recordVoiceFinished": "Recording finished.",
   "recordRemainingLabel": "{seconds} seconds left",
-  "@recordRemainingLabel": {"placeholders": {"seconds": {"type": "int"}}},
+  "@recordRemainingLabel": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
   "recordPreparing": "Preparing the camera…",
   "recordQueueBadge": "{count} in queue",
-  "@recordQueueBadge": {"placeholders": {"count": {"type": "int"}}},
+  "@recordQueueBadge": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "recordProcessing": "Processing video…",
   "accountEditProfile": "Edit Profile",
   "accountChangePassword": "Change Password",
   "accountManagePackers": "Manage Packer Accounts",
   "accountJoinedAt": "Joined {date}",
-  "@accountJoinedAt": {"placeholders": {"date": {"type": "String"}}},
+  "@accountJoinedAt": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "accountSubscription": "Subscription",
   "accountTrialRemaining": "{count, plural, one{Free trial · {count} video left} other{Free trial · {count} videos left}}",
-  "@accountTrialRemaining": {"placeholders": {"count": {"type": "int"}}},
+  "@accountTrialRemaining": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "accountValidUntil": "Valid until {date}",
-  "@accountValidUntil": {"placeholders": {"date": {"type": "String"}}},
+  "@accountValidUntil": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "accountNoEndDate": "No end date.",
   "accountSupport": "Help & Contact",
   "accountSupportBody": "Reach the admin on WhatsApp.",
   "accountSupportMessage": "Hello, I need help with the KamelScan app.",
   "accountSupportFailed": "Could not open WhatsApp. Admin number: {number}",
-  "@accountSupportFailed": {"placeholders": {"number": {"type": "String"}}},
+  "@accountSupportFailed": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
   "accountFieldName": "Full name",
   "accountFieldPhone": "Phone number",
   "accountFieldUsername": "Username",
@@ -637,33 +961,96 @@
   "packersAdd": "Add Packer",
   "packersCreate": "Create Account",
   "packersQuotaUsed": "{used} of {max} packer accounts used",
-  "@packersQuotaUsed": {"placeholders": {"used": {"type": "int"}, "max": {"type": "int"}}},
+  "@packersQuotaUsed": {
+    "placeholders": {
+      "used": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
   "packersQuotaUnlimited": "{count, plural, one{{count} packer account · unlimited} other{{count} packer accounts · unlimited}}",
-  "@packersQuotaUnlimited": {"placeholders": {"count": {"type": "int"}}},
+  "@packersQuotaUnlimited": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "packersQuotaFull": "Packer account quota is full. Upgrade your plan to add more.",
   "packersEmptyTitle": "No packer accounts yet",
   "packersEmptyBody": "Create packer accounts so they can record using their own login.",
   "packersVideoCount": "{count, plural, one{{count} video} other{{count} videos}}",
-  "@packersVideoCount": {"placeholders": {"count": {"type": "int"}}},
+  "@packersVideoCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "packersShops": "Shops: {names}",
-  "@packersShops": {"placeholders": {"names": {"type": "String"}}},
+  "@packersShops": {
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
   "packersNoShop": "Not assigned to any shop yet.",
   "packersMenuTooltip": "Packer account options",
   "packersResetPassword": "Send password reset",
   "packersResetSent": "Password reset link sent to {email}",
-  "@packersResetSent": {"placeholders": {"email": {"type": "String"}}},
+  "@packersResetSent": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
   "packersActivated": "Account {name} activated.",
-  "@packersActivated": {"placeholders": {"name": {"type": "String"}}},
+  "@packersActivated": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "packersDeactivated": "Account {name} deactivated.",
-  "@packersDeactivated": {"placeholders": {"name": {"type": "String"}}},
+  "@packersDeactivated": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "packersDeleteTitle": "Delete packer account?",
   "packersDeleteBody": "Account {name} will be deleted and cannot be restored.",
-  "@packersDeleteBody": {"placeholders": {"name": {"type": "String"}}},
+  "@packersDeleteBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "packersDeleted": "Account {name} deleted.",
-  "@packersDeleted": {"placeholders": {"name": {"type": "String"}}},
+  "@packersDeleted": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "packersCannotDeleteTitle": "This account cannot be deleted",
   "packersCannotDeleteBody": "{count, plural, one{This packer has recorded {count} video. Deactivate the account instead of deleting — the old videos stay stored and still show who recorded them.} other{This packer has recorded {count} videos. Deactivate the account instead of deleting — the old videos stay stored and still show who recorded them.}}",
-  "@packersCannotDeleteBody": {"placeholders": {"count": {"type": "int"}}},
+  "@packersCannotDeleteBody": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "packersEmailTaken": "This email already belongs to another account. Use a different email for this packer.",
   "packersEmailHelp": "A temporary password is generated automatically and shown once after the account is created.",
   "packersAssignShops": "Assign to shops",
@@ -676,24 +1063,47 @@
   "accountLogoutConfirmTitle": "Log out of this account?",
   "accountLogoutConfirmBody": "You will need to sign in again to record or open your history.",
   "accountLogoutPendingWarning": "{count, plural, other{{count} videos have not been uploaded yet. Log out anyway?}}",
-  "@accountLogoutPendingWarning": {"placeholders": {"count": {"type": "int"}}},
+  "@accountLogoutPendingWarning": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "accountLogoutPendingBody": "Unsent videos stay on this device and resume when you sign in again with the same account.",
   "accountLogoutBusy": "Logging out…",
   "accountUploadCellularTitle": "Upload over mobile data",
   "accountUploadCellularBody": "While off, videos are sent only on Wi-Fi. Turning it on uses the data allowance of this phone.",
   "accountUploadCellularWaiting": "{count, plural, other{{count} videos waiting for Wi-Fi}}",
-  "@accountUploadCellularWaiting": {"placeholders": {"count": {"type": "int"}}},
-
+  "@accountUploadCellularWaiting": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "videoDetailPublicLink": "Public Link",
   "videoDetailLinkCopied": "Link copied to clipboard.",
   "videoDetailLinkCopiedUntil": "Link copied · valid until {date}",
-  "@videoDetailLinkCopiedUntil": {"placeholders": {"date": {"type": "String"}}},
+  "@videoDetailLinkCopiedUntil": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "publicVideoTitle": "Video Proof",
   "publicVideoHeading": "Recording details",
   "publicVideoUnavailableTitle": "Link not valid",
   "publicVideoUnavailableBody": "This link has expired or is not recognised. Please ask the seller for a new one.",
   "publicVideoLinkValid": "This link can be opened until {date}.",
-  "@publicVideoLinkValid": {"placeholders": {"date": {"type": "String"}}},
+  "@publicVideoLinkValid": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "publicVideoLinkExpired": "This link has passed its validity period.",
   "publicVideoTimeUnverified": "The time on this recording came from a device clock that had not been synchronised with server time.",
   "videoDetailTitle": "Recording Detail",
@@ -702,7 +1112,13 @@
   "videoDetailDownloading": "Downloading video…",
   "videoDetailDownloadFailed": "Could not download the video. Please try again.",
   "videoDetailShareText": "Packing proof for tracking number {resi}",
-  "@videoDetailShareText": {"placeholders": {"resi": {"type": "String"}}},
+  "@videoDetailShareText": {
+    "placeholders": {
+      "resi": {
+        "type": "String"
+      }
+    }
+  },
   "videoDetailDelete": "Delete Recording",
   "videoDetailDeleteTitle": "Delete this recording?",
   "videoDetailDeleteBody": "The video will be deleted and cannot be restored. Its tracking number may be recorded again afterwards.",
@@ -732,19 +1148,55 @@
   "shopsDeactivate": "Deactivate",
   "shopsMenuTooltip": "Shop options",
   "shopsVideoCount": "{count, plural, one{{count} video} other{{count} videos}}",
-  "@shopsVideoCount": {"placeholders": {"count": {"type": "int"}}},
+  "@shopsVideoCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "shopsActivated": "Shop {name} activated.",
-  "@shopsActivated": {"placeholders": {"name": {"type": "String"}}},
+  "@shopsActivated": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "shopsDeactivated": "Shop {name} deactivated.",
-  "@shopsDeactivated": {"placeholders": {"name": {"type": "String"}}},
+  "@shopsDeactivated": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "shopsDeleteTitle": "Delete this shop?",
   "shopsDeleteBody": "Shop {name} will be deleted. This cannot be undone.",
-  "@shopsDeleteBody": {"placeholders": {"name": {"type": "String"}}},
+  "@shopsDeleteBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "shopsDeleted": "Shop {name} deleted.",
-  "@shopsDeleted": {"placeholders": {"name": {"type": "String"}}},
+  "@shopsDeleted": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "shopsCannotDeleteTitle": "This shop cannot be deleted",
   "shopsCannotDeleteBody": "{count, plural, one{This shop has {count} video. Deactivate it instead of deleting — the old videos stay stored and remain viewable.} other{This shop has {count} videos. Deactivate it instead of deleting — the old videos stay stored and remain viewable.}}",
-  "@shopsCannotDeleteBody": {"placeholders": {"count": {"type": "int"}}},
+  "@shopsCannotDeleteBody": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "shopFormAddTitle": "Add Shop",
   "shopFormEditTitle": "Edit Shop",
   "shopFormMarket": "Marketplace",
@@ -760,7 +1212,13 @@
   "historyFilterAll": "All",
   "historySearchHint": "Search tracking number…",
   "historyDuration": "Duration {value}",
-  "@historyDuration": {"placeholders": {"value": {"type": "String"}}},
+  "@historyDuration": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "historyNoMore": "No more data",
   "historyNoMatchTitle": "Nothing matches",
   "historyNoMatchBody": "Try changing the search text or the filters.",
@@ -774,36 +1232,84 @@
   "tableColAction": "Actions",
   "tableOpenDetail": "Open detail",
   "tableShowingRange": "Showing {first}–{last} of {total} videos",
-  "@tableShowingRange": {"placeholders": {"first": {"type": "String"}, "last": {"type": "String"}, "total": {"type": "String"}}},
+  "@tableShowingRange": {
+    "placeholders": {
+      "first": {
+        "type": "String"
+      },
+      "last": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
   "tableClearFilters": "Clear filters",
   "homeGreetingMorning": "Good morning,",
   "homeGreetingAfternoon": "Good afternoon,",
   "homeGreetingEvening": "Good evening,",
   "homeGreetingNight": "Good night,",
   "homeUploadPending": "{count, plural, other{{count} waiting to upload}}",
-  "@homeUploadPending": {"placeholders": {"count": {"type": "int"}}},
+  "@homeUploadPending": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "homeMonitoringTitle": "Overview",
   "homeCardPacking": "Packing Videos",
   "homeCardReturn": "Return Videos",
   "homePeriodSince": "since {date}",
-  "@homePeriodSince": {"placeholders": {"date": {"type": "String"}}},
+  "@homePeriodSince": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "homeEmptyHint": "No recordings in this period yet. Start from the Record button at the bottom right.",
   "homeMenuTitle": "Main Menu",
   "homeMenuRecordPacking": "Record Packing Parcel",
   "homeMenuRecordReturn": "Record Return Parcel",
   "homeTokenExhaustedPacker": "Out of tokens. Ask the Owner to top up.",
   "homeQueueWaiting": "{count, plural, other{{count} videos waiting to upload}}",
-  "@homeQueueWaiting": {"placeholders": {"count": {"type": "int"}}},
+  "@homeQueueWaiting": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "homeQueueUploadNow": "Upload now",
   "homeFailedUploads": "{count, plural, other{{count} videos failed to send}}",
-  "@homeFailedUploads": {"placeholders": {"count": {"type": "int"}}},
+  "@homeFailedUploads": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "homeFailedAction": "View",
   "dashboardRangeDays": "{count} days",
-  "@dashboardRangeDays": {"placeholders": {"count": {"type": "int"}}},
+  "@dashboardRangeDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "dashboardCardTotal": "Total Videos",
   "dashboardCardAverage": "Average / Day",
   "dashboardVsPrevious": "{percent} vs previous",
-  "@dashboardVsPrevious": {"placeholders": {"percent": {"type": "String"}}},
+  "@dashboardVsPrevious": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
   "dashboardNoComparison": "No comparison yet",
   "dashboardChartTitle": "Videos per day",
   "dashboardEmptyTitle": "No recordings in this range",
@@ -811,13 +1317,25 @@
   "dashboardCardToken": "Tokens Left",
   "dashboardCardPending": "Awaiting Upload",
   "dashboardTokenDaysLeft": "About {days} days left at the current pace",
-  "@dashboardTokenDaysLeft": {"placeholders": {"days": {"type": "String"}}},
+  "@dashboardTokenDaysLeft": {
+    "placeholders": {
+      "days": {
+        "type": "String"
+      }
+    }
+  },
   "dashboardTokenNoEstimate": "Not enough data to estimate",
   "dashboardTokenLow": "Tokens running low",
   "dashboardTokenEmpty": "Out of tokens",
   "dashboardTokenNoWallet": "Token wallet not created yet",
   "dashboardPendingOldest": "Oldest waiting {age}",
-  "@dashboardPendingOldest": {"placeholders": {"age": {"type": "String"}}},
+  "@dashboardPendingOldest": {
+    "placeholders": {
+      "age": {
+        "type": "String"
+      }
+    }
+  },
   "dashboardPendingNormal": "Normal — under the 6-hour mark",
   "dashboardPendingStale": "Something has been stuck over 6 hours",
   "dashboardPendingNone": "Nothing waiting",
@@ -826,35 +1344,102 @@
   "dashboardChartTokenSubtitle": "Counted by upload date — 1 token = 1 video",
   "dashboardRangeCustom": "Custom",
   "dashboardTotalSummary": "{days}-day total: {total} videos",
-  "@dashboardTotalSummary": {"placeholders": {"days": {"type": "String"}, "total": {"type": "String"}}},
+  "@dashboardTotalSummary": {
+    "placeholders": {
+      "days": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
   "dashboardTotalBreakdown": "(Packing {packing} · Return {retur})",
-  "@dashboardTotalBreakdown": {"placeholders": {"packing": {"type": "String"}, "retur": {"type": "String"}}},
+  "@dashboardTotalBreakdown": {
+    "placeholders": {
+      "packing": {
+        "type": "String"
+      },
+      "retur": {
+        "type": "String"
+      }
+    }
+  },
   "dashboardAgeHours": "{n} h",
-  "@dashboardAgeHours": {"placeholders": {"n": {"type": "String"}}},
+  "@dashboardAgeHours": {
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
   "dashboardAgeMinutes": "{n} min",
-  "@dashboardAgeMinutes": {"placeholders": {"n": {"type": "String"}}},
+  "@dashboardAgeMinutes": {
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
   "dashboardAgeDays": "{n} d",
-  "@dashboardAgeDays": {"placeholders": {"n": {"type": "String"}}},
+  "@dashboardAgeDays": {
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
   "paymentChoosePlan": "Choose the plan that fits",
   "paymentPerMonth": "/mo",
   "paymentActivePlan": "Active Plan",
   "paymentChoosePackage": "Choose Plan",
   "paymentSelected": "Selected",
   "planFeatureSeconds": "{seconds} seconds per video",
-  "@planFeatureSeconds": { "placeholders": { "seconds": { "type": "int" } } },
+  "@planFeatureSeconds": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
   "planFeatureRetention": "Recordings kept {days} days",
-  "@planFeatureRetention": { "placeholders": { "days": { "type": "int" } } },
+  "@planFeatureRetention": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
   "planFeatureTokens": "{count} videos per month",
-  "@planFeatureTokens": { "placeholders": { "count": { "type": "int", "format": "decimalPattern" } } },
+  "@planFeatureTokens": {
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
   "planFeaturePackers": "{count} packer accounts",
-  "@planFeaturePackers": { "placeholders": { "count": { "type": "int" } } },
+  "@planFeaturePackers": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "planFeaturePackersUnlimited": "Unlimited packer accounts",
   "promoLabel": "Promo code",
   "promoHint": "Have a code? Enter it here",
   "promoApply": "Apply",
   "promoRemove": "Remove code",
   "promoApplied": "Code {code} applied",
-  "@promoApplied": { "placeholders": { "code": { "type": "String" } } },
+  "@promoApplied": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
   "promoNotFound": "Promo code not found.",
   "promoInactive": "This promo code is no longer active.",
   "promoNotStarted": "This promo code is not valid yet.",
@@ -875,13 +1460,20 @@
   "paymentCancelConfirm": "Yes, cancel",
   "paymentCancelled": "Invoice cancelled. You can choose a plan again.",
   "errorProofUploaded": "The transfer proof has been uploaded, so only we can close this invoice. Contact us if you no longer wish to pay.",
-  "@paymentCancelBody": {"placeholders": {"amount": {"type": "String"}}},
+  "@paymentCancelBody": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "paymentPayInstant": "Pay now",
   "paymentPayManual": "Manual transfer",
   "paymentInstantNote": "Payment is processed by Midtrans. Your plan activates by itself as soon as the payment succeeds — no waiting for verification.",
   "paymentSandboxTitle": "This is a test payment",
   "paymentSandboxBody": "This invoice was created in the Midtrans Sandbox. The page looks exactly like the real one, but no money moves and nothing reaches the bank account.",
   "paymentSandboxConfirm": "Continue test",
+  "paymentOpenWebButton": "Open the web dashboard",
   "paymentOpenFailed": "The payment page could not be opened. Check your browser pop-up blocker, then try again.",
   "paymentOnWebTitle": "Finish on the web dashboard",
   "paymentOnWebBody": "Plans are purchased through the browser, not from the phone app. Open the address below, sign in with the same account, then pick a plan under Billing.",
@@ -893,9 +1485,21 @@
   "checkoutUniqueNote": "The last three digits identify your bill. Transfer this EXACT amount so the payment can be matched automatically.",
   "checkoutBankTitle": "Destination account",
   "checkoutAccountHolder": "under {name}",
-  "@checkoutAccountHolder": { "placeholders": { "name": { "type": "String" } } },
+  "@checkoutAccountHolder": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "checkoutDeadline": "{time} left",
-  "@checkoutDeadline": { "placeholders": { "time": { "type": "String" } } },
+  "@checkoutDeadline": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
   "checkoutExpiredTitle": "Transfer window closed",
   "checkoutExpiredBody": "This bill is older than 24 hours. Create a new bill to continue.",
   "checkoutNewBill": "Create a new bill",
@@ -910,7 +1514,160 @@
   "checkoutHelpTitle": "Need help?",
   "checkoutHelpWhatsapp": "Chat on WhatsApp",
   "checkoutBillFor": "{plan} plan",
-  "@checkoutBillFor": { "placeholders": { "plan": { "type": "String" } } },
+  "@checkoutBillFor": {
+    "placeholders": {
+      "plan": {
+        "type": "String"
+      }
+    }
+  },
   "planStandar": "Standard",
-  "planPro": "Pro"
+  "planPro": "Pro",
+  "accountDelete": "Delete account",
+  "deleteAccountTitle": "Delete account",
+  "deleteAccountWarnTitle": "This cannot be undone",
+  "deleteAccountWhatGoes": "What will be permanently deleted:",
+  "deleteAccountItemVideos": "All packing-proof videos, including any share links you have sent to buyers",
+  "deleteAccountItemPackers": "All packer accounts and their work history",
+  "deleteAccountItemShops": "All shops, settings, and subscription history",
+  "deleteAccountNoRefund": "Any remaining subscription time is forfeited and not refunded.",
+  "deleteAccountGrace": "Your account becomes unusable immediately. The data is destroyed in 7 days, and until then you can still cancel by signing back in.",
+  "deleteAccountGraceTrial": "Your account is still on trial, so the data is deleted right now — with no grace period.",
+  "deleteAccountTypeName": "Type \"{name}\" to continue",
+  "@deleteAccountTypeName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteAccountConfirmButton": "Delete my account",
+  "errorDeleteConfirmMismatch": "The business name you typed does not match.",
+  "deletionPendingTitle": "This account is scheduled for deletion",
+  "deletionPendingBody": "All of your data will be destroyed in {days} days. After that nothing can be recovered, by anyone.",
+  "@deletionPendingBody": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "deletionPendingToday": "All of your data will be destroyed today.",
+  "deletionPendingCancel": "Cancel deletion",
+  "deletionPendingCancelled": "Deletion cancelled. Your account is active again.",
+  "errorCancelDeleteTooLate": "The cancellation window has passed.",
+  "deleteAccountDoneTrial": "Your account has been deleted.",
+  "tierBisnis": "Business",
+  "planBisnis": "BUSINESS",
+  "durationSeconds": "{n} seconds",
+  "@durationSeconds": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "durationMinutes": "{n} minutes",
+  "@durationMinutes": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "planFeatureDuration": "{duration} per video",
+  "@planFeatureDuration": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "paymentDowngradeTitle": "This package is lower than your current one",
+  "paymentDowngradeBody": "Maximum recording length drops from {lama} to {baru}, effective as soon as payment clears. Packers recording longer than that will be cut off.",
+  "@paymentDowngradeBody": {
+    "placeholders": {
+      "lama": {
+        "type": "String"
+      },
+      "baru": {
+        "type": "String"
+      }
+    }
+  },
+  "paymentDowngradeSafe": "Videos already recorded are unaffected, and your tokens are still added as usual.",
+  "paymentDowngradeConfirm": "Yes, continue",
+  "historyExportButton": "Export CSV",
+  "exportTitle": "Export to CSV",
+  "exportChooseColumns": "Choose the columns to export",
+  "exportSelectAll": "Select all",
+  "exportSelectNone": "Clear",
+  "exportDownload": "Download",
+  "exportCounting": "Counting rows...",
+  "exportRows": "{n} rows will be exported, following the active filters.",
+  "@exportRows": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "exportTruncated": "These filters match {total} rows, but only the first {maks} go into the file. Narrow the filters if you need the rest.",
+  "@exportTruncated": {
+    "placeholders": {
+      "total": {
+        "type": "int"
+      },
+      "maks": {
+        "type": "int"
+      }
+    }
+  },
+  "exportEmpty": "No rows match the active filters.",
+  "exportNeedColumn": "Choose at least one column.",
+  "exportDone": "File downloaded.",
+  "csvColTanggal": "Scan date",
+  "csvColResi": "Tracking number",
+  "csvColJenis": "Type",
+  "csvColStatus": "Status",
+  "csvColToko": "Shop",
+  "csvColMarketplace": "Marketplace",
+  "csvColPerekam": "Recorded by",
+  "csvColDurasi": "Duration (seconds)",
+  "csvColUkuran": "File size",
+  "csvColKedaluwarsa": "Expires",
+  "capacityTitle": "Platform capacity",
+  "capacityDb": "Database",
+  "capacityRows": "Video rows",
+  "capacityQueue": "R2 delete queue",
+  "capacityGrowth": "Grew {ukuran} in the last 30 days",
+  "@capacityGrowth": {
+    "placeholders": {
+      "ukuran": {
+        "type": "String"
+      }
+    }
+  },
+  "capacityForecast": "Limit reached in about {bulan} months",
+  "@capacityForecast": {
+    "placeholders": {
+      "bulan": {
+        "type": "String"
+      }
+    }
+  },
+  "capacityForecastSoon": "Limit reached in less than a month",
+  "capacityForecastNone": "No measurable growth yet",
+  "capacityLevelAman": "Healthy",
+  "capacityLevelSiapkan": "Prepare",
+  "capacityLevelBertindak": "Act now",
+  "capacityQueueFailed": "{n} failed to delete - check purge-storage",
+  "@capacityQueueFailed": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "capacityHint": "This card exists so you do not have to remember to check. Supabase sends no warning before the limit is reached, and once it is, writes are rejected outright."
 }

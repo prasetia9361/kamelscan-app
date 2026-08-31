@@ -105,6 +105,13 @@ class AppConstants {
   /// Dua puluh baris menyisakan setengah layar kosong di bawah tabel.
   static const int webHistoryPageSize = 25;
 
+  /// Batas baris satu berkas ekspor CSV (Bab 10).
+  ///
+  /// Angkanya dipilih supaya berkasnya masih terbuka di Excel dan masih muat
+  /// di memori tab: 20.000 baris riwayat kira-kira 2 MB. Di atas itu yang
+  /// dibutuhkan bukan tombol Ekspor melainkan akses database.
+  static const int csvExportMaxRows = 20000;
+
   /// Ambang indikator token (Bab 7.3).
   static const double tokenWarningRatio = 0.20;
   static const double tokenCriticalRatio = 0.05;

@@ -54,7 +54,7 @@ class _AdminPricingPageState extends ConsumerState<AdminPricingPage> {
   void _isiSekali(AdminPricingData data) {
     if (_terisi) return;
     _terisi = true;
-    for (final tier in [data.catalog.standar, data.catalog.pro]) {
+    for (final tier in data.catalog.semua) {
       final p = tier.plan.wire;
       _c('$p.price', '${tier.price.toInt()}');
       _c('$p.max_video_seconds', '${tier.maxVideoSeconds}');
@@ -93,8 +93,7 @@ class _AdminPricingPageState extends ConsumerState<AdminPricingPage> {
     // "seluruh pendapatan adalah keuntungan" (migrasi 30 keputusan 3).
     final biaya = biayaTeks.isEmpty ? null : num.tryParse(biayaTeks);
 
-    final standarBaru = _bacaTier(data.catalog.standar);
-    final proBaru = _bacaTier(data.catalog.pro);
+    final tiersBaru = data.catalog.semua.map(_bacaTier).toList();
 
     final yakin = await showDialog<bool>(
       context: context,
@@ -132,7 +131,7 @@ class _AdminPricingPageState extends ConsumerState<AdminPricingPage> {
     setState(() => _sedang = true);
     final gagal = await ref
         .read(adminPricingViewModelProvider.notifier)
-        .save(standar: standarBaru, pro: proBaru, infraCost: biaya);
+        .save(tiers: tiersBaru, infraCost: biaya);
     if (!mounted) return;
     setState(() => _sedang = false);
 
@@ -161,13 +160,15 @@ class _AdminPricingPageState extends ConsumerState<AdminPricingPage> {
 
           return LayoutBuilder(
             builder: (context, batas) {
+              // Dibangun dari katalog, bukan disebut satu per satu — paket
+              // baru cukup menambah nilai enum, tanpa menyentuh berkas ini.
               final kartu = [
-                _KartuTier(
-                  tier: data.catalog.standar,
-                  kolom: _c,
-                  label: t.tierStandar,
-                ),
-                _KartuTier(tier: data.catalog.pro, kolom: _c, label: t.tierPro),
+                for (final tier in data.catalog.semua)
+                  _KartuTier(
+                    tier: tier,
+                    kolom: _c,
+                    label: labelTier(t, tier.plan),
+                  ),
               ];
 
               return ListView(

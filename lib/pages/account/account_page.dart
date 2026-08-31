@@ -68,6 +68,25 @@ class AccountPage extends ConsumerWidget {
                 const SizedBox(height: 8),
 
                 _SupportTile(),
+
+                // Bab 9.6 — Hapus Akun.
+                //
+                // 🔴 WAJIB ADA DAN WAJIB DAPAT DITEMUKAN. App Store Review
+                // Guideline 5.1.1(v) menuntut penghapusan akun dari dalam
+                // aplikasi; menyembunyikannya di balik menu bertingkat adalah
+                // alasan penolakan tersendiri, bukan hanya ketiadaannya.
+                //
+                // Hanya Owner: packer tidak memiliki tenant, dan yang akan
+                // dihapus adalah seluruh usaha milik orang lain.
+                if (isOwner) ...[
+                  const SizedBox(height: 8),
+                  _MenuTile(
+                    icon: Icons.delete_forever_outlined,
+                    title: t.accountDelete,
+                    color: Theme.of(context).extension<AppColors>()!.danger,
+                    onTap: () => context.push(Routes.deleteAccount),
+                  ),
+                ],
               ],
             ),
           ),
@@ -308,6 +327,7 @@ class _MenuTile extends StatelessWidget {
     required this.title,
     required this.onTap,
     this.subtitle,
+    this.color,
   });
 
   final IconData icon;
@@ -315,14 +335,17 @@ class _MenuTile extends StatelessWidget {
   final String? subtitle;
   final VoidCallback onTap;
 
+  /// Warna ikon dan judul. Dipakai satu-satunya menu yang merusak sesuatu.
+  final Color? color;
+
   @override
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       clipBehavior: Clip.antiAlias,
       child: ListTile(
-        leading: Icon(icon),
-        title: Text(title),
+        leading: Icon(icon, color: color),
+        title: Text(title, style: TextStyle(color: color)),
         subtitle: subtitle == null ? null : Text(subtitle!),
         trailing: const Icon(Icons.chevron_right_rounded),
         onTap: onTap,

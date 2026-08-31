@@ -2,13 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/config/app_constants.dart';
 import '../../../core/models/enums.dart';
 import '../../../core/models/history_item.dart';
+import '../../../core/providers/repository_providers.dart';
 import '../../../core/providers/session_provider.dart';
 import '../../../core/repositories/video_repository.dart';
+import '../../../core/services/file_download.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/utils/csv_export.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/result.dart';
 import '../../../core/widgets/app_state_views.dart';
 import '../../../core/widgets/failure_messages.dart';
 import '../../../l10n/generated/app_localizations.dart';
@@ -20,6 +25,7 @@ import '../../history/widgets/marketplace_badge.dart';
 import '../../history/widgets/video_status_chip.dart';
 import '../../shops/shops_view_model.dart';
 import 'web_history_view_model.dart';
+import 'widgets/export_csv_dialog.dart';
 
 /// Riwayat versi web: tabel terurut, saringan, halaman bernomor, dan panel
 /// samping berisi pemutar (Bab 10.5).
@@ -58,6 +64,66 @@ class _WebHistoryPageState extends ConsumerState<WebHistoryPage> {
 
   WebHistoryViewModel get _vm =>
       ref.read(webHistoryViewModelProvider(widget.typeWire).notifier);
+
+  bool _sedangEkspor = false;
+
+  /// Ekspor CSV (Bab 10, keputusan Product Owner 31 Agustus 2026).
+  ///
+  /// Urutannya disengaja: **ambil dulu, baru tanya kolom**. Kebalikannya —
+  /// tanya kolom lalu ambil — membuat Owner memilih sepuluh kotak centang
+  /// untuk kemudian diberi tahu bahwa saringannya tidak cocok dengan satu baris
+  /// pun. Jumlah barisnya ditampilkan di dialog justru karena sudah diketahui
+  /// pada saat itu.
+  Future<void> _ekspor() async {
+    if (_sedangEkspor) return;
+    setState(() => _sedangEkspor = true);
+
+    final data = ref.read(webHistoryViewModelProvider(widget.typeWire)).value;
+    final messenger = ScaffoldMessenger.of(context);
+
+    final hasil = await ref
+        .read(videoRepositoryProvider)
+        .fetchHistoryForExport(
+          filter: data?.filter ?? const VideoFilter(),
+          sort: data?.sort ?? HistorySort.date,
+          ascending: data?.ascending ?? false,
+        );
+
+    if (!mounted) return;
+    setState(() => _sedangEkspor = false);
+
+    if (hasil case Err(:final failure)) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(context.failureMessage(failure))),
+      );
+      return;
+    }
+
+    final halaman = hasil.unwrap();
+    final t = context.l10n;
+
+    final kolom = await showDialog<PilihanEkspor>(
+      context: context,
+      builder: (_) => ExportCsvDialog(
+        total: halaman.total,
+        maks: AppConstants.csvExportMaxRows,
+      ),
+    );
+
+    if (kolom == null || kolom.isEmpty || !mounted) return;
+
+    unduhTeks(
+      namaBerkas: CsvExport.namaBerkas(DateTime.now()),
+      isi: CsvExport.bangun(
+        items: halaman.items,
+        kolom: kolom,
+        label: (k) => labelKolomCsv(t, k),
+        nilai: (k, item) => nilaiKolomCsv(t, k, item),
+      ),
+    );
+
+    messenger.showSnackBar(SnackBar(content: Text(t.exportDone)));
+  }
 
   @override
   void initState() {
@@ -113,6 +179,7 @@ class _WebHistoryPageState extends ConsumerState<WebHistoryPage> {
                 _cari.clear();
                 _vm.clearFilters();
               },
+              onExport: _ekspor,
             ),
             Expanded(
               child: async.when(
@@ -157,6 +224,7 @@ class _FilterBar extends ConsumerWidget {
     required this.onPacker,
     required this.onDays,
     required this.onClear,
+    required this.onExport,
   });
 
   final TextEditingController controller;
@@ -168,6 +236,7 @@ class _FilterBar extends ConsumerWidget {
   final ValueChanged<String?> onPacker;
   final ValueChanged<int?> onDays;
   final VoidCallback onClear;
+  final VoidCallback onExport;
 
   /// Rentang tanggal yang disediakan, dalam hari.
   static const List<int> rentangHari = [7, 30, 90];
@@ -260,6 +329,20 @@ class _FilterBar extends ConsumerWidget {
               onPressed: onClear,
               icon: const Icon(Icons.filter_alt_off_outlined, size: 18),
               label: Text(t.tableClearFilters),
+            ),
+
+          // 🔴 Hanya Owner. Packer melihat riwayat tokonya untuk bekerja, bukan
+          // untuk membawa keluar daftar seluruh pesanan beserta nomor resinya.
+          //
+          // ⚠️ Halaman ini memang hanya hidup di web (Bab 10), jadi tidak ada
+          // penjagaan `kIsWeb` di sini — rutenya sendiri yang tidak terdaftar
+          // di HP. Menambahkannya justru menyiratkan halaman ini pernah
+          // dirender di HP, dan itu tidak pernah terjadi.
+          if (isOwner)
+            OutlinedButton.icon(
+              onPressed: onExport,
+              icon: const Icon(Icons.file_download_outlined, size: 18),
+              label: Text(t.historyExportButton),
             ),
         ],
       ),

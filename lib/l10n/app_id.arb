@@ -44,7 +44,13 @@
   "adminStatsMrrNote": "Dari harga paket yang sedang aktif, bukan dari uang yang sudah masuk",
   "adminStatsMargin": "Perkiraan Margin",
   "adminStatsInfraCost": "Biaya infrastruktur {value}",
-  "@adminStatsInfraCost": {"placeholders": {"value": {"type": "String"}}},
+  "@adminStatsInfraCost": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "adminStatsNoInfraCost": "Biaya infrastruktur belum diisi",
   "adminStatsLoss": "Rugi — biaya melebihi pendapatan",
   "adminStatsVideos": "Total Video",
@@ -52,9 +58,24 @@
   "adminStatsStorage": "Perkiraan Penyimpanan",
   "adminStatsStorageNote": "Hanya video yang masih tersimpan",
   "adminStatsPlanBreakdown": "Standar {standar} · Pro {pro}",
-  "@adminStatsPlanBreakdown": {"placeholders": {"standar": {"type": "String"}, "pro": {"type": "String"}}},
+  "@adminStatsPlanBreakdown": {
+    "placeholders": {
+      "standar": {
+        "type": "String"
+      },
+      "pro": {
+        "type": "String"
+      }
+    }
+  },
   "adminPendingCount": "{count} menunggu verifikasi",
-  "@adminPendingCount": {"placeholders": {"count": {"type": "String"}}},
+  "@adminPendingCount": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "adminNotYetBuilt": "Belum dikerjakan",
   "adminPaymentsEmptyTitle": "Tidak ada pembayaran menunggu",
   "adminPaymentsEmptyBody": "Pembayaran yang buktinya sudah diunggah akan muncul di sini.",
@@ -64,7 +85,16 @@
   "adminPaymentsReject": "Tolak",
   "adminPaymentsApproveTitle": "Setujui pembayaran ini?",
   "adminPaymentsApproveBody": "{business} akan langsung aktif pada paket {plan} selama 30 hari, dan token-nya diisi ulang. Tidak ada tombol pembatalan.",
-  "@adminPaymentsApproveBody": {"placeholders": {"business": {"type": "String"}, "plan": {"type": "String"}}},
+  "@adminPaymentsApproveBody": {
+    "placeholders": {
+      "business": {
+        "type": "String"
+      },
+      "plan": {
+        "type": "String"
+      }
+    }
+  },
   "adminPaymentsRejectTitle": "Tolak pembayaran ini?",
   "adminPaymentsRejectBody": "Aplikasi tidak mengembalikan uang dan tidak memberi tahu pelanggan. Keduanya harus Anda kerjakan sendiri.",
   "adminPaymentsApproved": "Pembayaran disetujui. Langganan sudah aktif.",
@@ -73,7 +103,13 @@
   "adminUsersMenuSubtitle": "Paket, masa aktif, dan penangguhan pelanggan",
   "adminUsersSearchHint": "Cari nama usaha atau email",
   "adminUsersCount": "{count} pelanggan",
-  "@adminUsersCount": {"placeholders": {"count": {"type": "String"}}},
+  "@adminUsersCount": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "adminUsersEmptyTitle": "Belum ada pelanggan",
   "adminUsersEmptyBody": "Setiap orang yang mendaftar akan muncul di sini.",
   "adminUsersNoMatchTitle": "Tidak ada yang cocok",
@@ -85,10 +121,22 @@
   "adminUsersNoEmail": "Email tidak diketahui",
   "adminUsersTrialNoPeriod": "Tanpa batas waktu — uji coba dibatasi jumlah video",
   "adminUsersDaysLeft": "Sisa {count} hari",
-  "@adminUsersDaysLeft": {"placeholders": {"count": {"type": "String"}}},
+  "@adminUsersDaysLeft": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "adminUsersEndsToday": "Berakhir hari ini",
   "adminUsersEndedDaysAgo": "Berakhir {count} hari lalu",
-  "@adminUsersEndedDaysAgo": {"placeholders": {"count": {"type": "String"}}},
+  "@adminUsersEndedDaysAgo": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "adminUsersVideosNote": "Termasuk yang sudah dihapus dan kedaluwarsa",
   "tenantStatusTrial": "Uji Coba",
   "tenantStatusActive": "Aktif",
@@ -105,34 +153,85 @@
   "tableColTokens": "Token",
   "adminUsersChangeTier": "Ubah paket",
   "adminUsersMakePlan": "Jadikan {plan}",
-  "@adminUsersMakePlan": {"placeholders": {"plan": {"type": "String"}}},
+  "@adminUsersMakePlan": {
+    "placeholders": {
+      "plan": {
+        "type": "String"
+      }
+    }
+  },
   "adminUsersChangeTierTitle": "Ubah paket pelanggan ini?",
   "adminUsersChangeTierBody": "{business} pindah ke paket {plan} seketika, dan saldo tokennya langsung diisi ulang menjadi kuota paket itu.",
-  "@adminUsersChangeTierBody": {"placeholders": {"business": {"type": "String"}, "plan": {"type": "String"}}},
+  "@adminUsersChangeTierBody": {
+    "placeholders": {
+      "business": {
+        "type": "String"
+      },
+      "plan": {
+        "type": "String"
+      }
+    }
+  },
   "adminUsersJwtWarning": "Menaikkan paket menambah token; menurunkannya dapat memotong sisa token yang belum terpakai. Batas paket yang baru baru terasa setelah pelanggannya keluar lalu masuk lagi.",
   "adminUsersTierChanged": "Paket sudah diubah.",
   "adminUsersSuspend": "Tangguhkan",
   "adminUsersActivate": "Aktifkan",
   "adminUsersSuspendTitle": "Tangguhkan pelanggan ini?",
   "adminUsersSuspendBody": "{business} langsung tidak dapat merekam maupun menonton videonya. Tidak ada masa tenggang.",
-  "@adminUsersSuspendBody": {"placeholders": {"business": {"type": "String"}}},
+  "@adminUsersSuspendBody": {
+    "placeholders": {
+      "business": {
+        "type": "String"
+      }
+    }
+  },
   "adminUsersActivateTitle": "Aktifkan pelanggan ini?",
   "adminUsersActivateBody": "{business} dapat merekam lagi seketika.",
-  "@adminUsersActivateBody": {"placeholders": {"business": {"type": "String"}}},
+  "@adminUsersActivateBody": {
+    "placeholders": {
+      "business": {
+        "type": "String"
+      }
+    }
+  },
   "adminUsersSuspendedDone": "Pelanggan sudah ditangguhkan.",
   "adminUsersActivatedDone": "Pelanggan sudah diaktifkan.",
   "adminUsersExtend": "Perpanjang periode",
   "adminUsersExtendTitle": "Perpanjang periode {business}",
-  "@adminUsersExtendTitle": {"placeholders": {"business": {"type": "String"}}},
+  "@adminUsersExtendTitle": {
+    "placeholders": {
+      "business": {
+        "type": "String"
+      }
+    }
+  },
   "adminUsersExtendMonths": "{count} bulan",
-  "@adminUsersExtendMonths": {"placeholders": {"count": {"type": "int"}}},
+  "@adminUsersExtendMonths": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "adminUsersExtendPickDate": "Pilih tanggal sendiri",
   "adminUsersExtendContinues": "Disambung dari akhir periode sekarang, {date}.",
-  "@adminUsersExtendContinues": {"placeholders": {"date": {"type": "String"}}},
+  "@adminUsersExtendContinues": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "adminUsersExtendFromToday": "Periodenya sudah lewat, jadi dihitung dari hari ini.",
   "adminUsersExtendFromTrial": "Masih uji coba dan belum punya periode, jadi dihitung dari hari ini.",
   "adminUsersExtendNewEnd": "Akhir periode baru: {date}",
-  "@adminUsersExtendNewEnd": {"placeholders": {"date": {"type": "String"}}},
+  "@adminUsersExtendNewEnd": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "adminUsersExtendReactivate": "Statusnya sekaligus dikembalikan menjadi Aktif.",
   "adminUsersExtendKeepSuspended": "Statusnya tetap Ditangguhkan — memperpanjang tidak mencabut penangguhan.",
   "adminUsersExtendVsPayment": "Berbeda dari pembayaran otomatis, yang selalu menghitung ulang 30 hari dari hari pembayaran.",
@@ -142,36 +241,87 @@
   "adminUsersOwnAccountBody": "Ini tenant milik akun admin yang sedang Anda pakai. Tombol aksinya sengaja dimatikan supaya Anda tidak menangguhkan atau mengubah akun Anda sendiri.",
   "adminUsersTokenAction": "Atur token",
   "adminUsersTokenTitle": "Atur token {business}",
-  "@adminUsersTokenTitle": {"placeholders": {"business": {"type": "String"}}},
+  "@adminUsersTokenTitle": {
+    "placeholders": {
+      "business": {
+        "type": "String"
+      }
+    }
+  },
   "adminUsersTokenCurrent": "Saldo sekarang {value} token",
-  "@adminUsersTokenCurrent": {"placeholders": {"value": {"type": "String"}}},
+  "@adminUsersTokenCurrent": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "adminUsersTokenAdd": "Tambah",
   "adminUsersTokenSubtract": "Kurangi",
   "adminUsersTokenAmount": "Jumlah token",
   "adminUsersTokenReason": "Alasan",
   "adminUsersTokenReasonHelp": "Wajib diisi. Tercatat permanen di buku token dan dipakai bila pelanggan menyanggah.",
   "adminUsersTokenPreview": "Saldo {dari} → {jadi}",
-  "@adminUsersTokenPreview": {"placeholders": {"dari": {"type": "String"}, "jadi": {"type": "String"}}},
+  "@adminUsersTokenPreview": {
+    "placeholders": {
+      "dari": {
+        "type": "String"
+      },
+      "jadi": {
+        "type": "String"
+      }
+    }
+  },
   "adminUsersTokenClamped": "Pengurangan melebihi saldo. Saldonya berhenti di 0, dan buku token mencatat selisih yang benar-benar terjadi.",
-  "adminUsersTokenExpires": "Token tambahan hangus saat saldo direset pada {date}.",
-  "@adminUsersTokenExpires": {"placeholders": {"date": {"type": "String"}}},
-  "adminUsersTokenNeverExpires": "Pelanggan uji coba tidak pernah direset, jadi token tambahan ini tidak hangus.",
-  "adminUsersTokenExpiresAfterActive": "Selama pelanggan belum aktif, saldonya tidak direset. Token tambahan ini hangus pada reset pertama setelah ia diaktifkan lagi.",
+  "adminUsersTokenExpires": "Token tambahan hangus saat langganan berakhir pada {date}.",
+  "@adminUsersTokenExpires": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "adminUsersTokenNeverExpires": "Pelanggan uji coba tidak punya tanggal berakhir, jadi token tambahan ini tidak hangus dengan sendirinya.",
+  "adminUsersTokenExpiresAfterActive": "Selama pelanggan belum aktif, ia belum punya tanggal berakhir. Token tambahan ini hangus saat langganan berikutnya berakhir.",
   "adminUsersTokenDone": "Token sudah disesuaikan.",
   "adminUsersGrantAllTitle": "Beri token ke semua pelanggan aktif",
   "adminUsersGrantAllBody": "Token akan ditambahkan ke {count} pelanggan berstatus Aktif sekaligus. Tidak ada pembatalan.",
-  "@adminUsersGrantAllBody": {"placeholders": {"count": {"type": "String"}}},
+  "@adminUsersGrantAllBody": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "adminUsersGrantAllExcluded": "Pengguna uji coba, yang ditangguhkan, dan yang periodenya berakhir tidak ikut kebagian.",
   "adminUsersGrantAllReasonHelp": "Wajib diisi, misalnya \"Bonus HUT RI ke-81\". Tercatat di buku token setiap pelanggan.",
-  "adminUsersGrantAllExpires": "Token tambahan hangus saat saldo masing-masing pelanggan direset.",
+  "adminUsersGrantAllExpires": "Token tambahan hangus saat langganan masing-masing pelanggan berakhir.",
   "adminUsersGrantAllConfirm": "Beri sekarang",
   "adminUsersGrantAllDone": "{delta} token diberikan ke {granted} dari {target} pelanggan aktif.",
-  "@adminUsersGrantAllDone": {"placeholders": {"delta": {"type": "String"}, "granted": {"type": "String"}, "target": {"type": "String"}}},
+  "@adminUsersGrantAllDone": {
+    "placeholders": {
+      "delta": {
+        "type": "String"
+      },
+      "granted": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
   "adminPaymentsRejectReason": "Alasan penolakan",
   "adminPaymentsRejectReasonHelp": "Wajib diisi, dan akan DIBACA PELANGGAN apa adanya di halaman Pembayarannya.",
   "paymentRejectedTitle": "Pembayaran Anda ditolak",
   "paymentRejectedReason": "Alasan: {reason}",
-  "@paymentRejectedReason": {"placeholders": {"reason": {"type": "String"}}},
+  "@paymentRejectedReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
   "paymentRejectedNoReason": "Tidak ada alasan yang tercatat untuk penolakan ini.",
   "paymentRejectedNext": "Uang yang sudah terkirim tidak dikembalikan otomatis. Hubungi kami sebelum memilih paket lagi.",
   "adminGroupPlatform": "Pengaturan Platform",
@@ -186,7 +336,7 @@
   "adminPricingMaxPackers": "Maksimal akun packer",
   "adminPricingMaxPackersHelp": "Isi -1 untuk tanpa batas. Menurunkannya tidak menghapus packer yang sudah ada, tetapi pelanggan tidak dapat menambah lagi sampai ia menguranginya sendiri.",
   "adminPricingMonthlyTokens": "Kuota token per bulan",
-  "adminPricingTokensHelp": "1 token = 1 video yang berhasil diunggah. Kuota baru berlaku pada reset periode berikutnya.",
+  "adminPricingTokensHelp": "1 token = 1 video yang berhasil diunggah. Kuota baru berlaku pada pembelian berikutnya; saldo pelanggan yang sedang berjalan tidak berubah.",
   "adminPricingInfraTitle": "Biaya Infrastruktur",
   "adminPricingInfraBody": "Dipakai kartu Perkiraan Margin di Dasbor Platform.",
   "adminPricingInfraLabel": "Biaya per bulan (Rp)",
@@ -216,7 +366,16 @@
   "adminMethodsBankEmptyWarning": "Transfer manual aktif tetapi belum ada satu pun rekening. Pelanggan akan melihat halaman transfer tanpa tujuan.",
   "adminMethodsBankDeleteTitle": "Hapus rekening ini?",
   "adminMethodsBankDeleteBody": "{bank} {number} tidak akan ditampilkan lagi kepada pelanggan.",
-  "@adminMethodsBankDeleteBody": {"placeholders": {"bank": {"type": "String"}, "number": {"type": "String"}}},
+  "@adminMethodsBankDeleteBody": {
+    "placeholders": {
+      "bank": {
+        "type": "String"
+      },
+      "number": {
+        "type": "String"
+      }
+    }
+  },
   "adminContactTitle": "Kontak Dukungan",
   "adminContactMenuSubtitle": "Nomor WhatsApp, email, dan alamat",
   "adminContactIntro": "Nomor ini satu-satunya jalan pelanggan menghubungi Anda saat pembayarannya ditolak, tokennya habis, atau langganannya terkunci.",
@@ -227,7 +386,13 @@
   "adminContactAddressHelp": "Ditampilkan di halaman Syarat & Ketentuan dan Kebijakan Privasi.",
   "adminContactWaFormatTitle": "Nomor ini mungkin tidak bekerja",
   "adminContactWaFormatBody": "\"{number}\" tidak diawali 62. Tautan WhatsApp tetap terbuka tetapi tidak menemukan siapa-siapa, dan tidak ada galat apa pun yang muncul.",
-  "@adminContactWaFormatBody": {"placeholders": {"number": {"type": "String"}}},
+  "@adminContactWaFormatBody": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
   "adminContactWaFormatConfirm": "Simpan apa adanya",
   "adminPromosTitle": "Kode Promo",
   "adminPromosMenuSubtitle": "Buat, matikan, dan pantau pemakaian kode",
@@ -245,29 +410,92 @@
   "adminPromosAppliesTo": "Berlaku untuk",
   "adminPromosAllPlans": "Semua paket",
   "adminPromosOnePlan": "Hanya paket {plan}",
-  "@adminPromosOnePlan": {"placeholders": {"plan": {"type": "String"}}},
+  "@adminPromosOnePlan": {
+    "placeholders": {
+      "plan": {
+        "type": "String"
+      }
+    }
+  },
   "adminPromosValidUntilLabel": "Berlaku sampai",
   "adminPromosValidUntil": "Berlaku sampai {date}",
-  "@adminPromosValidUntil": {"placeholders": {"date": {"type": "String"}}},
+  "@adminPromosValidUntil": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "adminPromosMaxUses": "Batas pemakaian",
   "adminPromosMaxUsesHelp": "Dikosongkan berarti tanpa batas.",
   "adminPromosDescription": "Keterangan",
   "adminPromosValuePercent": "Potongan {value}%",
-  "@adminPromosValuePercent": {"placeholders": {"value": {"type": "String"}}},
+  "@adminPromosValuePercent": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "adminPromosValueFixed": "Potongan {value}",
-  "@adminPromosValueFixed": {"placeholders": {"value": {"type": "String"}}},
+  "@adminPromosValueFixed": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "adminPromosUsedUnlimited": "Terpakai {count} kali",
-  "@adminPromosUsedUnlimited": {"placeholders": {"count": {"type": "String"}}},
+  "@adminPromosUsedUnlimited": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "adminPromosUsedOf": "Terpakai {count} dari {max}",
-  "@adminPromosUsedOf": {"placeholders": {"count": {"type": "String"}, "max": {"type": "String"}}},
+  "@adminPromosUsedOf": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "max": {
+        "type": "String"
+      }
+    }
+  },
   "adminPromosPreviewTitle": "Contoh perhitungan",
   "adminPromosPreviewLine": "{plan}: potong {potong}, bayar {bayar}",
-  "@adminPromosPreviewLine": {"placeholders": {"plan": {"type": "String"}, "potong": {"type": "String"}, "bayar": {"type": "String"}}},
+  "@adminPromosPreviewLine": {
+    "placeholders": {
+      "plan": {
+        "type": "String"
+      },
+      "potong": {
+        "type": "String"
+      },
+      "bayar": {
+        "type": "String"
+      }
+    }
+  },
   "adminPromosDeleteTitle": "Hapus kode {code}?",
-  "@adminPromosDeleteTitle": {"placeholders": {"code": {"type": "String"}}},
+  "@adminPromosDeleteTitle": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
   "adminPromosDeleteBody": "Kode ini belum pernah dipakai, jadi menghapusnya aman.",
   "adminPromosDeleteUsed": "Kode ini sudah dipakai {count} kali. Menonaktifkannya lebih baik daripada menghapus — riwayat pembayaran lama akan kehilangan keterangan potongannya.",
-  "@adminPromosDeleteUsed": {"placeholders": {"count": {"type": "String"}}},
+  "@adminPromosDeleteUsed": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "adminPromosDeleted": "Kode promo dihapus.",
   "adminNewAdminTitle": "Buat Akun Admin",
   "adminNewAdminMenuSubtitle": "Panduan menaikkan seseorang menjadi admin platform",
@@ -294,7 +522,13 @@
   "adminNewAdminSqlDemote": "Batalkan — kembalikan menjadi Owner",
   "adminNewAdminDashboardWarning": "Jangan berikan akses Supabase Dashboard kepada siapa pun selain Admin. Perintah di halaman ini dijalankan di sana, dan siapa pun yang punya aksesnya dapat mengubah harga, token, dan peran pengguna mana pun tanpa melewati aplikasi.",
   "adminPaymentsWaitingSince": "Menunggu sejak {date}",
-  "@adminPaymentsWaitingSince": {"placeholders": {"date": {"type": "String"}}},
+  "@adminPaymentsWaitingSince": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "navDashboard": "Dasbor",
   "emptyTitle": "Belum ada data",
   "emptyHistoryTitle": "Belum ada rekaman",
@@ -421,7 +655,13 @@
   "settingsClearCache": "Bersihkan cache",
   "settingsClearCacheBody": "Menghapus berkas sementara. Video yang belum terkirim tidak ikut terhapus.",
   "settingsCacheCleared": "{count, plural, =0{Tidak ada berkas sementara untuk dihapus.} other{{count} berkas sementara dihapus.}}",
-  "@settingsCacheCleared": {"placeholders": {"count": {"type": "int"}}},
+  "@settingsCacheCleared": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "settingsVersion": "Versi aplikasi",
   "settingsTerms": "Syarat & Ketentuan",
   "settingsPrivacy": "Kebijakan Privasi",
@@ -519,22 +759,52 @@
     }
   },
   "trialLowBanner": "Uji coba tersisa {count} video. Pilih paket agar tidak terputus.",
-  "@trialLowBanner": {"placeholders": {"count": {"type": "int"}}},
+  "@trialLowBanner": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "trialExhaustedBanner": "Uji coba gratis Anda telah habis. Pilih paket untuk melanjutkan.",
   "quotaLowBanner": "Token tersisa {count}. Pertimbangkan upgrade paket.",
-  "@quotaLowBanner": {"placeholders": {"count": {"type": "int"}}},
+  "@quotaLowBanner": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "quotaExhaustedBanner": "Token habis. Perpanjang atau naikkan paket untuk merekam lagi.",
   "subscriptionExpiryWarning": "Langganan berakhir dalam {days} hari. Perpanjang sekarang.",
-  "@subscriptionExpiryWarning": {"placeholders": {"days": {"type": "int"}}},
+  "@subscriptionExpiryWarning": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
   "subscriptionExpiryToday": "Langganan berakhir hari ini. Perpanjang sekarang.",
   "tokenBalanceLabel": "Token Tersedia",
   "trialQuotaLabel": "Uji coba gratis",
   "commonUpgrade": "Upgrade",
   "commonRenew": "Perpanjang",
   "recordingStillRecording": "Masih merekam {resi}. Pindai resi yang sama untuk berhenti.",
-  "@recordingStillRecording": {"placeholders": {"resi": {"type": "String"}}},
+  "@recordingStillRecording": {
+    "placeholders": {
+      "resi": {
+        "type": "String"
+      }
+    }
+  },
   "recordingStopTooEarly": "Tunggu {seconds} detik lagi sebelum bisa dihentikan dengan pindai.",
-  "@recordingStopTooEarly": {"placeholders": {"seconds": {"type": "int"}}},
+  "@recordingStopTooEarly": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
   "recordingShortConfirmTitle": "Video masih pendek",
   "recordingShortConfirmBody": "Video di bawah 5 detik mungkin tidak cukup sebagai bukti. Tetap hentikan?",
   "completeProfileTitle": "Lengkapi profil",
@@ -589,10 +859,22 @@
   "recordCheckingResi": "Memeriksa nomor resi…",
   "recordDuplicateTitle": "Resi sudah pernah direkam",
   "recordDuplicateBody": "Nomor resi {resi} sudah ada di riwayat. Video baru tidak dapat dibuat sampai video lama dihapus.",
-  "@recordDuplicateBody": {"placeholders": {"resi": {"type": "String"}}},
+  "@recordDuplicateBody": {
+    "placeholders": {
+      "resi": {
+        "type": "String"
+      }
+    }
+  },
   "recordDuplicateViewOld": "Lihat Video Lama",
   "recordAlreadyRecordedShort": "Resi {resi} sudah pernah direkam.",
-  "@recordAlreadyRecordedShort": {"placeholders": {"resi": {"type": "String"}}},
+  "@recordAlreadyRecordedShort": {
+    "placeholders": {
+      "resi": {
+        "type": "String"
+      }
+    }
+  },
   "recordNotAResi": "Kode ini bukan nomor resi.",
   "recordLimitReached": "Batas durasi tercapai. Perekaman dihentikan.",
   "recordFinishedTitle": "Rekaman selesai",
@@ -602,31 +884,73 @@
   "recordNoAudioWarning": "Mikrofon ditolak — video direkam tanpa suara.",
   "recordNoLocationWarning": "Lokasi tidak tersedia — video tetap sah sebagai bukti.",
   "recordVoiceStart": "Perekaman dimulai. Resi {resi}.",
-  "@recordVoiceStart": {"placeholders": {"resi": {"type": "String"}}},
+  "@recordVoiceStart": {
+    "placeholders": {
+      "resi": {
+        "type": "String"
+      }
+    }
+  },
   "recordVoiceFiveSeconds": "Lima detik lagi.",
   "recordVoiceFinished": "Perekaman selesai.",
   "recordRemainingLabel": "sisa {seconds} detik",
-  "@recordRemainingLabel": {"placeholders": {"seconds": {"type": "int"}}},
+  "@recordRemainingLabel": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
   "recordPreparing": "Menyiapkan kamera…",
   "recordQueueBadge": "{count} di antrean",
-  "@recordQueueBadge": {"placeholders": {"count": {"type": "int"}}},
+  "@recordQueueBadge": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "recordProcessing": "Memproses video…",
   "accountEditProfile": "Edit Profil",
   "accountChangePassword": "Ganti Password",
   "accountManagePackers": "Kelola Akun Packer",
   "accountJoinedAt": "Bergabung {date}",
-  "@accountJoinedAt": {"placeholders": {"date": {"type": "String"}}},
+  "@accountJoinedAt": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "accountSubscription": "Langganan",
   "accountTrialRemaining": "{count, plural, other{Uji coba gratis · sisa {count} video}}",
-  "@accountTrialRemaining": {"placeholders": {"count": {"type": "int"}}},
+  "@accountTrialRemaining": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "accountValidUntil": "Berlaku sampai {date}",
-  "@accountValidUntil": {"placeholders": {"date": {"type": "String"}}},
+  "@accountValidUntil": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "accountNoEndDate": "Tidak ada tanggal berakhir.",
   "accountSupport": "Bantuan & Kontak",
   "accountSupportBody": "Hubungi admin lewat WhatsApp.",
   "accountSupportMessage": "Halo, saya butuh bantuan dengan aplikasi KamelScan.",
   "accountSupportFailed": "Tidak dapat membuka WhatsApp. Nomor admin: {number}",
-  "@accountSupportFailed": {"placeholders": {"number": {"type": "String"}}},
+  "@accountSupportFailed": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
   "accountFieldName": "Nama lengkap",
   "accountFieldPhone": "Nomor HP",
   "accountFieldUsername": "Username",
@@ -640,33 +964,96 @@
   "packersAdd": "Tambah Packer",
   "packersCreate": "Buat Akun",
   "packersQuotaUsed": "{used} dari {max} akun packer terpakai",
-  "@packersQuotaUsed": {"placeholders": {"used": {"type": "int"}, "max": {"type": "int"}}},
+  "@packersQuotaUsed": {
+    "placeholders": {
+      "used": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
   "packersQuotaUnlimited": "{count, plural, other{{count} akun packer · tidak terbatas}}",
-  "@packersQuotaUnlimited": {"placeholders": {"count": {"type": "int"}}},
+  "@packersQuotaUnlimited": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "packersQuotaFull": "Kuota akun packer sudah penuh. Naikkan paket untuk menambah packer.",
   "packersEmptyTitle": "Belum ada akun packer",
   "packersEmptyBody": "Buat akun packer agar mereka dapat merekam dengan akunnya sendiri.",
   "packersVideoCount": "{count, plural, other{{count} video}}",
-  "@packersVideoCount": {"placeholders": {"count": {"type": "int"}}},
+  "@packersVideoCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "packersShops": "Toko: {names}",
-  "@packersShops": {"placeholders": {"names": {"type": "String"}}},
+  "@packersShops": {
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
   "packersNoShop": "Belum ditugaskan ke toko mana pun.",
   "packersMenuTooltip": "Pilihan akun packer",
   "packersResetPassword": "Kirim atur ulang password",
   "packersResetSent": "Tautan atur ulang password dikirim ke {email}",
-  "@packersResetSent": {"placeholders": {"email": {"type": "String"}}},
+  "@packersResetSent": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
   "packersActivated": "Akun {name} diaktifkan.",
-  "@packersActivated": {"placeholders": {"name": {"type": "String"}}},
+  "@packersActivated": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "packersDeactivated": "Akun {name} dinonaktifkan.",
-  "@packersDeactivated": {"placeholders": {"name": {"type": "String"}}},
+  "@packersDeactivated": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "packersDeleteTitle": "Hapus akun packer?",
   "packersDeleteBody": "Akun {name} akan dihapus dan tidak dapat dikembalikan.",
-  "@packersDeleteBody": {"placeholders": {"name": {"type": "String"}}},
+  "@packersDeleteBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "packersDeleted": "Akun {name} dihapus.",
-  "@packersDeleted": {"placeholders": {"name": {"type": "String"}}},
+  "@packersDeleted": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "packersCannotDeleteTitle": "Akun tidak dapat dihapus",
   "packersCannotDeleteBody": "{count, plural, other{Packer ini sudah merekam {count} video. Nonaktifkan akunnya alih-alih menghapus — video lamanya tetap tersimpan dan tetap menunjukkan siapa yang merekam.}}",
-  "@packersCannotDeleteBody": {"placeholders": {"count": {"type": "int"}}},
+  "@packersCannotDeleteBody": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "packersEmailTaken": "Email ini sudah dipakai akun lain. Gunakan email yang berbeda untuk packer ini.",
   "packersEmailHelp": "Password sementara dibuat otomatis dan ditampilkan sekali setelah akun jadi.",
   "packersAssignShops": "Tugaskan ke toko",
@@ -679,24 +1066,47 @@
   "accountLogoutConfirmTitle": "Keluar dari akun?",
   "accountLogoutConfirmBody": "Anda perlu masuk kembali untuk merekam dan membuka riwayat.",
   "accountLogoutPendingWarning": "{count, plural, other{Ada {count} video belum terunggah. Tetap keluar?}}",
-  "@accountLogoutPendingWarning": {"placeholders": {"count": {"type": "int"}}},
+  "@accountLogoutPendingWarning": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "accountLogoutPendingBody": "Video yang belum terkirim tetap tersimpan di perangkat ini dan dilanjutkan saat Anda masuk lagi dengan akun yang sama.",
   "accountLogoutBusy": "Sedang keluar…",
   "accountUploadCellularTitle": "Unggah lewat data seluler",
   "accountUploadCellularBody": "Saat mati, video hanya dikirim ketika ada Wi-Fi. Menyalakannya memakai kuota data HP ini.",
   "accountUploadCellularWaiting": "{count, plural, other{{count} video menunggu Wi-Fi}}",
-  "@accountUploadCellularWaiting": {"placeholders": {"count": {"type": "int"}}},
-
+  "@accountUploadCellularWaiting": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "videoDetailPublicLink": "Tautan Publik",
   "videoDetailLinkCopied": "Tautan disalin ke papan klip.",
   "videoDetailLinkCopiedUntil": "Tautan disalin · berlaku sampai {date}",
-  "@videoDetailLinkCopiedUntil": {"placeholders": {"date": {"type": "String"}}},
+  "@videoDetailLinkCopiedUntil": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "publicVideoTitle": "Bukti Video",
   "publicVideoHeading": "Keterangan rekaman",
   "publicVideoUnavailableTitle": "Tautan tidak berlaku",
   "publicVideoUnavailableBody": "Tautan ini sudah kedaluwarsa atau tidak dikenali. Mintalah tautan baru kepada penjual.",
   "publicVideoLinkValid": "Tautan ini dapat dibuka sampai {date}.",
-  "@publicVideoLinkValid": {"placeholders": {"date": {"type": "String"}}},
+  "@publicVideoLinkValid": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "publicVideoLinkExpired": "Masa berlaku tautan ini sudah lewat.",
   "publicVideoTimeUnverified": "Waktu pada rekaman ini berasal dari jam perangkat yang belum disinkronkan ke waktu server.",
   "videoDetailTitle": "Detail Rekaman",
@@ -705,7 +1115,13 @@
   "videoDetailDownloading": "Mengunduh video…",
   "videoDetailDownloadFailed": "Gagal mengunduh video. Coba lagi.",
   "videoDetailShareText": "Bukti packing resi {resi}",
-  "@videoDetailShareText": {"placeholders": {"resi": {"type": "String"}}},
+  "@videoDetailShareText": {
+    "placeholders": {
+      "resi": {
+        "type": "String"
+      }
+    }
+  },
   "videoDetailDelete": "Hapus Rekaman",
   "videoDetailDeleteTitle": "Hapus rekaman ini?",
   "videoDetailDeleteBody": "Video akan dihapus dan tidak dapat dikembalikan. Nomor resinya boleh direkam ulang setelah ini.",
@@ -735,19 +1151,55 @@
   "shopsDeactivate": "Nonaktifkan",
   "shopsMenuTooltip": "Pilihan toko",
   "shopsVideoCount": "{count, plural, other{{count} video}}",
-  "@shopsVideoCount": {"placeholders": {"count": {"type": "int"}}},
+  "@shopsVideoCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "shopsActivated": "Toko {name} diaktifkan.",
-  "@shopsActivated": {"placeholders": {"name": {"type": "String"}}},
+  "@shopsActivated": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "shopsDeactivated": "Toko {name} dinonaktifkan.",
-  "@shopsDeactivated": {"placeholders": {"name": {"type": "String"}}},
+  "@shopsDeactivated": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "shopsDeleteTitle": "Hapus toko ini?",
   "shopsDeleteBody": "Toko {name} akan dihapus. Tindakan ini tidak dapat dibatalkan.",
-  "@shopsDeleteBody": {"placeholders": {"name": {"type": "String"}}},
+  "@shopsDeleteBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "shopsDeleted": "Toko {name} dihapus.",
-  "@shopsDeleted": {"placeholders": {"name": {"type": "String"}}},
+  "@shopsDeleted": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "shopsCannotDeleteTitle": "Toko tidak dapat dihapus",
   "shopsCannotDeleteBody": "{count, plural, other{Toko ini memiliki {count} video. Nonaktifkan toko alih-alih menghapusnya — video lamanya tetap tersimpan dan tetap dapat dibuka.}}",
-  "@shopsCannotDeleteBody": {"placeholders": {"count": {"type": "int"}}},
+  "@shopsCannotDeleteBody": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "shopFormAddTitle": "Tambah Toko",
   "shopFormEditTitle": "Ubah Toko",
   "shopFormMarket": "Marketplace",
@@ -763,7 +1215,13 @@
   "historyFilterAll": "Semua",
   "historySearchHint": "Cari nomor resi…",
   "historyDuration": "Durasi {value}",
-  "@historyDuration": {"placeholders": {"value": {"type": "String"}}},
+  "@historyDuration": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "historyNoMore": "Tidak ada lagi data",
   "historyNoMatchTitle": "Tidak ada yang cocok",
   "historyNoMatchBody": "Coba ubah kata pencarian atau saringannya.",
@@ -777,36 +1235,84 @@
   "tableColAction": "Aksi",
   "tableOpenDetail": "Buka detail",
   "tableShowingRange": "Menampilkan {first}–{last} dari {total} video",
-  "@tableShowingRange": {"placeholders": {"first": {"type": "String"}, "last": {"type": "String"}, "total": {"type": "String"}}},
+  "@tableShowingRange": {
+    "placeholders": {
+      "first": {
+        "type": "String"
+      },
+      "last": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
   "tableClearFilters": "Hapus saringan",
   "homeGreetingMorning": "Selamat pagi,",
   "homeGreetingAfternoon": "Selamat siang,",
   "homeGreetingEvening": "Selamat sore,",
   "homeGreetingNight": "Selamat malam,",
   "homeUploadPending": "{count, plural, other{{count} menunggu unggah}}",
-  "@homeUploadPending": {"placeholders": {"count": {"type": "int"}}},
+  "@homeUploadPending": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "homeMonitoringTitle": "Pantauan",
   "homeCardPacking": "Video Packing",
   "homeCardReturn": "Video Return",
   "homePeriodSince": "sejak {date}",
-  "@homePeriodSince": {"placeholders": {"date": {"type": "String"}}},
+  "@homePeriodSince": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "homeEmptyHint": "Belum ada rekaman pada periode ini. Mulai dari tombol Rekam di pojok kanan bawah.",
   "homeMenuTitle": "Menu Utama",
   "homeMenuRecordPacking": "Rekam Paket Packing",
   "homeMenuRecordReturn": "Rekam Paket Return",
   "homeTokenExhaustedPacker": "Token habis. Hubungi Owner untuk menambah token.",
   "homeQueueWaiting": "{count, plural, other{{count} video menunggu diunggah}}",
-  "@homeQueueWaiting": {"placeholders": {"count": {"type": "int"}}},
+  "@homeQueueWaiting": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "homeQueueUploadNow": "Unggah sekarang",
   "homeFailedUploads": "{count, plural, other{{count} video gagal terkirim}}",
-  "@homeFailedUploads": {"placeholders": {"count": {"type": "int"}}},
+  "@homeFailedUploads": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "homeFailedAction": "Lihat",
   "dashboardRangeDays": "{count} hari",
-  "@dashboardRangeDays": {"placeholders": {"count": {"type": "int"}}},
+  "@dashboardRangeDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "dashboardCardTotal": "Total Video",
   "dashboardCardAverage": "Rata-rata / Hari",
   "dashboardVsPrevious": "{percent} vs periode lalu",
-  "@dashboardVsPrevious": {"placeholders": {"percent": {"type": "String"}}},
+  "@dashboardVsPrevious": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
   "dashboardNoComparison": "Belum ada pembanding",
   "dashboardChartTitle": "Video per hari",
   "dashboardEmptyTitle": "Belum ada rekaman pada rentang ini",
@@ -814,13 +1320,25 @@
   "dashboardCardToken": "Token Tersedia",
   "dashboardCardPending": "Menunggu Unggah",
   "dashboardTokenDaysLeft": "Cukup ± {days} hari lagi pada laju sekarang",
-  "@dashboardTokenDaysLeft": {"placeholders": {"days": {"type": "String"}}},
+  "@dashboardTokenDaysLeft": {
+    "placeholders": {
+      "days": {
+        "type": "String"
+      }
+    }
+  },
   "dashboardTokenNoEstimate": "Belum cukup data untuk memperkirakan",
   "dashboardTokenLow": "Token menipis",
   "dashboardTokenEmpty": "Token habis",
   "dashboardTokenNoWallet": "Dompet token belum terbentuk",
   "dashboardPendingOldest": "Tertua menunggu {age}",
-  "@dashboardPendingOldest": {"placeholders": {"age": {"type": "String"}}},
+  "@dashboardPendingOldest": {
+    "placeholders": {
+      "age": {
+        "type": "String"
+      }
+    }
+  },
   "dashboardPendingNormal": "Normal — di bawah batas 6 jam",
   "dashboardPendingStale": "Ada yang tersangkut lebih dari 6 jam",
   "dashboardPendingNone": "Tidak ada yang menunggu",
@@ -829,35 +1347,102 @@
   "dashboardChartTokenSubtitle": "Dihitung menurut tanggal unggah — 1 token = 1 video",
   "dashboardRangeCustom": "Kustom",
   "dashboardTotalSummary": "Total {days} hari: {total} video",
-  "@dashboardTotalSummary": {"placeholders": {"days": {"type": "String"}, "total": {"type": "String"}}},
+  "@dashboardTotalSummary": {
+    "placeholders": {
+      "days": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
   "dashboardTotalBreakdown": "(Packing {packing} · Retur {retur})",
-  "@dashboardTotalBreakdown": {"placeholders": {"packing": {"type": "String"}, "retur": {"type": "String"}}},
+  "@dashboardTotalBreakdown": {
+    "placeholders": {
+      "packing": {
+        "type": "String"
+      },
+      "retur": {
+        "type": "String"
+      }
+    }
+  },
   "dashboardAgeHours": "{n} jam",
-  "@dashboardAgeHours": {"placeholders": {"n": {"type": "String"}}},
+  "@dashboardAgeHours": {
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
   "dashboardAgeMinutes": "{n} menit",
-  "@dashboardAgeMinutes": {"placeholders": {"n": {"type": "String"}}},
+  "@dashboardAgeMinutes": {
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
   "dashboardAgeDays": "{n} hari",
-  "@dashboardAgeDays": {"placeholders": {"n": {"type": "String"}}},
+  "@dashboardAgeDays": {
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
   "paymentChoosePlan": "Pilih paket yang sesuai",
   "paymentPerMonth": "/bln",
   "paymentActivePlan": "Paket Aktif",
   "paymentChoosePackage": "Pilih Paket",
   "paymentSelected": "Dipilih",
   "planFeatureSeconds": "{seconds} detik per video",
-  "@planFeatureSeconds": { "placeholders": { "seconds": { "type": "int" } } },
+  "@planFeatureSeconds": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
   "planFeatureRetention": "Rekaman tersimpan {days} hari",
-  "@planFeatureRetention": { "placeholders": { "days": { "type": "int" } } },
+  "@planFeatureRetention": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
   "planFeatureTokens": "{count} video per bulan",
-  "@planFeatureTokens": { "placeholders": { "count": { "type": "int", "format": "decimalPattern" } } },
+  "@planFeatureTokens": {
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
   "planFeaturePackers": "{count} akun packer",
-  "@planFeaturePackers": { "placeholders": { "count": { "type": "int" } } },
+  "@planFeaturePackers": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "planFeaturePackersUnlimited": "Akun packer tanpa batas",
   "promoLabel": "Kode promo",
   "promoHint": "Punya kode? Masukkan di sini",
   "promoApply": "Terapkan",
   "promoRemove": "Hapus kode",
   "promoApplied": "Kode {code} dipakai",
-  "@promoApplied": { "placeholders": { "code": { "type": "String" } } },
+  "@promoApplied": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
   "promoNotFound": "Kode promo tidak ditemukan.",
   "promoInactive": "Kode promo ini sudah tidak berlaku.",
   "promoNotStarted": "Kode promo ini belum mulai berlaku.",
@@ -878,13 +1463,20 @@
   "paymentCancelConfirm": "Ya, batalkan",
   "paymentCancelled": "Tagihan dibatalkan. Anda dapat memilih paket lagi.",
   "errorProofUploaded": "Bukti transfer sudah diunggah, jadi tagihan ini hanya dapat ditutup oleh kami. Hubungi kami bila Anda tidak jadi membayar.",
-  "@paymentCancelBody": {"placeholders": {"amount": {"type": "String"}}},
+  "@paymentCancelBody": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "paymentPayInstant": "Bayar sekarang",
   "paymentPayManual": "Transfer manual",
   "paymentInstantNote": "Pembayaran diproses Midtrans. Paket Anda aktif sendiri begitu pembayarannya berhasil — tidak perlu menunggu diverifikasi.",
   "paymentSandboxTitle": "Ini pembayaran uji coba",
   "paymentSandboxBody": "Tagihan ini dibuat di lingkungan Sandbox Midtrans. Halamannya terlihat persis seperti aslinya, tetapi uangnya TIDAK berpindah dan tidak ada yang masuk ke rekening.",
   "paymentSandboxConfirm": "Lanjutkan uji coba",
+  "paymentOpenWebButton": "Buka dasbor web",
   "paymentOpenFailed": "Halaman pembayaran gagal dibuka. Periksa penghalang pop-up di peramban Anda, lalu coba lagi.",
   "paymentOnWebTitle": "Selesaikan di dasbor web",
   "paymentOnWebBody": "Pembelian paket dilakukan lewat peramban, bukan dari aplikasi HP. Buka alamat di bawah, masuk dengan akun yang sama, lalu pilih paket di menu Pembayaran.",
@@ -896,9 +1488,21 @@
   "checkoutUniqueNote": "Tiga angka terakhir adalah penanda tagihan Anda. Transfer PERSIS sejumlah ini agar pembayaran dapat dicocokkan otomatis.",
   "checkoutBankTitle": "Rekening tujuan",
   "checkoutAccountHolder": "a.n. {name}",
-  "@checkoutAccountHolder": { "placeholders": { "name": { "type": "String" } } },
+  "@checkoutAccountHolder": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "checkoutDeadline": "Sisa waktu {time}",
-  "@checkoutDeadline": { "placeholders": { "time": { "type": "String" } } },
+  "@checkoutDeadline": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
   "checkoutExpiredTitle": "Batas waktu transfer habis",
   "checkoutExpiredBody": "Tagihan ini sudah lewat 24 jam. Buat tagihan baru untuk melanjutkan.",
   "checkoutNewBill": "Buat tagihan baru",
@@ -913,7 +1517,160 @@
   "checkoutHelpTitle": "Ada kendala?",
   "checkoutHelpWhatsapp": "Hubungi lewat WhatsApp",
   "checkoutBillFor": "Paket {plan}",
-  "@checkoutBillFor": { "placeholders": { "plan": { "type": "String" } } },
+  "@checkoutBillFor": {
+    "placeholders": {
+      "plan": {
+        "type": "String"
+      }
+    }
+  },
   "planStandar": "Standar",
-  "planPro": "Pro"
+  "planPro": "Pro",
+  "accountDelete": "Hapus Akun",
+  "deleteAccountTitle": "Hapus Akun",
+  "deleteAccountWarnTitle": "Tindakan ini tidak dapat dibatalkan",
+  "deleteAccountWhatGoes": "Yang akan dihapus permanen:",
+  "deleteAccountItemVideos": "Seluruh video bukti packing, termasuk tautan berbagi yang sudah Anda kirim ke pembeli",
+  "deleteAccountItemPackers": "Seluruh akun packer beserta riwayat pekerjaannya",
+  "deleteAccountItemShops": "Seluruh toko, pengaturan, dan riwayat langganan",
+  "deleteAccountNoRefund": "Sisa masa langganan hangus dan tidak dikembalikan.",
+  "deleteAccountGrace": "Akun langsung tidak dapat digunakan. Datanya dimusnahkan 7 hari lagi, dan sebelum itu Anda masih dapat membatalkan dengan masuk kembali.",
+  "deleteAccountGraceTrial": "Akun Anda masih dalam masa uji coba, jadi datanya dihapus saat ini juga — tanpa masa tenggang.",
+  "deleteAccountTypeName": "Ketik \"{name}\" untuk melanjutkan",
+  "@deleteAccountTypeName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteAccountConfirmButton": "Hapus akun saya",
+  "errorDeleteConfirmMismatch": "Nama usaha yang diketik belum cocok.",
+  "deletionPendingTitle": "Akun ini sedang menunggu dihapus",
+  "deletionPendingBody": "Seluruh data Anda akan dimusnahkan dalam {days} hari. Sesudah itu tidak ada yang dapat dikembalikan, oleh siapa pun.",
+  "@deletionPendingBody": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "deletionPendingToday": "Seluruh data Anda akan dimusnahkan hari ini.",
+  "deletionPendingCancel": "Batalkan penghapusan",
+  "deletionPendingCancelled": "Penghapusan dibatalkan. Akun Anda aktif kembali.",
+  "errorCancelDeleteTooLate": "Masa pembatalan sudah lewat.",
+  "deleteAccountDoneTrial": "Akun Anda sudah dihapus.",
+  "tierBisnis": "Bisnis",
+  "planBisnis": "BISNIS",
+  "durationSeconds": "{n} detik",
+  "@durationSeconds": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "durationMinutes": "{n} menit",
+  "@durationMinutes": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "planFeatureDuration": "{duration} per video",
+  "@planFeatureDuration": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "paymentDowngradeTitle": "Paket ini lebih rendah dari paket Anda",
+  "paymentDowngradeBody": "Durasi maksimal rekam turun dari {lama} menjadi {baru}, berlaku seketika begitu pembayaran lunas. Packer yang sedang merekam lebih lama dari itu akan terpotong.",
+  "@paymentDowngradeBody": {
+    "placeholders": {
+      "lama": {
+        "type": "String"
+      },
+      "baru": {
+        "type": "String"
+      }
+    }
+  },
+  "paymentDowngradeSafe": "Video yang sudah terekam tidak terpengaruh, dan token Anda tetap ditambahkan seperti biasa.",
+  "paymentDowngradeConfirm": "Ya, lanjutkan",
+  "historyExportButton": "Ekspor CSV",
+  "exportTitle": "Ekspor ke CSV",
+  "exportChooseColumns": "Pilih kolom yang ingin diekspor",
+  "exportSelectAll": "Pilih semua",
+  "exportSelectNone": "Kosongkan",
+  "exportDownload": "Unduh",
+  "exportCounting": "Menghitung baris...",
+  "exportRows": "{n} baris akan diekspor, mengikuti saringan yang aktif.",
+  "@exportRows": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "exportTruncated": "Saringan ini cocok dengan {total} baris, tetapi hanya {maks} pertama yang masuk ke berkas. Persempit saringannya bila Anda membutuhkan sisanya.",
+  "@exportTruncated": {
+    "placeholders": {
+      "total": {
+        "type": "int"
+      },
+      "maks": {
+        "type": "int"
+      }
+    }
+  },
+  "exportEmpty": "Tidak ada baris yang cocok dengan saringan yang aktif.",
+  "exportNeedColumn": "Pilih setidaknya satu kolom.",
+  "exportDone": "Berkas diunduh.",
+  "csvColTanggal": "Tanggal scan",
+  "csvColResi": "Nomor resi",
+  "csvColJenis": "Jenis",
+  "csvColStatus": "Status",
+  "csvColToko": "Toko",
+  "csvColMarketplace": "Marketplace",
+  "csvColPerekam": "Perekam",
+  "csvColDurasi": "Durasi (detik)",
+  "csvColUkuran": "Ukuran berkas",
+  "csvColKedaluwarsa": "Kedaluwarsa",
+  "capacityTitle": "Kapasitas platform",
+  "capacityDb": "Database",
+  "capacityRows": "Baris video",
+  "capacityQueue": "Antrean hapus R2",
+  "capacityGrowth": "Tumbuh {ukuran} dalam 30 hari terakhir",
+  "@capacityGrowth": {
+    "placeholders": {
+      "ukuran": {
+        "type": "String"
+      }
+    }
+  },
+  "capacityForecast": "Batas tercapai sekitar {bulan} bulan lagi",
+  "@capacityForecast": {
+    "placeholders": {
+      "bulan": {
+        "type": "String"
+      }
+    }
+  },
+  "capacityForecastSoon": "Batas tercapai kurang dari sebulan lagi",
+  "capacityForecastNone": "Belum ada pertumbuhan yang dapat diukur",
+  "capacityLevelAman": "Aman",
+  "capacityLevelSiapkan": "Siapkan langkah",
+  "capacityLevelBertindak": "Bertindak sekarang",
+  "capacityQueueFailed": "{n} gagal dihapus — periksa purge-storage",
+  "@capacityQueueFailed": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "capacityHint": "Kartu ini ada supaya Anda tidak perlu mengingat untuk memeriksa. Supabase tidak mengirim peringatan apa pun sebelum batasnya tercapai, dan saat tercapai penulisan langsung ditolak."
 }

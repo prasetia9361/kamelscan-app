@@ -65,18 +65,18 @@ class AdminPricingViewModel extends _$AdminPricingViewModel {
   }
 
   Future<AppFailure?> save({
-    required TierConfig standar,
-    required TierConfig pro,
+    required List<TierConfig> tiers,
     required num? infraCost,
   }) async {
     final repo = ref.read(adminSettingsRepositoryProvider);
 
     debugPrint(
-      'KAMELSCAN_ADMIN simpan harga standar=${standar.price} '
-      'pro=${pro.price} biaya=$infraCost',
+      'KAMELSCAN_ADMIN simpan harga '
+      '${tiers.map((e) => '${e.plan.wire}=${e.price}').join(' ')} '
+      'biaya=$infraCost',
     );
 
-    final harga = await repo.savePricing(standar: standar, pro: pro);
+    final harga = await repo.savePricing(tiers: tiers);
     if (harga.isErr) {
       debugPrint('KAMELSCAN_ADMIN simpan harga GAGAL · ${harga.failureOrNull}');
       return harga.failureOrNull;

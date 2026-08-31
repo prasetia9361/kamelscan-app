@@ -108,6 +108,27 @@ class RouteGuards {
       return _homeFor(peran);
     }
 
+    // Bab 9.6 — akun yang sedang menunggu dimusnahkan terkunci SELURUHNYA.
+    //
+    // 🔴 Diperiksa sebelum penjagaan mana pun di bawah, dan itu disengaja.
+    //    Layar konfirmasinya menjanjikan "akun langsung tidak dapat digunakan";
+    //    penjagaan yang diletakkan lebih bawah akan membiarkan pemiliknya
+    //    singgah dulu ke Ganti Password atau Lengkapi Profil — dua layar yang
+    //    menulis ke database milik akun yang sudah pamit.
+    final tenant = _ref.read(sessionProvider).value?.tenant;
+    if (tenant != null && tenant.isDeletionPending) {
+      if (location != Routes.deletionPending) {
+        debugPrint('KAMELSCAN_GUARD → hapus-akun tertunda · dari=$location');
+        return Routes.deletionPending;
+      }
+      return null;
+    }
+
+    // Sudah dibatalkan, tetapi layar kuncinya masih terbuka.
+    if (location == Routes.deletionPending) {
+      return _homeFor(_ref.read(currentRoleProvider));
+    }
+
     // Bab 6.7 — packer yang masih memakai password sementara tidak boleh
     // masuk ke layar mana pun sebelum menggantinya. Password itu sudah dilihat
     // Owner, jadi selama belum diganti akunnya bukan miliknya sendiri.

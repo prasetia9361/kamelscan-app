@@ -157,6 +157,17 @@ class AppFailure extends Equatable implements Exception {
     messageKey: 'packersCannotDeleteTitle',
   );
 
+  /// Akun dinonaktifkan Owner (Bab 6.7).
+  ///
+  /// 🔴 Ditegakkan `before_video_insert()` (migrasi 38), bukan hanya oleh
+  /// aplikasi: JWT packer yang baru dinonaktifkan masih sah sampai
+  /// kedaluwarsa, dan siapa pun yang memegangnya dapat memanggil PostgREST
+  /// langsung tanpa pernah membuka aplikasinya.
+  static const AppFailure accountDisabled = AppFailure(
+    kind: FailureKind.permission,
+    messageKey: 'errorAccountDisabled',
+  );
+
   factory AppFailure.unknown(Object error, [StackTrace? stack]) => AppFailure(
         kind: FailureKind.unknown,
         messageKey: 'errorUnknown',

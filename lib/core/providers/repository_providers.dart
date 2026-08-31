@@ -1,6 +1,7 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../repositories/account_deletion_repository.dart';
 import '../repositories/admin_repository.dart';
 import '../repositories/admin_settings_repository.dart';
 import '../repositories/auth_repository.dart';
@@ -138,6 +139,10 @@ SettingsRepository settingsRepository(Ref ref) =>
 @Riverpod(keepAlive: true)
 SubscriptionRepository subscriptionRepository(Ref ref) =>
     SubscriptionRepository(ref.watch(supabaseClientProvider));
+
+@Riverpod(keepAlive: true)
+AccountDeletionRepository accountDeletionRepository(Ref ref) =>
+    AccountDeletionRepository(ref.watch(supabaseClientProvider));
 
 @Riverpod(keepAlive: true)
 AdminRepository adminRepository(Ref ref) =>

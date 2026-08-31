@@ -65,6 +65,10 @@ class Routes {
   static const String account = '/account';
   static const String packers = '/account/packers';
 
+  /// Bab 9.6 — hapus akun, dan layar kunci selama menunggu dimusnahkan.
+  static const String deleteAccount = '/account/delete';
+  static const String deletionPending = '/deletion-pending';
+
   /// Bab 9.6 butir 1 — ubah nama, nomor HP, username, dan foto profil.
   static const String editProfile = '/account/edit';
   static const String settings = '/settings';

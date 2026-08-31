@@ -101,6 +101,8 @@ extension FailureMessages on BuildContext {
       'errorAmountZero' => t.errorAmountZero,
       'promoNotFound' => t.promoNotFound,
       'errorProofUploaded' => t.errorProofUploaded,
+      'errorDeleteConfirmMismatch' => t.errorDeleteConfirmMismatch,
+      'errorCancelDeleteTooLate' => t.errorCancelDeleteTooLate,
 
       _ => t.errorUnknown,
     };

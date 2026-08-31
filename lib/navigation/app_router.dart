@@ -6,6 +6,8 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../core/config/env.dart';
 import '../core/models/enums.dart';
 import '../pages/account/account_page.dart';
+import '../pages/account/delete_account_page.dart';
+import '../pages/account/deletion_pending_page.dart';
 import '../pages/account/edit_profile/edit_profile_page.dart';
 import '../pages/account/packers/packers_page.dart';
 import '../pages/admin/dashboard/admin_dashboard_page.dart';
@@ -98,6 +100,15 @@ GoRouter appRouter(Ref ref) {
       GoRoute(
         path: Routes.completeProfile,
         builder: (_, _) => const CompleteProfilePage(),
+      ),
+
+      // Bab 9.6 — layar kunci akun yang menunggu dimusnahkan.
+      //
+      // Di luar `StatefulShellRoute` dengan sengaja: bilah tab di bawah
+      // menuju layar-layar yang justru sedang dikunci penjaga rute.
+      GoRoute(
+        path: Routes.deletionPending,
+        builder: (_, _) => const DeletionPendingPage(),
       ),
       GoRoute(
         path: Routes.resetPassword,
@@ -307,6 +318,11 @@ GoRouter appRouter(Ref ref) {
                     path: 'packers',
                     parentNavigatorKey: _rootNavigatorKey,
                     builder: (_, _) => const PackersPage(),
+                  ),
+                  GoRoute(
+                    path: 'delete',
+                    parentNavigatorKey: _rootNavigatorKey,
+                    builder: (_, _) => const DeleteAccountPage(),
                   ),
                 ],
               ),

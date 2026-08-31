@@ -7,6 +7,7 @@ import '../models/app_user.dart';
 import '../models/enums.dart';
 import '../models/tenant.dart';
 import '../models/token_wallet.dart';
+import '../services/supabase_service.dart';
 import '../utils/app_failure.dart';
 import '../utils/result.dart';
 import 'auth_provider.dart';
@@ -38,8 +39,16 @@ class SessionContext {
 
   /// Aturan tier yang berlaku. Selama uji coba, fitur setara Standar
   /// (Bab 7.5).
+  /// 🔴 Masa uji coba meminjam aturan paket [TrialConfig.tier], KECUALI batas
+  /// packer — yang itu miliknya sendiri.
+  ///
+  /// Sampai 31 Agustus 2026 ia meminjam seluruhnya. Begitu paket Standar
+  /// disetel tak terbatas, masa uji coba ikut tak terbatas tanpa satu pun
+  /// galat, dan pendaftar baru dapat membuat seratus akun packer gratis.
   TierConfig get tier => tenant.isTrial
-      ? tierCatalog.of(tierCatalog.trial.tier)
+      ? tierCatalog
+            .of(tierCatalog.trial.tier)
+            .copyWith(maxPackers: tierCatalog.trial.maxPackers)
       : tierCatalog.of(plan);
 
   bool get isTrial => tenant.isTrial;
@@ -148,6 +157,33 @@ class Session extends _$Session {
     }
 
     final user = hasilProfil.unwrap();
+
+    // 🔴 Bab 6.7 — packer yang dinonaktifkan Owner TIDAK BOLEH punya sesi.
+    //
+    // Dilaporkan 31 Agustus 2026: menonaktifkan packer hanya menyetel
+    // `users.is_active = false`, dan tidak ada satu baris pun yang pernah
+    // membacanya di jalur masuk. Bekas pegawai yang aksesnya "sudah dicabut"
+    // tetap dapat masuk dan bekerja seperti biasa.
+    //
+    // Gejalanya sama persis dengan cacat `delete-packer` 20 Agustus: Owner
+    // menekan tombol, layarnya berubah, dan yang dijanjikan tombol itu tidak
+    // pernah terjadi. `errorAccountDisabled` sudah ada di ARB sejak awal dan
+    // tidak pernah sekali pun ditampilkan.
+    //
+    // ⚠️ Alasannya DITITIPKAN sebelum keluar paksa. Tanpa itu packer mendarat
+    // di layar Masuk tanpa sepatah kata, menyimpulkan passwordnya rusak, dan
+    // mencobanya berkali-kali — lalu menelepon Owner untuk keadaan yang justru
+    // Owner sendiri yang membuatnya. `authLinkFailure` memang lahir untuk
+    // tautan email, tetapi yang dibawanya adalah "kegagalan yang tidak datang
+    // dari tombol mana pun", dan ini persis itu.
+    if (!user.isActive) {
+      debugPrint('KAMELSCAN_SESI akun nonaktif · keluar paksa ke login');
+      SupabaseService.authLinkFailure.value =
+          AppFailure.validation('errorAccountDisabled');
+      await ref.read(authRepositoryProvider).signOut();
+      return null;
+    }
+
     final tenant =
         (await ref.read(userRepositoryProvider).fetchTenant(user.tenantId))
             .unwrap();

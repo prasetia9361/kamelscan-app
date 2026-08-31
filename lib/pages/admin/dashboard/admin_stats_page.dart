@@ -8,6 +8,7 @@ import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/app_state_views.dart';
 import '../../../core/widgets/failure_messages.dart';
 import 'admin_stats_view_model.dart';
+import 'widgets/capacity_card.dart';
 
 /// Dasbor platform Admin (Bab 11.1).
 ///
@@ -172,11 +173,25 @@ class _Isi extends StatelessWidget {
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(padding),
-          child: Wrap(
-            spacing: jarak,
-            runSpacing: jarak,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              for (final k in kartu) SizedBox(width: lebar, child: k),
+              Wrap(
+                spacing: jarak,
+                runSpacing: jarak,
+                children: [
+                  for (final k in kartu) SizedBox(width: lebar, child: k),
+                ],
+              ),
+
+              // Kartu Kapasitas berdiri sendiri di bawah, selebar layar.
+              //
+              // 🔴 Sengaja TIDAK ikut ke dalam `Wrap` di atas. Kartu-kartu itu
+              // menjawab "berapa"; yang ini menjawab "kapan harus bertindak",
+              // dan menempatkannya sebagai kotak kesekian membuatnya terbaca
+              // sebagai angka lain yang boleh dilewati.
+              const SizedBox(height: jarak),
+              const CapacityCard(),
             ],
           ),
         );

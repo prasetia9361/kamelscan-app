@@ -31,12 +31,31 @@ enum TierPlan {
   @JsonValue('standar')
   standar,
   @JsonValue('pro')
-  pro;
+  pro,
+
+  /// Ditambahkan 31 Agustus 2026 (Bab 7.1).
+  @JsonValue('bisnis')
+  bisnis;
 
   String get wire => name;
 
-  static TierPlan fromWire(String? v) =>
-      v == 'pro' ? TierPlan.pro : TierPlan.standar;
+  /// 🔴 Urutannya BUKAN urutan deklarasi belaka — ia dipakai membandingkan
+  /// tinggi paket, misalnya untuk mengetahui apakah sebuah pembelian
+  /// **menurunkan** tier dan karena itu wajib memunculkan peringatan durasi
+  /// (Bab 12.4). Menyisipkan paket baru di tengah akan mengubah arti setiap
+  /// perbandingan itu sekaligus, tanpa satu pun galat.
+  int get tingkat => index;
+
+  bool lebihRendahDari(TierPlan lain) => tingkat < lain.tingkat;
+
+  /// ⚠️ Nilai yang tidak dikenal jatuh ke [standar], BUKAN ke paket tertinggi.
+  /// Aplikasi lama yang membaca tenant berpaket `bisnis` akan memperlakukannya
+  /// sebagai Standar — membatasi, bukan memberi lebih.
+  static TierPlan fromWire(String? v) => switch (v) {
+    'pro' => TierPlan.pro,
+    'bisnis' => TierPlan.bisnis,
+    _ => TierPlan.standar,
+  };
 }
 
 enum VideoType {
@@ -144,7 +163,31 @@ enum LedgerReason {
   @JsonValue('admin_adjust')
   adminAdjust,
   @JsonValue('refund')
-  refund;
+  refund,
+
+  /// Ditambahkan 1 September 2026 bersama migrasi 39. Ditulis
+  /// `expire_tenant_tokens()` (migrasi 40) saat langganan berakhir dan
+  /// saldonya dihanguskan.
+  @JsonValue('token_expired')
+  tokenExpired,
+
+  /// 🔴 TIDAK ADA di database, dan memang tidak boleh ada. Ia hanya nilai
+  /// jatuhan bagi baris yang alasannya belum dikenal versi aplikasi ini.
+  ///
+  /// Sebelum ini `LedgerReason` satu-satunya enum di berkas ini yang tidak
+  /// punya jatuhan, sehingga satu nilai baru di database membuat seluruh
+  /// pembacaan buku besar **melempar**. Itu terjadi diam-diam pada 1
+  /// September 2026: migrasi 39 menambahkan `token_expired`, dan tidak ada
+  /// satu pun galat sampai baris pertamanya lahir.
+  ///
+  /// ⚠️ Jatuhannya sengaja BUKAN salah satu alasan yang sudah ada. Buku besar
+  /// token adalah satu-satunya alat menyelesaikan sengketa dengan pelanggan
+  /// (Bab 7.2 poin 5); melabeli baris sistem sebagai `admin_adjust` berarti
+  /// memalsukan bukti di dokumen yang gunanya justru membuktikan.
+  ///
+  /// Aman karena aplikasi tidak punya izin tulis ke `token_ledger` sama
+  /// sekali (migrasi 14) — nilai ini tidak akan pernah tersimpan.
+  unknown;
 
   String get wire => switch (this) {
         LedgerReason.videoUpload => 'video_upload',
@@ -152,6 +195,20 @@ enum LedgerReason {
         LedgerReason.planUpgrade => 'plan_upgrade',
         LedgerReason.adminAdjust => 'admin_adjust',
         LedgerReason.refund => 'refund',
+        LedgerReason.tokenExpired => 'token_expired',
+        LedgerReason.unknown => 'unknown',
+      };
+
+  /// ⚠️ Nilai yang tidak dikenal jatuh ke [unknown], bukan melempar. Lihat
+  /// keterangan di [unknown] untuk alasan keduanya.
+  static LedgerReason fromWire(String? v) => switch (v) {
+        'video_upload' => LedgerReason.videoUpload,
+        'monthly_reset' => LedgerReason.monthlyReset,
+        'plan_upgrade' => LedgerReason.planUpgrade,
+        'admin_adjust' => LedgerReason.adminAdjust,
+        'refund' => LedgerReason.refund,
+        'token_expired' => LedgerReason.tokenExpired,
+        _ => LedgerReason.unknown,
       };
 }
 

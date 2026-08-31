@@ -117,6 +117,19 @@ dependencies:
   url_launcher: ^6.3.2
   webview_flutter: ^4.14.1
 
+  # ---------- Ekspor CSV (web saja) ----------
+  # DEVIASI: tidak ada di Bab 4.2. Sudah ada di pubspec.lock sebagai dependensi
+  # transitif dengan versi yang sama, jadi ini tidak menarik paket baru — hanya
+  # menyatakannya terang-terangan karena `lib/core/services/file_download_web.dart`
+  # mengimpornya langsung, dan mengimpor dependensi transitif adalah pelanggaran
+  # lint `depend_on_referenced_packages`.
+  #
+  # Dipakai HANYA untuk memicu unduhan berkas di peramban (Blob + <a download>).
+  # Tidak ada cara lain: `url_launcher` dengan `data:` URI diblokir Chrome untuk
+  # navigasi tingkat atas, dan `dart:html` sudah usang serta tidak tersedia pada
+  # kompilasi WASM.
+  web: ^1.1.1
+
   # ---------- Utilitas ----------
   uuid: ^4.6.0
   share_plus: ^13.3.0               # DEVIASI: doc ^9.0.0

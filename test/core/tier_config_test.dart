@@ -4,21 +4,30 @@ import 'package:kamelscan/core/models/enums.dart';
 
 void main() {
   group('TierCatalog.fromPricingJson — seed platform_settings (Bab 5.2)', () {
-    // Persis isi `insert into public.platform_settings ... ('pricing', ...)`.
+    // Persis isi `platform_settings.pricing` sesudah migrasi 39
+    // (31 Agustus 2026). Angka lama: Standar 99.000/1.000 token dengan batas
+    // 5 packer, Pro 249.000 dengan retensi 60 hari.
     const pricing = <String, dynamic>{
       'standar': {
-        'price': 99000,
+        'price': 149000,
         'max_video_seconds': 30,
         'retention_days': 30,
-        'max_packers': 5,
-        'monthly_tokens': 1000,
+        'max_packers': -1,
+        'monthly_tokens': 2000,
       },
       'pro': {
-        'price': 249000,
+        'price': 299000,
         'max_video_seconds': 60,
-        'retention_days': 60,
+        'retention_days': 30,
         'max_packers': -1,
         'monthly_tokens': 5000,
+      },
+      'bisnis': {
+        'price': 1490000,
+        'max_video_seconds': 180,
+        'retention_days': 30,
+        'max_packers': -1,
+        'monthly_tokens': 30000,
       },
     };
 
@@ -28,9 +37,9 @@ void main() {
 
       expect(standar.maxVideoSeconds, 30);
       expect(standar.retentionDays, 30);
-      expect(standar.maxPackers, 5);
-      expect(standar.monthlyTokens, 1000);
-      expect(standar.price, 99000);
+      expect(standar.hasUnlimitedPackers, isTrue);
+      expect(standar.monthlyTokens, 2000);
+      expect(standar.price, 149000);
     });
 
     test('Pro punya packer tak terbatas dan durasi rekam lebih panjang', () {
@@ -40,18 +49,24 @@ void main() {
       expect(pro.maxRecordingDuration, const Duration(seconds: 60));
     });
 
-    test('batas packer Standar ditegakkan pada angka 5', () {
-      final standar = TierCatalog.fromPricingJson(pricing).of(TierPlan.standar);
+    // Sejak 31 Agustus 2026 tidak ada satu pun paket berbayar yang membatasi
+    // packer, tetapi kemampuan membacanya tetap harus benar — masa uji coba
+    // memakainya, dan Admin dapat memasang batas lagi kapan saja lewat
+    // pengaturan tanpa merilis aplikasi baru.
+    test('batas packer bernilai positif tetap ditegakkan', () {
+      final terbatas = TierCatalog.fromPricingJson(const {
+        'standar': {'max_packers': 5},
+      }).of(TierPlan.standar);
 
-      expect(standar.canAddPacker(4), isTrue);
-      expect(standar.canAddPacker(5), isFalse);
+      expect(terbatas.canAddPacker(4), isTrue);
+      expect(terbatas.canAddPacker(5), isFalse);
     });
 
     test('kolom yang hilang jatuh ke nilai cadangan, bukan nol', () {
       final catalog = TierCatalog.fromPricingJson({'standar': <String, dynamic>{}});
       final standar = catalog.of(TierPlan.standar);
 
-      expect(standar.monthlyTokens, 1000);
+      expect(standar.monthlyTokens, 2000);
       expect(standar.retentionDays, 30);
     });
   });

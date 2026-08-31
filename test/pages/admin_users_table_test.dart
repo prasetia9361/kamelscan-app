@@ -459,12 +459,15 @@ void main() {
     // Ketiga kalimatnya sengaja berbeda: menggabungkannya menjadi satu membuat
     // salah satunya selalu bohong.
 
-    testWidgets('pelanggan aktif — memakai tanggal reset DOMPET', (
+    testWidgets('pelanggan aktif — memakai tanggal akhir LANGGANAN', (
       tester,
     ) async {
-      // Bukan `tenants.period_end`. Keduanya berbeda sesudah bulan pertama:
-      // cron menyetel ulang periode dompet tiap reset, sementara periode
-      // langganan hanya bergerak saat membayar atau saat Admin memperpanjang.
+      // 🔴 Tes ini pernah mengunci kebalikannya, dan itulah yang membuat
+      // cacatnya bertahan. Sampai 31 Agustus 2026 token hangus pada reset
+      // bulanan, jadi `token_wallets.period_end` memang tanggal yang benar.
+      // Migrasi 40 mencabut cron `reset-monthly-tokens`: tidak ada lagi reset,
+      // jadi tanggal reset dompet tidak lagi menandai apa pun. Yang berlaku
+      // sekarang `tenants.period_end` — saat langganannya berakhir.
       await bukaDialog(
         tester,
         untuk: baris(
@@ -476,21 +479,24 @@ void main() {
       await tester.enterText(kolom(0), '81');
       await tester.pumpAndSettle();
 
-      // Dibatasi ke DALAM dialog: "31 Des 2026" memang muncul di tabel dan di
-      // kolom Akhir Periode, dan itu benar.
+      // Dibatasi ke DALAM dialog: kedua tanggal itu juga muncul di tabel di
+      // belakangnya, dan di sana keduanya memang benar.
       Finder diDialog(String teks) => find.descendant(
         of: find.byType(AlertDialog),
         matching: find.textContaining(teks),
       );
 
-      expect(diDialog('25 Sep 2026'), findsOneWidget);
-      expect(diDialog('31 Des'), findsNothing);
+      expect(diDialog('31 Des 2026'), findsOneWidget);
+      expect(diDialog('25 Sep'), findsNothing);
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('uji coba — tidak pernah direset, jadi tidak hangus', (
+    testWidgets('uji coba — tidak punya tanggal berakhir, jadi tidak hangus', (
       tester,
     ) async {
+      // `expire-tenants` hanya membalik yang berstatus `active` menjadi
+      // `expired`, jadi uji coba tidak pernah sampai ke keadaan yang
+      // menghanguskan token.
       await bukaDialog(
         tester,
         untuk: baris('t0', status: TenantStatus.trial, akhirToken: null),
@@ -502,7 +508,7 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('ditangguhkan — hangus pada reset pertama setelah aktif lagi', (
+    testWidgets('ditangguhkan — hangus saat langganan berikutnya berakhir', (
       tester,
     ) async {
       await bukaDialog(
@@ -512,7 +518,10 @@ void main() {
       await tester.enterText(kolom(0), '81');
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('setelah ia diaktifkan lagi'), findsOneWidget);
+      expect(
+        find.textContaining('langganan berikutnya berakhir'),
+        findsOneWidget,
+      );
       expect(tester.takeException(), isNull);
     });
   });

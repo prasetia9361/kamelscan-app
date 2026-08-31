@@ -1575,7 +1575,7 @@ class _DialogTokenState extends State<_DialogToken> {
     final t = context.l10n;
     final theme = Theme.of(context);
     final baris = widget.baris;
-    final hangus = baris.tokenResetsAt;
+    final hangus = baris.tokenExpiresAt;
 
     return AlertDialog(
       title: Text(t.adminUsersTokenTitle(baris.label)),
@@ -1675,6 +1675,10 @@ class _DialogTokenState extends State<_DialogToken> {
               // ⚠️ Kapan bonusnya hangus. Tiga kalimat berbeda untuk tiga
               // keadaan berbeda — menggabungkannya membuat salah satunya
               // selalu bohong.
+              //
+              // 🔴 Sejak migrasi 40 pemicunya adalah **langganan berakhir**,
+              // bukan reset bulanan; cron resetnya sudah dicabut. Kata
+              // "reset" tidak boleh kembali ke ketiga kalimat ini.
               _Catatan(
                 teks: switch ((hangus, baris.status)) {
                   (final DateTime d, _) => t.adminUsersTokenExpires(

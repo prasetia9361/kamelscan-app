@@ -259,6 +259,56 @@ class VideoRepository {
     }
   }
 
+  /// Seluruh baris yang cocok dengan [filter], untuk ekspor CSV (Bab 10).
+  ///
+  /// 🔴 Yang diekspor adalah **hasil saringan, bukan halaman yang terlihat**.
+  /// Mengekspor 25 baris yang kebetulan sedang tampil adalah bentuk yang paling
+  /// mudah dibuat dan paling mudah menipu: berkasnya terbuka, isinya masuk
+  /// akal, dan diam-diam kehilangan ribuan baris lain. Yang membukanya tidak
+  /// punya cara mengetahuinya.
+  ///
+  /// ⚠️ Dibatasi [maks] baris. Batas ini bukan kehati-hatian berlebihan —
+  /// tanpa batas, satu penekanan tombol dapat menarik ratusan ribu baris ke
+  /// dalam memori tab peramban sekaligus, dan tab yang mati membawa serta
+  /// seluruh pekerjaan yang belum tersimpan. Pemanggil WAJIB memberi tahu
+  /// penggunanya bila hasilnya terpotong; [HistoryPageResult.total] menyebut
+  /// jumlah sebenarnya.
+  Future<Result<HistoryPageResult>> fetchHistoryForExport({
+    VideoFilter filter = const VideoFilter(),
+    HistorySort sort = HistorySort.date,
+    bool ascending = false,
+    int maks = AppConstants.csvExportMaxRows,
+  }) async {
+    try {
+      final query = _applyFilter(
+        _client.from(AppConstants.tblPackageVideos).select(
+              '*, shops(shop_name, market_name), users(full_name)',
+            ),
+        filter,
+      );
+
+      final response = await query
+          .order(sort.column, ascending: ascending)
+          // Pemecah seri yang sama dengan `fetchHistoryPage` — lihat alasannya
+          // di sana. Di sini akibatnya berbeda tetapi sama buruknya: baris
+          // ganda dan baris hilang di dalam satu berkas yang dianggap arsip.
+          .order('id', ascending: true)
+          .range(0, maks - 1)
+          .count(CountOption.exact);
+
+      return Result.ok(
+        HistoryPageResult(
+          items: response.data
+              .map((r) => HistoryItem.fromJson(r))
+              .toList(growable: false),
+          total: response.count,
+        ),
+      );
+    } on Object catch (e, s) {
+      return Result.err(SupabaseService.mapError(e, s));
+    }
+  }
+
   /// Satu video beserta konteksnya, untuk halaman detail (Bab 9.4).
   Future<Result<HistoryItem>> fetchHistoryItem(String id) async {
     try {

@@ -312,6 +312,8 @@ class SupabaseService {
         AppFailure.packerHasVideos.copyWith(debugMessage: jejak),
       'PACKER_LIMIT_REACHED' =>
         AppFailure.packerLimitReached.copyWith(debugMessage: jejak),
+      'ACCOUNT_DISABLED' =>
+        AppFailure.accountDisabled.copyWith(debugMessage: jejak),
       'SUBSCRIPTION_INACTIVE' =>
         AppFailure.subscriptionInactive.copyWith(debugMessage: jejak),
       'TOKEN_EXHAUSTED' =>
@@ -334,6 +336,9 @@ class SupabaseService {
     final m = message.toUpperCase();
     if (m.contains('TOKEN_EXHAUSTED') || m.contains('INSUFFICIENT_TOKEN')) {
       return AppFailure.tokenExhausted.copyWith(debugMessage: message);
+    }
+    if (m.contains('ACCOUNT_DISABLED')) {
+      return AppFailure.accountDisabled.copyWith(debugMessage: message);
     }
     if (m.contains('SUBSCRIPTION_INACTIVE')) {
       return AppFailure.subscriptionInactive.copyWith(debugMessage: message);

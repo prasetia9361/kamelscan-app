@@ -100,10 +100,15 @@ class AdminSettingsRepository {
   /// membuat pelanggan itu tidak dapat menambah packer lagi sampai ia
   /// menguranginya sendiri — keadaan yang wajib dikatakan layar sebelum
   /// disimpan.
-  Future<Result<void>> savePricing({
-    required TierConfig standar,
-    required TierConfig pro,
-  }) => _save(_keyPricing, {'standar': standar.toJson(), 'pro': pro.toJson()});
+  /// Menyimpan seluruh paket sekaligus.
+  ///
+  /// 🔴 Menerima DAFTAR, bukan satu parameter bernama per paket. Bentuk lama
+  /// (`{standar, pro}`) menuntut berkas ini disunting setiap kali ada paket
+  /// baru — dan paket yang lupa disebut di sini akan hilang dari
+  /// `platform_settings.pricing` saat Admin menekan Simpan, tanpa satu pun
+  /// galat, karena baris itu ditulis ulang seluruhnya.
+  Future<Result<void>> savePricing({required List<TierConfig> tiers}) =>
+      _save(_keyPricing, {for (final t in tiers) t.plan.wire: t.toJson()});
 
   /// Biaya infrastruktur bulanan — dipakai kartu Margin di Dasbor Platform.
   ///

@@ -465,19 +465,17 @@ class _VmHarga extends AdminPricingViewModel {
   _VmHarga(this._isi);
 
   final AdminPricingData _isi;
-  final List<({TierConfig standar, TierConfig pro, num? infraCost})> disimpan =
-      [];
+  final List<({List<TierConfig> tiers, num? infraCost})> disimpan = [];
 
   @override
   Future<AdminPricingData> build() async => _isi;
 
   @override
   Future<AppFailure?> save({
-    required TierConfig standar,
-    required TierConfig pro,
+    required List<TierConfig> tiers,
     required num? infraCost,
   }) async {
-    disimpan.add((standar: standar, pro: pro, infraCost: infraCost));
+    disimpan.add((tiers: tiers, infraCost: infraCost));
     return null;
   }
 
