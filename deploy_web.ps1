@@ -203,8 +203,24 @@ if (Test-Path $sumberV) {
 #
 # ⚠️ KONSEKUENSI: setiap rute baru di `route_names.dart` WAJIB ditambahkan ke
 #    daftar ini. Yang terlupa akan bekerja saat diklik dari dalam aplikasi,
-#    tetapi menjawab 404 begitu halamannya disegarkan atau alamatnya dikirim
-#    ke orang lain - gejala yang mudah disalahartikan sebagai cacat aplikasi.
+#    tetapi rusak begitu halamannya disegarkan atau alamatnya dikirim ke orang
+#    lain.
+#
+# 🔴 GEJALANYA BUKAN 404. Baris ini sempat menulis 404 selama berbulan-bulan,
+#    dan itu menyesatkan. Diukur di produksi 1 September 2026 pada rute
+#    /deletion-pending yang memang terlupa:
+#
+#      /app/complete-profile -> 200, 13327 byte, flutter_bootstrap.js x1
+#      /app/deletion-pending -> 200, 35969 byte, flutter_bootstrap.js x0
+#
+#    Alamatnya menjawab 200 sambil menyajikan halaman LANDING, tampil tanpa
+#    gaya karena CSS-nya dicari relatif terhadap folder yang tidak ada. Itu
+#    lebih jahat daripada 404: 404 kelihatan jelas rusak, sedangkan ini
+#    terbaca seperti aplikasinya yang rusak.
+#
+#    Memeriksanya dengan kode status TIDAK cukup. Yang benar:
+#      curl -s https://kamelscan.com/app/<rute> | grep -c "flutter_bootstrap.js"
+#    Harus 1. Nol berarti yang tersaji halaman landing.
 $rules = @()
 
 # Halaman bukti publik: aman memakai bintang karena di bawah /v/ memang tidak

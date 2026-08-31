@@ -267,7 +267,33 @@ perintah unggahnya dengan awalan `!`.
 
 🔴 **Setiap rute baru di `route_names.dart` WAJIB ditambahkan ke daftar rute di
 `deploy_web.ps1`.** Yang terlupa bekerja saat diklik dari dalam aplikasi tetapi
-menjawab 404 begitu halamannya disegarkan.
+rusak begitu halamannya disegarkan atau alamatnya dikirim ke orang lain.
+
+⚠️ **Gejalanya BUKAN 404** — kalimat itu salah, dan sempat tertulis di catatan
+ini maupun di komentar `deploy_web.ps1` selama berbulan-bulan. Diukur di
+produksi 1 September 2026 pada rute `/deletion-pending` yang memang terlupa:
+
+```
+/app/complete-profile  -> 200, 13327 byte, flutter_bootstrap.js x1   (aplikasi)
+/app/deletion-pending  -> 200, 35969 byte, flutter_bootstrap.js x0   (LANDING)
+```
+
+Alamatnya menjawab **200 sambil menyajikan halaman landing**, tampil tanpa gaya
+sama sekali karena CSS-nya dicari relatif terhadap folder yang tidak ada. Itu
+lebih jahat daripada 404: 404 kelihatan jelas rusak, sedangkan ini terbaca
+seperti **aplikasinya** yang rusak — dan penyelidikan berangkat ke arah yang
+salah sejak menit pertama.
+
+🔴 **Cara memeriksanya yang benar bukan kode status, melainkan isinya:**
+
+```bash
+curl -s https://kamelscan.com/app/<rute> | grep -c "flutter_bootstrap.js"
+```
+
+Harus **1**. Nol berarti yang tersaji halaman landing, berapa pun kode
+statusnya. Pola bertanda bintang menutupi anaknya (`account/*` menutupi
+`/account/delete`), tetapi **tidak** menutupi rute tingkat atas yang kebetulan
+mirip namanya.
 
 Periksa dengan **tiga langkah**, bukan hanya kode status. Langkah ketiga yang
 menentukan, dan paling sering dilupakan:
