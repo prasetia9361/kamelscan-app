@@ -83,8 +83,9 @@ class _PromoFieldState extends ConsumerState<PromoField> {
                 decoration: InputDecoration(
                   labelText: t.promoLabel,
                   hintText: t.promoHint,
-                  errorText:
-                      ditolak == null ? null : context.messageForKey(ditolak),
+                  errorText: ditolak == null
+                      ? null
+                      : context.messageForKey(ditolak),
                   errorMaxLines: 2,
                   border: const OutlineInputBorder(),
                   prefixIcon: const Icon(Icons.local_offer_outlined),
@@ -145,9 +146,8 @@ class UpperCaseFormatter extends TextInputFormatter {
   TextEditingValue formatEditUpdate(
     TextEditingValue oldValue,
     TextEditingValue newValue,
-  ) =>
-      TextEditingValue(
-        text: newValue.text.toUpperCase(),
-        selection: newValue.selection,
-      );
+  ) => TextEditingValue(
+    text: newValue.text.toUpperCase(),
+    selection: newValue.selection,
+  );
 }

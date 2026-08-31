@@ -184,7 +184,14 @@ class AppConstants {
   static const String fnCreatePacker = 'create-packer';
   static const String fnDeletePacker = 'delete-packer';
   static const String fnResolveUsername = 'resolve-username';
-  static const String fnMidtransCharge = 'midtrans-charge';
+  /// Membuat tagihan Midtrans Snap dan mengembalikan `redirect_url`
+  /// (Bab 12.3).
+  ///
+  /// ⚠️ Sampai 30 Agustus 2026 konstanta ini bernama `midtrans-charge` dan
+  /// tidak dipakai satu baris pun — nama karangan yang tidak pernah cocok
+  /// dengan Edge Function mana pun. Namanya kini mengikuti diagram Bab 12.3
+  /// dan berkas yang benar-benar ada.
+  static const String fnCreatePayment = 'create-payment';
 
   // ---------- Nama tugas WorkManager ----------
   static const String taskUploadQueue = 'kamelscan.uploadQueue';

@@ -2740,6 +2740,40 @@ Ditemukan dari satu tangkapan layar, bukan dari kode maupun tes.
 
 ### O.6 Jebakan perkakas yang memakan waktu
 
+#### 🔴 `npx supabase@latest` gagal di mesin ini — 30 Agustus 2026
+
+Gejalanya menyesatkan:
+
+```
+Error: No matching Supabase CLI binary package found for win32-x64
+```
+
+Terdengar seperti paketnya tidak mendukung Windows. Sebenarnya **paket
+binarinya ada** (`@supabase/cli-windows-x64`, terverifikasi lewat `npm view`),
+dan `npm config get omit` kosong — npm tidak menonaktifkan dependensi opsional.
+
+Sebab sesungguhnya: **berkasnya 56,6 MB dan sambungan internet Product Owner
+± 70–116 KB/detik** (dari HP lewat kabel). Unduhan dependensi opsional gagal di
+tengah jalan, dan npm **melewatinya diam-diam** — itu memang perilaku npm untuk
+dependensi opsional. CLI-nya lalu mengeluh binarinya tidak ada.
+
+Membersihkan simpanan npx tidak menolong; percobaan kedua gagal dengan cara
+yang sama, dan percobaan ketiga berubah menjadi `ECONNRESET`.
+
+**Jalan keluarnya** — unduh sendiri dengan `curl` yang dapat melanjutkan:
+
+```bash
+curl -L --retry 5 --retry-all-errors -C -   -o cli.tgz https://registry.npmjs.org/@supabase/cli-windows-x64/-/cli-windows-x64-<versi>.tgz
+tar -xzf cli.tgz          # binarinya di package/bin/supabase.exe
+```
+
+Jalankan `supabase.exe` itu langsung. Ia bekerja penuh — deploy, `secrets
+list`, `functions list`.
+
+⚠️ Pola yang berulang di proyek ini: **ukur kecepatan unduhannya sebelum
+menyalahkan perkakasnya.** Kegagalan Wrangler pada 29 Agustus juga berakhir
+sebagai sambungan yang putus sekejap, bukan perkakas yang rusak (O.17).
+
 **1. `flutter build web` dengan `--base-href` TIDAK BOLEH dijalankan dari Git
 Bash.** Git Bash menerjemahkan `/app/` menjadi `C:/Program Files/Git/app/`
 sebelum Flutter melihatnya — dan perintahnya **tetap melaporkan berhasil**.
@@ -3583,6 +3617,134 @@ mengatakannya apa adanya. Yang berubah hanyalah bahwa penolakannya kini
 pelanggan wajib punya jejak yang dapat dilihat pelanggan itu sendiri.**
 Menutup baris di sisi Admin bukan menyelesaikan urusan — ia hanya memindahkan
 kebingungannya ke orang yang tidak dapat memperbaikinya.
+
+### P.7 Midtrans Snap — Bab 12.3 tuntas di Sandbox, 30–31 Agustus 2026
+
+Dua Edge Function: `create-payment` (membuat tagihan Snap) dan
+`midtrans-webhook` (menerima notifikasi). Kelima skenario Bab 12.3 aturan 6
+sudah dijalankan dan lulus — sukses, gagal, kedaluwarsa, dibatalkan, dan
+notifikasi ganda.
+
+#### 🔴 Jebakan yang paling mahal hari itu: kunci sandbox vs produksi
+
+**Awalan kunci Midtrans di akun ini SAMA untuk sandbox dan produksi:
+`Mid-server-` dan `Mid-client-`. TIDAK ada awalan `SB-`.**
+
+Claude sempat menyatakan dengan yakin bahwa kunci sandbox selalu berawalan
+`SB-Mid-server-` — itu **salah**, dan Product Owner membantahnya dengan
+menunjuk dasbornya sendiri. Kesimpulannya kebetulan tetap benar (yang terpasang
+memang kunci produksi), tetapi alasan yang diberikan karangan dari ingatan
+umum, bukan dari dasbor yang ada di depan mata.
+
+**Cara membedakannya yang benar-benar dapat diandalkan** — panggil endpoint
+sandbox dan lihat jawabannya:
+
+```bash
+AUTH=$(printf '%s:' "<server key>" | base64 -w0)
+curl -s -o /dev/null -w "%{http_code}\n" \
+  -X POST https://app.sandbox.midtrans.com/snap/v1/transactions \
+  -H "Content-Type: application/json" -H "Authorization: Basic $AUTH" \
+  -d '{"transaction_details":{"order_id":"UJI-1","gross_amount":100000}}'
+```
+
+`201` = kunci sandbox. `401` = bukan (kemungkinan besar kunci produksi).
+
+⚠️ **Jangan menguji kunci produksi ke endpoint produksi hanya untuk
+membuktikan ia kunci produksi.** Jawaban `401` dari sandbox sudah cukup.
+Claude sempat melakukannya dan **membuat satu transaksi Snap sungguhan** di
+akun produksi Product Owner (`UJI-CLAUDE-003`) — tidak ada uang berpindah dan
+ia kedaluwarsa sendiri, tetapi catatannya nyata dan tidak dapat dihapus.
+
+Di `dataapp.md`: **baris 106–109 = Sandbox**, baris 111–114 = Produksi.
+
+#### Gejala saat kunci dan lingkungan tidak cocok
+
+Setiap penekanan tombol Bayar menghasilkan baris `subscriptions` berstatus
+`failed`, dan **layar hanya menulis kalimat umum**. Terjadi tiga kali berturut-
+turut sebelum sebabnya ketahuan.
+
+🔴 Kelemahan yang belum diperbaiki: `MIDTRANS_UNREACHABLE` (jaringan) dan
+`MIDTRANS_REJECTED` (Midtrans menolak) dipetakan ke **satu kalimat yang sama**
+di `subscription_repository.dart`. Keduanya menuntut tindakan yang berbeda —
+yang satu coba lagi, yang satu perbaiki kunci — dan layar tidak dapat
+membedakannya. `create-payment` juga tidak menuliskan penolakan Midtrans ke
+`console.error`, sehingga catatan fungsinya pun tidak menolong.
+
+**Berpasangan.** `MIDTRANS_SERVER_KEY` dan `MIDTRANS_IS_PRODUCTION` harus
+diganti bersamaan. Mengganti salah satu saja menghasilkan gejala yang sama
+persis dengan di atas.
+
+#### Dua hal yang mudah terlupa saat memasang
+
+1. **`midtrans-webhook` WAJIB di-deploy dengan `--no-verify-jwt`.** Tanpa itu
+   Supabase menjawab setiap notifikasi Midtrans dengan 401, dan tidak ada satu
+   pun pembayaran yang pernah aktif — gejalanya sama persis dengan P.1: uang
+   masuk, layar berhenti di "menunggu". Periksa dengan
+   `supabase functions list`; kolom `verify_jwt` untuk webhook harus `False`,
+   dan `True` untuk semua fungsi lain.
+2. **Notification URL** diatur di dasbor Midtrans → **Settings → Payment →
+   Notification URL** (bukan "Configuration" — halaman itu tidak ada). Alamat
+   tujuan Snap ada di tempat berbeda lagi: **Settings → Snap Preferences**.
+
+#### Cara menguji tanpa menunggu Midtrans
+
+Notifikasi dapat dikirim ulang sendiri, karena tanda tangannya dapat dihitung:
+
+```python
+sig = hashlib.sha512((order_id + status_code + gross_amount + server_key)
+                     .encode()).hexdigest()
+```
+
+Skenario `deny`, `expire`, dan `cancel` diuji dengan membuat tiga baris
+`subscriptions` buatan (order_id berawalan `UJI-`), mengirim notifikasi
+bertanda tangan sah untuk masing-masing, memeriksa hasilnya, lalu
+**menghapusnya kembali**. Seluruhnya beberapa menit, tanpa menyentuh Snap.
+
+⚠️ Baris buatan itu aman: `activate_subscription()` dan `count_promo_usage()`
+keduanya berhenti di baris pertama bila status barunya bukan `paid`, jadi
+dompet token dan tenant tidak tersentuh sama sekali.
+
+#### Yang dibuktikan pengujian, dan yang tidak
+
+Terbukti: nominal dihitung server (Rp 100.000 datang dari
+`platform_settings`), tanda tangan sha512 menolak yang palsu **dan** menerima
+yang sah, rantai aktivasi utuh sampai buku besar dan jejak audit, serta
+notifikasi ganda tidak menggeser apa pun — saldo, jumlah baris buku besar, dan
+`paid_at` semuanya tetap.
+
+**Belum terbukti:** apa pun di lingkungan **produksi**. Sakelarnya sengaja
+dibiarkan di Sandbox sampai database produksi final — menyalakan uang sungguhan
+sebelum itu berarti transaksi pertama lahir di database yang akan diganti.
+
+### P.8 🔴 Tagihan yang mengurung pelanggan, dan tombol yang berbohong
+
+**Ditemukan Product Owner pada akunnya sendiri, 31 Agustus 2026.** Satu tagihan
+transfer manual dari hari Kamis menggantung sampai Minggu; selama itu tombol
+Bayar mati dengan pesan *"Selesaikan dulu pembayaran yang sedang berjalan"*.
+
+Sebabnya bukan ketiadaan tombol batal. Halaman Checkout **sudah punya** tombol
+*"Buat tagihan baru"* pada spanduk batas waktu habis — dan tombol itu tidak
+membatalkan apa pun. Ia hanya `context.go(Routes.payment)`, dan di halaman itu
+tagihan lamanya masih berdiri dengan tombol Bayar yang masih mati. Pelanggannya
+diputar kembali ke tempat yang sama.
+
+🔴 **Tombol yang menjanjikan jalan keluar lalu tidak memberikannya lebih buruk
+daripada tidak ada tombol sama sekali.** Yang tidak menemukan tombol akan
+bertanya; yang menemukannya akan menekan berkali-kali dan menyimpulkan
+aplikasinya rusak.
+
+Sejak Midtrans hidup kebuntuan ini bertambah mahal: `create-payment` menolak
+membuat tagihan Snap selama masih ada tagihan `pending` **apa pun**, termasuk
+tagihan transfer manual yang sudah basi berhari-hari.
+
+**Diperbaiki** dengan `cancel_pending_subscription()` (migrasi 36) — lewat RPC
+karena `subscriptions` sengaja hanya punya policy `select` dan `insert` bagi
+Owner: ia dapat membuat tagihan, tetapi tidak pernah dapat menutupnya.
+
+⚠️ **Ditolak bila `proof_url` sudah terisi.** Keputusan Product Owner: tagihan
+berbukti hanya boleh ditutup Admin, karena pelanggan yang sudah benar-benar
+mentransfer lalu membatalkan akan kehilangan jejak uangnya — dan satu-satunya
+yang dapat memeriksa mutasi rekening adalah Admin.
 
 ---
 

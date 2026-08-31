@@ -1,15 +1,18 @@
 import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../core/config/env.dart';
 import '../../core/config/tier_config.dart';
 import '../../core/domain/billing.dart';
 import '../../core/models/enums.dart';
+import '../../core/models/midtrans_payment.dart';
 import '../../core/models/payment_methods.dart';
 import '../../core/models/promo.dart';
 import '../../core/models/subscription.dart';
 import '../../core/providers/repository_providers.dart';
 import '../../core/providers/session_provider.dart';
 import '../../core/utils/app_failure.dart';
+import '../../navigation/route_names.dart';
 
 part 'plan_view_model.g.dart';
 
@@ -81,23 +84,22 @@ class PlanData {
     Promo? promo,
     String? promoRejectionKey,
     bool hapusPromo = false,
-  }) =>
-      PlanData(
-        catalog: catalog,
-        currentPlan: currentPlan,
-        isTrial: isTrial,
-        methods: methods,
-        banners: banners,
-        selected: selected ?? this.selected,
-        pending: pending ?? this.pending,
+  }) => PlanData(
+    catalog: catalog,
+    currentPlan: currentPlan,
+    isTrial: isTrial,
+    methods: methods,
+    banners: banners,
+    selected: selected ?? this.selected,
+    pending: pending ?? this.pending,
 
-        // Tagihan baru menjawab penolakan yang lama. Membiarkan spanduk merah
-        // tetap berdiri di samping tagihan yang sedang berjalan membuat Owner
-        // mengira yang baru ikut ditolak.
-        rejected: pending != null ? null : rejected,
-        promo: hapusPromo ? null : (promo ?? this.promo),
-        promoRejectionKey: hapusPromo ? null : promoRejectionKey,
-      );
+    // Tagihan baru menjawab penolakan yang lama. Membiarkan spanduk merah
+    // tetap berdiri di samping tagihan yang sedang berjalan membuat Owner
+    // mengira yang baru ikut ditolak.
+    rejected: pending != null ? null : rejected,
+    promo: hapusPromo ? null : (promo ?? this.promo),
+    promoRejectionKey: hapusPromo ? null : promoRejectionKey,
+  );
 }
 
 /// Halaman Pilih Paket (Bab 9.8 — Owner saja).
@@ -110,8 +112,9 @@ class PlanViewModel extends _$PlanViewModel {
 
     final repo = ref.read(subscriptionRepositoryProvider);
 
-    final methods =
-        (await repo.fetchPaymentMethods()).getOrElse((_) => PaymentMethods.fallback);
+    final methods = (await repo.fetchPaymentMethods()).getOrElse(
+      (_) => PaymentMethods.fallback,
+    );
     final banners = (await repo.fetchPlanBanners()).getOrElse((_) => const {});
     final pending = (await repo.fetchLatest()).valueOrNull;
 
@@ -169,7 +172,9 @@ class PlanViewModel extends _$PlanViewModel {
       return;
     }
 
-    final hasil = await ref.read(subscriptionRepositoryProvider).findPromo(bersih);
+    final hasil = await ref
+        .read(subscriptionRepositoryProvider)
+        .findPromo(bersih);
 
     hasil.fold(
       onOk: (promo) {
@@ -207,6 +212,68 @@ class PlanViewModel extends _$PlanViewModel {
     state = AsyncData(data.copyWith(hapusPromo: true));
   }
 
+  /// Membatalkan tagihan yang sedang berjalan, lalu menyegarkan halamannya.
+  ///
+  /// 🔴 Penyegaran WAJIB dan bukan kemewahan: tanpa itu spanduk "ada tagihan
+  /// yang belum selesai" tetap berdiri dan tombol Bayar tetap mati, sehingga
+  /// pembatalan yang berhasil terlihat persis seperti pembatalan yang gagal.
+  Future<AppFailure?> cancelPendingBill() async {
+    final tagihan = state.value?.pending;
+    if (tagihan == null) return null;
+
+    debugPrint('KAMELSCAN_BAYAR batalkan tagihan ${tagihan.id}');
+    final hasil = await ref
+        .read(subscriptionRepositoryProvider)
+        .cancelPendingBill(tagihan.id);
+
+    debugPrint(
+      'KAMELSCAN_BAYAR batalkan '
+      '${hasil.isOk ? 'BERHASIL' : 'GAGAL · ${hasil.failureOrNull}'}',
+    );
+
+    if (hasil.isOk) await refresh();
+    return hasil.failureOrNull;
+  }
+
+  /// Membuat tagihan **Midtrans** dan mengembalikan halaman pembayarannya
+  /// (Bab 12.3).
+  ///
+  /// 🔴 Tidak mengirim nominal sama sekali — harga dan promo dihitung ulang di
+  /// server. Bandingkan dengan [createBill] di bawah, yang mengirim angka
+  /// hasil hitungan aplikasi: itu aman **hanya** karena transfer manual selalu
+  /// melewati mata Admin yang mencocokkan bukti transfernya. Midtrans tidak
+  /// punya penjaga itu.
+  ///
+  /// ⚠️ Keadaan `pending` di layar **tidak** disegarkan di sini. Yang
+  /// melunaskan tagihan adalah webhook, yang tiba di server beberapa detik
+  /// sesudah pelanggan menyelesaikan pembayaran — bukan saat ia kembali ke
+  /// halaman ini. Penyegaran dilakukan [refresh] saat halamannya dibuka lagi.
+  Future<(MidtransPayment?, AppFailure?)> createMidtransBill() async {
+    final data = state.value;
+    if (data == null) return (null, AppFailure.sessionExpired);
+
+    debugPrint(
+      'KAMELSCAN_BAYAR minta tagihan Midtrans · ${data.selected.wire}',
+    );
+
+    final hasil = await ref
+        .read(subscriptionRepositoryProvider)
+        .createMidtransPayment(
+          plan: data.selected,
+          promoCode: data.promo?.code,
+          // Snap mengembalikan pelanggan ke halaman Pembayaran. Halaman itu
+          // hanya menampilkan keadaan; aktivasinya dari webhook.
+          finishUrl: '${Env.webAppBaseUrl}${Routes.payment}',
+        );
+
+    debugPrint(
+      'KAMELSCAN_BAYAR tagihan Midtrans '
+      '${hasil.isOk ? 'OK · ${hasil.valueOrNull?.orderId}' : 'GAGAL · ${hasil.failureOrNull}'}',
+    );
+
+    return (hasil.valueOrNull, hasil.failureOrNull);
+  }
+
   /// Membuat tagihan `pending` dan mengembalikannya (Bab 12.2 langkah 2).
   ///
   /// 🔴 Digit pembeda dibangkitkan **di sini, sekali**, bukan setiap kali layar
@@ -219,12 +286,11 @@ class PlanViewModel extends _$PlanViewModel {
     final session = ref.read(sessionProvider).value;
     if (session == null) return (null, AppFailure.sessionExpired);
 
-    final rincian = BillingSummary.of(
-      price: data.subtotal,
-      promo: data.promo,
-    );
+    final rincian = BillingSummary.of(price: data.subtotal, promo: data.promo);
 
-    final hasil = await ref.read(subscriptionRepositoryProvider).createPending(
+    final hasil = await ref
+        .read(subscriptionRepositoryProvider)
+        .createPending(
           tenantId: session.tenantId,
           plan: data.selected,
           amount: rincian.amountToTransfer,
@@ -234,7 +300,9 @@ class PlanViewModel extends _$PlanViewModel {
 
     return hasil.fold(
       onOk: (sub) {
-        debugPrint('KAMELSCAN_BAYAR tagihan dibuat · ${sub.id} · ${sub.amount}');
+        debugPrint(
+          'KAMELSCAN_BAYAR tagihan dibuat · ${sub.id} · ${sub.amount}',
+        );
         state = AsyncData(data.copyWith(pending: sub));
         return (sub, null);
       },

@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_constants.dart';
 import '../models/enums.dart';
+import '../models/midtrans_payment.dart';
 import '../models/payment_methods.dart';
 import '../models/promo.dart';
 import '../models/subscription.dart';
@@ -34,6 +35,113 @@ class SubscriptionRepository {
 
       return Result.ok(row == null ? null : Subscription.fromJson(row));
     } on Object catch (e, s) {
+      return Result.err(SupabaseService.mapError(e, s));
+    }
+  }
+
+  /// Membuat tagihan **Midtrans** dan mengembalikan halaman pembayarannya
+  /// (Bab 12.3) — Edge Function `create-payment`.
+  ///
+  /// 🔴 Berbeda mendasar dari [createPending]: yang ini **tidak mengirim
+  /// nominal sama sekali.** Harga dibaca server dari `platform_settings`,
+  /// promonya diperiksa ulang di server, dan hasilnya dikembalikan sebagai
+  /// angka yang sudah final. Bab 12.3 aturan 4 melarang mempercayai nominal
+  /// yang dikirim aplikasi.
+  ///
+  /// Alasannya bukan kerapian. Pada transfer manual, Admin melihat bukti
+  /// transfernya dan mencocokkan angkanya dengan tangan — manusia menjadi
+  /// penjaga terakhir. Pada Midtrans tidak ada yang memeriksa.
+  ///
+  /// [finishUrl] adalah alamat tempat Snap mengembalikan pelanggan setelah
+  /// selesai. ⚠️ Halaman itu **tidak** mengaktifkan apa pun; ia hanya
+  /// menampilkan keadaan. Yang mengaktifkan langganan hanya webhook
+  /// server-to-server (Bab 12.3 aturan 1), karena callback di sisi aplikasi
+  /// mudah dipalsukan.
+  Future<Result<MidtransPayment>> createMidtransPayment({
+    required TierPlan plan,
+    String? promoCode,
+    String? finishUrl,
+  }) async {
+    try {
+      final response = await _client.functions.invoke(
+        AppConstants.fnCreatePayment,
+        body: {
+          'plan': plan.wire,
+          if (promoCode != null && promoCode.trim().isNotEmpty)
+            'promo_code': promoCode.trim(),
+          if (finishUrl != null && finishUrl.isNotEmpty)
+            'finish_url': finishUrl,
+        },
+      );
+
+      final data = response.data;
+      if (data is Map && data['redirect_url'] is String) {
+        return Result.ok(
+          MidtransPayment.fromJson(data.cast<String, dynamic>()),
+        );
+      }
+
+      // 🔴 Kode galat dari Edge Function diterjemahkan menjadi kegagalan yang
+      // punya kalimat sendiri. Tanpa ini, "Midtrans sedang dimatikan Admin"
+      // dan "promo sudah kedaluwarsa" sama-sama muncul sebagai "Terjadi
+      // kesalahan" — dan Owner akan mencoba lagi berkali-kali untuk keadaan
+      // yang tidak akan berubah.
+      final kode = data is Map ? data['error']?.toString() : null;
+      return Result.err(_midtransFailure(kode, data));
+    } on Object catch (e, s) {
+      return Result.err(SupabaseService.mapError(e, s));
+    }
+  }
+
+  /// Menerjemahkan kode galat `create-payment` menjadi [AppFailure].
+  ///
+  /// ⚠️ Setiap kode baru di Edge Function WAJIB ditambahkan di sini **dan**
+  /// didaftarkan di `failure_messages.dart`. Kunci yang lupa disambungkan
+  /// tidak menimbulkan galat apa pun — pesannya diam-diam berubah menjadi
+  /// "Terjadi kesalahan", persis cacat M.16.
+  AppFailure _midtransFailure(String? kode, Object? mentah) => switch (kode) {
+    'MIDTRANS_DISABLED' => AppFailure.validation('errorMidtransDisabled'),
+    'MIDTRANS_NOT_CONFIGURED' => AppFailure.validation(
+      'errorMidtransNotConfigured',
+    ),
+    'MIDTRANS_UNREACHABLE' ||
+    'MIDTRANS_REJECTED' => AppFailure.validation('errorMidtransUnreachable'),
+    'PENDING_EXISTS' => AppFailure.validation('errorBillPendingExists'),
+    'PROMO_INVALID' => AppFailure.validation('promoNotFound'),
+    'PRICING_MISSING_FOR_PLAN' => AppFailure.validation('errorPricingMissing'),
+    'AMOUNT_ZERO' => AppFailure.validation('errorAmountZero'),
+    'FORBIDDEN' || 'UNAUTHORIZED' => AppFailure.sessionExpired,
+    _ => AppFailure.unknown('Balasan create-payment tidak sah: $mentah'),
+  };
+
+  /// Membatalkan tagihan yang masih berjalan — RPC
+  /// `cancel_pending_subscription()`, migrasi `36_cancel_bill.sql`.
+  ///
+  /// 🔴 Lewat RPC karena `subscriptions` sengaja hanya punya policy `select`
+  /// dan `insert` bagi Owner (migrasi 14): ia dapat membuat tagihan, tetapi
+  /// tidak pernah dapat menutupnya. Akibatnya satu tagihan yang ditinggalkan
+  /// mengunci pelanggan tanpa batas waktu — terjadi pada Product Owner
+  /// sendiri, dari Kamis sampai Minggu.
+  ///
+  /// ⚠️ Ditolak server bila bukti transfer sudah diunggah. Tagihan berbukti
+  /// hanya boleh ditutup Admin, karena hanya Admin yang dapat memeriksa mutasi
+  /// rekening — pelanggan yang sudah benar-benar mentransfer lalu membatalkan
+  /// akan kehilangan jejak uangnya.
+  Future<Result<void>> cancelPendingBill(String subscriptionId) async {
+    try {
+      await _client.rpc<Object?>(
+        'cancel_pending_subscription',
+        params: {'p_subscription_id': subscriptionId},
+      );
+      return okVoid;
+    } on Object catch (e, s) {
+      // 🔴 Penolakan karena bukti sudah diunggah punya kalimatnya sendiri.
+      // Tanpa ini ia muncul sebagai "Terjadi kesalahan", dan pelanggan akan
+      // menekan tombolnya berulang kali untuk keadaan yang tidak akan berubah
+      // — cacat M.16, di tempat baru.
+      if (e.toString().contains('PROOF_UPLOADED')) {
+        return Result.err(AppFailure.validation('errorProofUploaded'));
+      }
       return Result.err(SupabaseService.mapError(e, s));
     }
   }
@@ -94,7 +202,9 @@ class SubscriptionRepository {
     try {
       final key = '$tenantId/$subscriptionId.jpg';
 
-      await _client.storage.from(AppConstants.bucketPaymentProofs).uploadBinary(
+      await _client.storage
+          .from(AppConstants.bucketPaymentProofs)
+          .uploadBinary(
             key,
             bytes,
             fileOptions: const FileOptions(
@@ -161,7 +271,9 @@ class SubscriptionRepository {
       final value = row?['value'];
       if (value is! Map) return const Result.ok(PaymentMethods.fallback);
 
-      return Result.ok(PaymentMethods.fromJson(Map<String, dynamic>.from(value)));
+      return Result.ok(
+        PaymentMethods.fromJson(Map<String, dynamic>.from(value)),
+      );
     } on Object catch (e, s) {
       return Result.err(SupabaseService.mapError(e, s));
     }
