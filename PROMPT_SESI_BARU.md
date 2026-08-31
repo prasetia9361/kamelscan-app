@@ -15,18 +15,26 @@ landing page di `https://kamelscan.com`.
 
 | Tanggal | Pekerjaan |
 |---|---|
-| 30 Agustus | **Bab 12 — pembayaran, termasuk Midtrans.** Merchant ID, Client Key, dan Server Key sudah di tangan Product Owner. |
+| ~~30 Agustus~~ | ✅ **SELESAI — Bab 12 Midtrans jalan di Sandbox**, kelima skenario aturan 6 lulus (P.7) |
 | 31 Agustus | Optimasi menyeluruh, berburu bug, lalu **mengganti database yang dipakai produksi**. |
 | 1 September | Rilis iOS, persiapan produksi, dan memeriksa apa lagi yang dibutuhkan untuk unggah ke Google Play & App Store. |
 
 Product Owner membuat **worktree baru per tanggal**. Tutorial (Bab 9.9) tetap
 ditunda menunggu channel YouTube-nya siap — lihat daftar utang di bawah.
 
-🔴 **Untuk sesi 30 Agustus:** `MIDTRANS_SERVER_KEY` tidak boleh masuk tabel
-mana pun. Halaman Admin → Metode Pembayaran sengaja **tidak punya satu kolom
-teks pun**, dan ada tes yang gagal bila seseorang menambahkannya. Kuncinya
-dipasang lewat `supabase secrets set`. Sakelar Midtrans-nya sudah ada dan
-dapat dinyalakan tanpa merilis aplikasi baru.
+🔴 **Midtrans masih di SANDBOX, dan itu disengaja.** Untuk pindah ke produksi,
+`MIDTRANS_SERVER_KEY` dan `MIDTRANS_IS_PRODUCTION` harus diganti **bersamaan** —
+mengganti salah satu saja membuat setiap pembayaran gagal tanpa penjelasan yang
+berguna. Uraiannya di `DEVIASI_LIBRARY.md` **P.7**.
+
+⚠️ Saya memutuskan menundanya sampai database produksi final: menyalakan uang
+sungguhan lebih dulu berarti transaksi pertama lahir di database yang akan
+diganti.
+
+⚠️ **Awalan kunci Midtrans di akun saya SAMA untuk sandbox dan produksi**
+(`Mid-server-`), tidak ada `SB-`. Jangan menebak dari awalannya — cara
+membedakannya yang benar ada di P.7. `dataapp.md` baris 106–109 Sandbox, baris
+111–114 Produksi.
 
 ## 🔴 Aturan nomor satu: BERTANYA DULU, jangan mengambil keputusan sendiri
 
@@ -302,13 +310,24 @@ Editor. Beri saya isi berkasnya beserta langkah yang **detail** — sebutkan men
 yang diklik dan hasil yang seharusnya muncul (`Success. No rows returned`).
 Instruksi ringkas pernah membuat saya tersinggung karena terasa seperti diuji.
 
-**Migrasi terakhir yang sudah dijalankan: 32.** Ketiganya yang terbaru (30, 31,
-32) sudah berjalan di produksi 29 Agustus 2026:
+**Migrasi terakhir yang sudah dijalankan: 36.** Seluruhnya sudah berjalan di
+produksi:
 
 - **30** `get_platform_stats()` — angka Dasbor Platform
 - **31** `admin_list_tenants()` — tabel Kelola Pengguna
 - **32** alasan penolakan, jejak audit tenant, penyesuaian token, pemberian
   token serentak
+- **33** `promote_to_admin()`, `demote_to_owner()`, `list_admins()`
+- **34** `promos.used_count` akhirnya dihitung — batas pemakaian promo berlaku
+- **35** `admin_change_tier()` — ubah paket kini menyesuaikan kuota & saldo token
+- **36** `cancel_pending_subscription()` — pelanggan dapat membatalkan tagihannya
+
+**Edge Function terpasang: 9.** Dua yang terbaru `create-payment` dan
+`midtrans-webhook`.
+
+🔴 `midtrans-webhook` WAJIB di-deploy dengan `--no-verify-jwt`. Periksa dengan
+`supabase functions list` — kolom `verify_jwt` harus `False` untuk webhook itu
+saja, `True` untuk semua yang lain.
 
 ## Keadaan proyek — sudah selesai dan TERBUKTI di peramban/perangkat
 
@@ -358,6 +377,13 @@ halaman, uraiannya di `DEVIASI_LIBRARY.md` **P.5**:
 - **Aktivasi langganan** — migrasi 28, langganan sungguhan sudah aktif (P.1)
 - **Setujui & Tolak pembayaran** — terbukti pada baris sungguhan 29 Agustus
   2026 (P.4). Penolakan kini terlihat pelanggan beserta alasannya (P.6).
+- **Bab 12.3 Midtrans Snap** — dua Edge Function terbit, kelima skenario aturan
+  6 lulus di Sandbox 31 Agustus 2026 (P.7). Nominal dihitung di server, bukan
+  dikirim aplikasi.
+- **Bab 12.5** — jalur bayar ditutup di aplikasi HP supaya tidak ditolak App
+  Store. Di HP paket tetap terlihat, pembayarannya diarahkan ke dasbor web.
+- **Pelanggan dapat membatalkan tagihannya sendiri** (migrasi 36, P.8) —
+  sebelumnya satu tagihan yang ditinggalkan mengurungnya tanpa batas waktu.
 
 ⚠️ Naskah **Syarat & Ketentuan** dan **Kebijakan Privasi** disusun desainer dan
 **tidak pernah diperiksa penasihat hukum**. Saya memutuskan menerbitkannya apa
@@ -373,34 +399,38 @@ adanya setelah diberi tahu risikonya. Jangan membuka ulang keputusan itu.
 
 ## 🔴 Utang yang belum lunas
 
-### 1. 🔴 PRIORITAS: Ubah Paket tidak menyesuaikan token
+### 1. 🔴 Midtrans belum pernah diuji di PRODUKSI
 
-**Melanggar Bab 7.2 poin 4**, yang menulis: *"Saat upgrade tier, saldo langsung
-disesuaikan ke kuota tier baru secara proporsional dan dicatat di
-`token_ledger` dengan alasan `plan_upgrade`."*
+Kelima skenario Bab 12.3 aturan 6 sudah lulus, tetapi **seluruhnya di
+Sandbox**. Yang belum pernah terjadi sekali pun: satu rupiah sungguhan berpindah
+lewat jalur ini.
 
-Tombol **Jadikan Pro / Jadikan Standar** hanya mengubah kolom `tier_plan`.
-Dompet tokennya tidak disentuh sama sekali, dan **tidak ada trigger apa pun**
-yang bereaksi terhadap perubahan tier — penyesuaian token hanya terjadi lewat
-`activate_subscription()` (migrasi 28), yang dipicu pembayaran.
+Untuk menyalakannya, `MIDTRANS_SERVER_KEY` dan `MIDTRANS_IS_PRODUCTION` harus
+diganti **bersamaan** (P.7). Saya menundanya sampai database produksi final.
 
-Akibat nyatanya: pelanggan yang dinaikkan ke Pro lewat tombol itu tetap
-berkuota **1.000 token, bukan 5.000**, dan tidak ada satu pun galat yang
-muncul. Sementara ini tokennya ditambah manual lewat **Atur Token**.
+⚠️ Sesudah dinyalakan, transaksi pertama sebaiknya nominal kecil dan diperiksa
+sampai ke `token_ledger` — bukan hanya sampai layar bilang berhasil.
 
-**Ditunda ke 31 Agustus 2026 atas keputusan Product Owner.** Ada nuansa yang
-harus ditanyakan lebih dulu: kata *"proporsional"* di Bab 7.2 berbeda dari
-`activate_subscription()`, yang mengisi penuh kuota tier baru. Keduanya
-keputusan dagang — jangan memilih sendiri.
+### 2. Dua kegagalan Midtrans yang pesannya sama
 
-### 2. Unggah gambar iklan (Bab 11.5) — butuh migrasi baru
+`MIDTRANS_UNREACHABLE` (jaringan) dan `MIDTRANS_REJECTED` (Midtrans menolak,
+biasanya kunci salah) dipetakan ke **satu kalimat yang sama** di
+`subscription_repository.dart`, dan `create-payment` tidak menuliskan penolakan
+Midtrans ke `console.error`.
+
+Akibatnya, saat tiga pembayaran gagal berturut-turut pada 31 Agustus 2026,
+tidak ada satu pun petunjuk di layar maupun di catatan fungsi. Sebabnya baru
+ketahuan setelah kuncinya diuji langsung ke Midtrans. ± 30 menit untuk
+memperbaiki keduanya.
+
+### 3. Unggah gambar iklan (Bab 11.5) — butuh migrasi baru
 
 Bucket `public-assets` **tidak pernah dibuat**; yang ada hanya `avatars`
 (migrasi 23) dan `payment-proofs` (migrasi 25). Sisa Bab 11.5 (kontak) sudah
 selesai. Gambar landing page dan gambar halaman pembayaran karena itu masih
 diatur lewat Supabase Dashboard.
 
-### 3. Bab 9.9 Tutorial — DITUNDA, menunggu channel YouTube
+### 4. Bab 9.9 Tutorial — DITUNDA, menunggu channel YouTube
 
 Halaman daftar bernomor dari tabel `tutorials`, membuka YouTube lewat
 `url_launcher`. Versi webnya grid kartu (Bab 10.5). CRUD-nya di panel Admin
@@ -415,12 +445,12 @@ Sampai saat itu, menu Tutorial di sidebar web dan di Beranda HP tetap mendarat
 di halaman kosong. **Itu keadaan yang saya terima, bukan cacat yang terlewat.**
 Perkiraan ± 2 jam begitu videonya ada.
 
-### 4. Satu video sungguhan lewat jalur unggah latar belakang
+### 5. Satu video sungguhan lewat jalur unggah latar belakang
 
 Isolatenya terbukti hidup, tetapi antriannya selalu keburu dihabiskan jalur
 aplikasi-terbuka. Prosedurnya di `DEVIASI_LIBRARY.md` **L.8**; butuh Wi-Fi.
 
-### 5. Zoom peramban pada aplikasi web
+### 6. Zoom peramban pada aplikasi web
 
 Belum jelas apakah perlu diperbaiki. Tidak ada apa pun di kode yang menguncinya
 (tidak ada `user-scalable=no`), tetapi Flutter web menata ulang isinya alih-alih
@@ -429,13 +459,13 @@ membutuhkannya, jalan yang lebih pasti adalah menambah pengaturan **ukuran
 huruf** di Pengaturan → Tampilan (± 1 jam), bukan mengandalkan perilaku
 peramban.
 
-### 6. Layar putih 30 detik saat aplikasi pertama dibuka
+### 7. Layar putih 30 detik saat aplikasi pertama dibuka
 
 Diserahkan ke desainer 26 Agustus 2026, briefnya sudah diberikan. Uraiannya di
 **O.15**. Jangan memperkecil `main.dart.js` diam-diam sambil menunggu — itu
 pekerjaan lain yang belum diputuskan.
 
-### 7. Versi tabel untuk Toko, Packer, dan Pembayaran — DIBATALKAN
+### 8. Versi tabel untuk Toko, Packer, dan Pembayaran — DIBATALKAN
 
 Bab 10.5 memintanya, tetapi saya memutuskan 29 Agustus 2026 bahwa bentuk
 sekarang (tampilan HP di dalam rangka web) sudah cukup. **Jangan
@@ -451,6 +481,9 @@ mengerjakannya** tanpa saya minta ulang.
 - **Alur perpanjangan langganan belum pernah diuji** → sudah terbukti, dan
   Admin kini punya tombol **Perpanjang periode** dengan pilihan 1/3/6/12 bulan
   atau tanggal sendiri.
+- **Ubah Paket tidak menyesuaikan token** → lunas 30 Agustus 2026, migrasi 35.
+  Kuota bulanan ikut berubah, saldonya diisi penuh, dan tercatat di buku besar.
+- **Pemakaian promo tidak pernah dihitung** → lunas, migrasi 34.
 
 ## Jebakan yang sudah memakan waktu
 
