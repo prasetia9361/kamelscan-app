@@ -217,6 +217,10 @@ if (Test-Path (Join-Path $out 'v/index.html')) {
 foreach ($r in @(
     'login', 'register', 'verify-email', 'forgot-password',
     'change-password', 'complete-profile', 'reset-password',
+    # Bab 9.6 - rute TINGKAT ATAS, bukan di bawah /account, jadi pola
+    # 'account/*' TIDAK menutupinya. Ia justru halaman yang paling mungkin
+    # disegarkan orang: layar tunggu 7 hari sebelum akunnya dimusnahkan.
+    'deletion-pending',
     'dashboard', 'tutorial',
     'home', 'home/*',
     'history', 'history/*',
