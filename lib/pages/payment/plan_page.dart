@@ -102,6 +102,95 @@ class _Body extends ConsumerWidget {
   }
 }
 
+/// Tombol membatalkan tagihan yang sedang berjalan (Bab 12.2).
+///
+/// 🔴 Selalu bertanya lebih dulu, dan pertanyaannya menyebut **nominalnya**.
+/// Yang ditekan orang adalah tombol kecil di sudut spanduk; satu-satunya
+/// penjagaan terhadap membatalkan tagihan yang sebenarnya masih ia butuhkan
+/// adalah melihat angkanya tertulis ulang sebelum menekan.
+class _TombolBatalkan extends ConsumerStatefulWidget {
+  const _TombolBatalkan({required this.subscription});
+
+  final Subscription? subscription;
+
+  @override
+  ConsumerState<_TombolBatalkan> createState() => _TombolBatalkanState();
+}
+
+class _TombolBatalkanState extends ConsumerState<_TombolBatalkan> {
+  bool _sedang = false;
+
+  Future<void> _batalkan() async {
+    final t = context.l10n;
+    final messenger = ScaffoldMessenger.of(context);
+    final sub = widget.subscription;
+
+    final yakin = await showDialog<bool>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: Text(t.paymentCancelTitle),
+        content: Text(
+          t.paymentCancelBody(
+            sub == null ? '-' : Formatters.currency(sub.amount),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(d, false),
+            child: Text(t.commonNo),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(d, true),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(d).colorScheme.error,
+            ),
+            child: Text(t.paymentCancelConfirm),
+          ),
+        ],
+      ),
+    );
+    if (yakin != true || !mounted) return;
+
+    setState(() => _sedang = true);
+    final gagal = await ref
+        .read(planViewModelProvider.notifier)
+        .cancelPendingBill();
+    if (!mounted) return;
+    setState(() => _sedang = false);
+
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          gagal == null ? t.paymentCancelled : context.failureMessage(gagal),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.l10n;
+
+    return SizedBox(
+      width: double.infinity,
+      child: TextButton.icon(
+        onPressed: _sedang ? null : _batalkan,
+        style: TextButton.styleFrom(
+          foregroundColor: Theme.of(context).colorScheme.error,
+        ),
+        icon: _sedang
+            ? const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.cancel_outlined, size: 18),
+        label: Text(t.paymentCancelBill),
+      ),
+    );
+  }
+}
+
 /// Pembayaran yang ditolak Admin (Bab 11.7).
 ///
 /// 🔴 Widget ini lahir dari cacat, bukan dari permintaan fitur. Sampai
@@ -257,6 +346,19 @@ class _PendingBanner extends ConsumerWidget {
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
+
+            // 🔴 Jalan keluar. Sampai 31 Agustus 2026 tidak ada satu pun,
+            // dan satu tagihan yang ditinggalkan mengunci pelanggan tanpa
+            // batas waktu — terjadi pada Product Owner sendiri, dari Kamis
+            // sampai Minggu.
+            //
+            // Hanya muncul selama bukti transfer belum diunggah. Sesudah itu
+            // hanya Admin yang boleh menutupnya, karena hanya Admin yang dapat
+            // memeriksa mutasi rekening (migrasi 36).
+            if (!(subscription?.isWaitingVerification ?? false)) ...[
+              const SizedBox(height: 8),
+              _TombolBatalkan(subscription: subscription),
+            ],
           ],
         ),
       ),

@@ -100,6 +100,7 @@ extension FailureMessages on BuildContext {
       'errorPricingMissing' => t.errorPricingMissing,
       'errorAmountZero' => t.errorAmountZero,
       'promoNotFound' => t.promoNotFound,
+      'errorProofUploaded' => t.errorProofUploaded,
 
       _ => t.errorUnknown,
     };

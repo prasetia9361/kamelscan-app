@@ -51,6 +51,30 @@ class CheckoutViewModel extends _$CheckoutViewModel {
     await future;
   }
 
+  /// Membatalkan tagihan ini (Bab 12.2) — dipakai tombol pada spanduk
+  /// "batas waktu transfer habis".
+  ///
+  /// ⚠️ Ditolak server bila bukti transfer sudah diunggah: tagihan berbukti
+  /// hanya boleh ditutup Admin, karena hanya Admin yang dapat memeriksa mutasi
+  /// rekening (migrasi 36).
+  Future<AppFailure?> cancelBill() async {
+    final tagihan = state.value?.bill;
+    if (tagihan == null) return AppFailure.notFound;
+
+    debugPrint('KAMELSCAN_BAYAR batalkan tagihan basi ${tagihan.id}');
+    final hasil = await ref
+        .read(subscriptionRepositoryProvider)
+        .cancelPendingBill(tagihan.id);
+
+    debugPrint(
+      'KAMELSCAN_BAYAR batalkan '
+      '${hasil.isOk ? 'BERHASIL' : 'GAGAL · ${hasil.failureOrNull}'}',
+    );
+
+    if (hasil.isOk) await refresh();
+    return hasil.failureOrNull;
+  }
+
   /// Mengunggah bukti transfer (langkah 4).
   ///
   /// Mengembalikan kegagalan, atau null bila berhasil.

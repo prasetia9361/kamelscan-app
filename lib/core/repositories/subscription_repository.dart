@@ -114,6 +114,38 @@ class SubscriptionRepository {
     _ => AppFailure.unknown('Balasan create-payment tidak sah: $mentah'),
   };
 
+  /// Membatalkan tagihan yang masih berjalan — RPC
+  /// `cancel_pending_subscription()`, migrasi `36_cancel_bill.sql`.
+  ///
+  /// 🔴 Lewat RPC karena `subscriptions` sengaja hanya punya policy `select`
+  /// dan `insert` bagi Owner (migrasi 14): ia dapat membuat tagihan, tetapi
+  /// tidak pernah dapat menutupnya. Akibatnya satu tagihan yang ditinggalkan
+  /// mengunci pelanggan tanpa batas waktu — terjadi pada Product Owner
+  /// sendiri, dari Kamis sampai Minggu.
+  ///
+  /// ⚠️ Ditolak server bila bukti transfer sudah diunggah. Tagihan berbukti
+  /// hanya boleh ditutup Admin, karena hanya Admin yang dapat memeriksa mutasi
+  /// rekening — pelanggan yang sudah benar-benar mentransfer lalu membatalkan
+  /// akan kehilangan jejak uangnya.
+  Future<Result<void>> cancelPendingBill(String subscriptionId) async {
+    try {
+      await _client.rpc<Object?>(
+        'cancel_pending_subscription',
+        params: {'p_subscription_id': subscriptionId},
+      );
+      return okVoid;
+    } on Object catch (e, s) {
+      // 🔴 Penolakan karena bukti sudah diunggah punya kalimatnya sendiri.
+      // Tanpa ini ia muncul sebagai "Terjadi kesalahan", dan pelanggan akan
+      // menekan tombolnya berulang kali untuk keadaan yang tidak akan berubah
+      // — cacat M.16, di tempat baru.
+      if (e.toString().contains('PROOF_UPLOADED')) {
+        return Result.err(AppFailure.validation('errorProofUploaded'));
+      }
+      return Result.err(SupabaseService.mapError(e, s));
+    }
+  }
+
   /// Membuat tagihan berstatus `pending` (Bab 12.2 langkah 2).
   ///
   /// 🔴 `status` sengaja tidak dikirim. Policy `sub_insert_owner` mensyaratkan

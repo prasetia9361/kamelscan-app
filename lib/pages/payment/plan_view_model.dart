@@ -212,6 +212,29 @@ class PlanViewModel extends _$PlanViewModel {
     state = AsyncData(data.copyWith(hapusPromo: true));
   }
 
+  /// Membatalkan tagihan yang sedang berjalan, lalu menyegarkan halamannya.
+  ///
+  /// 🔴 Penyegaran WAJIB dan bukan kemewahan: tanpa itu spanduk "ada tagihan
+  /// yang belum selesai" tetap berdiri dan tombol Bayar tetap mati, sehingga
+  /// pembatalan yang berhasil terlihat persis seperti pembatalan yang gagal.
+  Future<AppFailure?> cancelPendingBill() async {
+    final tagihan = state.value?.pending;
+    if (tagihan == null) return null;
+
+    debugPrint('KAMELSCAN_BAYAR batalkan tagihan ${tagihan.id}');
+    final hasil = await ref
+        .read(subscriptionRepositoryProvider)
+        .cancelPendingBill(tagihan.id);
+
+    debugPrint(
+      'KAMELSCAN_BAYAR batalkan '
+      '${hasil.isOk ? 'BERHASIL' : 'GAGAL · ${hasil.failureOrNull}'}',
+    );
+
+    if (hasil.isOk) await refresh();
+    return hasil.failureOrNull;
+  }
+
   /// Membuat tagihan **Midtrans** dan mengembalikan halaman pembayarannya
   /// (Bab 12.3).
   ///

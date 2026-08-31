@@ -90,18 +90,49 @@ class _Body extends ConsumerWidget {
 /// dikurangi satu tiap kali. Penghitung yang mengurangi dirinya sendiri akan
 /// meleset begitu aplikasi masuk latar belakang, dan melesetnya selalu ke arah
 /// yang menguntungkan aplikasi: layar mengaku masih ada waktu padahal habis.
-class _Countdown extends StatefulWidget {
+class _Countdown extends ConsumerStatefulWidget {
   const _Countdown({required this.bill});
 
   final Subscription bill;
 
   @override
-  State<_Countdown> createState() => _CountdownState();
+  ConsumerState<_Countdown> createState() => _CountdownState();
 }
 
-class _CountdownState extends State<_Countdown> {
+class _CountdownState extends ConsumerState<_Countdown> {
   Timer? _detak;
   late Duration _sisa;
+  bool _sedangBatal = false;
+
+  /// Membatalkan tagihan basi ini, lalu kembali ke halaman paket.
+  ///
+  /// 🔴 Sampai 31 Agustus 2026 tombol di bawah hanya berpindah halaman tanpa
+  /// membatalkan apa pun — dan di halaman paket tagihan lamanya masih berdiri
+  /// dengan tombol Bayar yang mati. Tombolnya menjanjikan jalan keluar lalu
+  /// memutar kembali ke tempat yang sama, dan Product Owner tersangkut di
+  /// putaran itu dari Kamis sampai Minggu.
+  Future<void> _batalkanLaluBaru() async {
+    final t = context.l10n;
+    final messenger = ScaffoldMessenger.of(context);
+    final router = GoRouter.of(context);
+
+    setState(() => _sedangBatal = true);
+    final gagal = await ref
+        .read(checkoutViewModelProvider.notifier)
+        .cancelBill();
+    if (!mounted) return;
+    setState(() => _sedangBatal = false);
+
+    if (gagal != null) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(context.failureMessage(gagal))),
+      );
+      return;
+    }
+
+    messenger.showSnackBar(SnackBar(content: Text(t.paymentCancelled)));
+    router.go(Routes.payment);
+  }
 
   @override
   void initState() {
@@ -153,8 +184,14 @@ class _CountdownState extends State<_Countdown> {
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.tonal(
-                  onPressed: () => context.go(Routes.payment),
-                  child: Text(t.checkoutNewBill),
+                  onPressed: _sedangBatal ? null : _batalkanLaluBaru,
+                  child: _sedangBatal
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Text(t.checkoutNewBill),
                 ),
               ),
             ],
