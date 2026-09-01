@@ -531,13 +531,13 @@ class _ChangeLabel extends StatelessWidget {
 /// berubah DAN kalimatnya ikut berubah**. Palet melarang makna yang hanya
 /// disampaikan lewat warna, dan bilah kemajuan yang berubah oranye tanpa satu
 /// kata pun adalah bentuk paling murni dari pelanggaran itu.
-class _TokenFooter extends StatelessWidget {
+class _TokenFooter extends ConsumerWidget {
   const _TokenFooter({required this.stats});
 
   final DailyStats stats;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final t = context.l10n;
     final colors = Theme.of(context).extension<AppColors>()!;
     final dompet = stats.wallet;
@@ -552,10 +552,36 @@ class _TokenFooter extends StatelessWidget {
     }
 
     final hari = stats.estimatedDaysLeft;
-    return _Keterangan(
-      teks: hari == null
-          ? t.dashboardTokenNoEstimate
-          : t.dashboardTokenDaysLeft(Formatters.number(hari)),
+
+    // ⚠️ Ramalan yang terlalu jauh diucapkan dengan kata, bukan angka. Lihat
+    // [AppConstants.tokenForecastMaxDays] untuk alasannya.
+    final ramalan = hari == null
+        ? t.dashboardTokenNoEstimate
+        : hari > AppConstants.tokenForecastMaxDays
+        ? t.dashboardTokenPlenty
+        : t.dashboardTokenDaysLeft(Formatters.number(hari));
+
+    // 🔴 Kapan tokennya hangus — dari `tenants.period_end`, BUKAN dari
+    //    `token_wallets.period_end`, konsisten dengan dialog atur token milik
+    //    Admin. Sejak migrasi 40 token tidak lagi diisi ulang bulanan: ia
+    //    hidup selama langganannya hidup, lalu hangus SEKALIGUS saat langganan
+    //    berakhir.
+    //
+    //    Sampai 1 September 2026 kartu ini tidak menyebutkan tanggal itu sama
+    //    sekali. Admin diberi tahu, pemilik tokennya tidak — padahal yang
+    //    kehilangan saldonya dia. Dilaporkan Product Owner pada saldo 105.092
+    //    token: seluruhnya hangus serentak, tanpa satu pun peringatan di layar
+    //    yang menampilkannya.
+    final akhir = ref.watch(sessionProvider).value?.tenant.periodEnd;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _Keterangan(teks: ramalan),
+        if (akhir != null)
+          _Keterangan(teks: t.dashboardTokenExpires(Formatters.date(akhir))),
+      ],
     );
   }
 }

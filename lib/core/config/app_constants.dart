@@ -114,6 +114,18 @@ class AppConstants {
 
   /// Ambang indikator token (Bab 7.3).
   static const double tokenWarningRatio = 0.20;
+
+  /// Batas atas ramalan "cukup N hari lagi" di kartu token.
+  ///
+  /// 🔴 Di atas ini angkanya TIDAK ditulis. Sejak model akumulatif (migrasi 40)
+  /// saldo dapat menumpuk sangat besar, dan pada laju pemakaian yang kecil
+  /// rumusnya menghasilkan angka seperti **58.384 hari** — 160 tahun. Itu yang
+  /// benar-benar tampil ke Product Owner 1 September 2026.
+  ///
+  /// Kartu Kapasitas sudah menolak meramal sejauh itu dengan alasan yang sama
+  /// persis: ramalan yang tidak dapat dipercaya bukan informasi, ia hanya
+  /// mengajari orang mengabaikan kartunya.
+  static const int tokenForecastMaxDays = 365;
   static const double tokenCriticalRatio = 0.05;
 
   /// Hari peringatan sebelum langganan berakhir (Bab 7.6).

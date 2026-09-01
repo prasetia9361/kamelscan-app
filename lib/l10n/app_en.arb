@@ -1325,6 +1325,15 @@
     }
   },
   "dashboardTokenNoEstimate": "Not enough data to estimate",
+  "dashboardTokenPlenty": "More than enough at the current rate",
+  "dashboardTokenExpires": "Tokens are wiped when the subscription ends on {date}.",
+  "@dashboardTokenExpires": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "dashboardTokenLow": "Tokens running low",
   "dashboardTokenEmpty": "Out of tokens",
   "dashboardTokenNoWallet": "Token wallet not created yet",

@@ -1328,6 +1328,15 @@
     }
   },
   "dashboardTokenNoEstimate": "Belum cukup data untuk memperkirakan",
+  "dashboardTokenPlenty": "Lebih dari cukup pada laju pemakaian sekarang",
+  "dashboardTokenExpires": "Token hangus saat langganan berakhir pada {date}.",
+  "@dashboardTokenExpires": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "dashboardTokenLow": "Token menipis",
   "dashboardTokenEmpty": "Token habis",
   "dashboardTokenNoWallet": "Dompet token belum terbentuk",
