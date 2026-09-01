@@ -72,7 +72,23 @@ class DeleteAccountViewModel extends _$DeleteAccountViewModel {
       case Ok():
         // Dijadwalkan, atau memang sudah pernah diminta sebelumnya. Keduanya
         // berakhir di tempat yang sama, dan keduanya benar.
-        ref.invalidate(sessionProvider);
+        //
+        // 🔴 `reload()` yang DITUNGGU, bukan `ref.invalidate` yang dilepas
+        //    begitu saja. `invalidate` hanya menandai sesinya kotor dan
+        //    membiarkan pemuatan ulangnya terjadi belakangan; selama jeda itu
+        //    penjaga rute masih membaca tenant yang lama, memutuskan tidak ada
+        //    yang perlu dipindahkan, dan layarnya diam.
+        //
+        //    Dilaporkan Product Owner 1 September 2026: *"saat klik hapus tidak
+        //    ada respon, harus keluar dulu baru kalau masuk muncul halaman
+        //    itu"* — dan ia menambahkan alasan kenapa itu mahal meski akunnya
+        //    memang jadi terhapus: orang mengira aplikasinya rusak, lalu
+        //    menekan tombolnya berulang-ulang.
+        //
+        // ⚠️ Menunggu di sini aman: `reload()` menyetel AsyncLoading lebih
+        //    dulu, jadi layar mana pun yang sedang menyimak sesi menampilkan
+        //    keadaan memuat, bukan data basi.
+        await ref.read(sessionProvider.notifier).reload();
         if (ref.mounted) state = const DeleteAccountIdle();
     }
   }
@@ -88,7 +104,10 @@ class DeleteAccountViewModel extends _$DeleteAccountViewModel {
       return;
     }
 
-    ref.invalidate(sessionProvider);
+    // Ditunggu, dengan alasan yang sama persis seperti di [request] — hanya
+    // arahnya terbalik. Tanpa ini layar kunci tetap terpasang sesudah
+    // pembatalan berhasil, dan Owner menekan "Batalkan penghapusan" lagi.
+    await ref.read(sessionProvider.notifier).reload();
     if (ref.mounted) state = const DeleteAccountIdle();
   }
 

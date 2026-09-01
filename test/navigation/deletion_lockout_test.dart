@@ -170,6 +170,95 @@ void main() {
       expect(tujuan(c, Routes.deletionPending), Routes.home);
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // 🔴 Router harus DIBERI TAHU, bukan hanya memutuskan dengan benar
+  // ---------------------------------------------------------------------------
+  //
+  // Seluruh tes di atas memanggil `RouteGuards.redirect` LANGSUNG. Semuanya
+  // lulus, dan cacatnya tetap lolos ke produksi: Owner menekan Hapus Akun,
+  // permintaannya berhasil, `deletion_requested_at` benar-benar terisi — dan
+  // layarnya diam di tempat. Harus keluar lalu masuk lagi baru layar kuncinya
+  // muncul.
+  //
+  // Sebabnya `GoRouterRefreshNotifier` tidak menyimak keadaan itu, sehingga
+  // penjaganya tidak pernah diminta menilai ulang. Penjaga yang benar tetapi
+  // tidak pernah dipanggil sama saja dengan penjaga yang salah.
+  //
+  // Ini jebakan nomor 11 di catatan proyek, dan ia sudah berulang. Tes di bawah
+  // menguji SAMBUNGANNYA, bukan keputusannya.
+  group('GoRouterRefreshNotifier menyimak permintaan hapus akun', () {
+    test('🔴 memberi tahu router saat penghapusan mulai tertunda', () async {
+      final palsu = _SesiPalsuBerubah(sesiDengan());
+      final c = ProviderContainer(
+        overrides: [
+          isSignedInProvider.overrideWithValue(true),
+          currentRoleProvider.overrideWithValue(UserRole.owner),
+          mustChangePasswordProvider.overrideWithValue(false),
+          needsProfileCompletionProvider.overrideWithValue(false),
+          passwordResetPendingProvider.overrideWith(() => _PemulihanPalsu(false)),
+          sessionProvider.overrideWith(() => palsu),
+        ],
+      );
+      addTearDown(c.dispose);
+      await siap(c);
+
+      final notifier = GoRouterRefreshNotifier(c.read(_refProvider));
+      addTearDown(notifier.dispose);
+
+      var diberitahu = 0;
+      notifier.addListener(() => diberitahu++);
+
+      palsu.ganti(
+        sesiDengan(
+          diminta: DateTime(2026, 9, 1),
+          musnahkanSetelah: DateTime(2026, 9, 8),
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(
+        diberitahu,
+        greaterThan(0),
+        reason: 'Router tidak pernah diberi tahu, jadi penjaganya tidak pernah '
+            'menilai ulang dan layarnya diam di tempat.',
+      );
+      expect(tujuan(c, Routes.home), Routes.deletionPending);
+    });
+
+    test('memberi tahu juga saat penghapusan dibatalkan', () async {
+      final palsu = _SesiPalsuBerubah(
+        sesiDengan(
+          diminta: DateTime(2026, 9, 1),
+          musnahkanSetelah: DateTime(2026, 9, 8),
+        ),
+      );
+      final c = ProviderContainer(
+        overrides: [
+          isSignedInProvider.overrideWithValue(true),
+          currentRoleProvider.overrideWithValue(UserRole.owner),
+          mustChangePasswordProvider.overrideWithValue(false),
+          needsProfileCompletionProvider.overrideWithValue(false),
+          passwordResetPendingProvider.overrideWith(() => _PemulihanPalsu(false)),
+          sessionProvider.overrideWith(() => palsu),
+        ],
+      );
+      addTearDown(c.dispose);
+      await siap(c);
+
+      final notifier = GoRouterRefreshNotifier(c.read(_refProvider));
+      addTearDown(notifier.dispose);
+
+      var diberitahu = 0;
+      notifier.addListener(() => diberitahu++);
+
+      palsu.ganti(sesiDengan());
+      await Future<void>.delayed(Duration.zero);
+
+      expect(diberitahu, greaterThan(0));
+      expect(tujuan(c, Routes.deletionPending), Routes.home);
+    });
+  });
 }
 
 final _refProvider = Provider<Ref>((ref) => ref);
@@ -180,6 +269,22 @@ class _SesiPalsu extends Session {
 
   @override
   Future<SessionContext?> build() async => _nilai;
+}
+
+/// Sesi palsu yang nilainya dapat DIGANTI di tengah tes, supaya sambungan
+/// antara perubahan sesi dan `GoRouterRefreshNotifier` benar-benar terlihat.
+/// [_SesiPalsu] nilainya tetap, jadi ia tidak dapat menguji hal itu.
+class _SesiPalsuBerubah extends Session {
+  _SesiPalsuBerubah(this._nilai);
+  SessionContext? _nilai;
+
+  @override
+  Future<SessionContext?> build() async => _nilai;
+
+  void ganti(SessionContext? baru) {
+    _nilai = baru;
+    state = AsyncData(baru);
+  }
 }
 
 class _PemulihanPalsu extends PasswordResetPending {

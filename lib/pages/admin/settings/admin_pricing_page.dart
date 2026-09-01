@@ -31,6 +31,13 @@ class _AdminPricingPageState extends ConsumerState<AdminPricingPage> {
   /// Dua kolom mulai selebar ini; di bawahnya menumpuk.
   static const double duaKolom = 900;
 
+  /// Sejak paket ketiga ada, layar laptop muat menampung ketiganya
+  /// berdampingan. Tanpa ambang ini kartu Bisnis berdiri sendirian di baris
+  /// kedua, di bawah lipatan — dan Product Owner melaporkannya sebagai
+  /// "masih 2 tier" pada 1 September 2026, karena memang itu yang terlihat
+  /// tanpa menggulir.
+  static const double tigaKolom = 1300;
+
   final _kolom = <String, TextEditingController>{};
   bool _sedang = false;
   bool _terisi = false;
@@ -185,32 +192,39 @@ class _AdminPricingPageState extends ConsumerState<AdminPricingPage> {
                   // Tidak ada satu pun galat: daftarnya memang berisi tiga,
                   // hanya yang ketiga tidak pernah diminta.
                   ...(() {
-                    if (batas.maxWidth < duaKolom) {
-                      return <Widget>[
-                        for (var i = 0; i < kartu.length; i++) ...[
-                          if (i > 0) const SizedBox(height: 16),
-                          kartu[i],
-                        ],
-                      ];
-                    }
+                    final perBaris = batas.maxWidth >= tigaKolom
+                        ? 3
+                        : batas.maxWidth >= duaKolom
+                        ? 2
+                        : 1;
+
                     final baris = <Widget>[];
-                    for (var i = 0; i < kartu.length; i += 2) {
+                    for (var i = 0; i < kartu.length; i += perBaris) {
                       if (i > 0) baris.add(const SizedBox(height: 16));
+
+                      if (perBaris == 1) {
+                        baris.add(kartu[i]);
+                        continue;
+                      }
+
                       baris.add(
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // `Expanded` di kedua sisi — kartu berisi tombol
-                            // bertema yang menuntut lebar tak terhingga.
-                            Expanded(child: kartu[i]),
-                            const SizedBox(width: 16),
-                            // Baris terakhir yang ganjil diisi ruang kosong,
-                            // supaya kartunya selebar kartu di baris atasnya
-                            // dan tidak melar sendirian.
-                            if (i + 1 < kartu.length)
-                              Expanded(child: kartu[i + 1])
-                            else
-                              const Expanded(child: SizedBox.shrink()),
+                            for (var k = 0; k < perBaris; k++) ...[
+                              if (k > 0) const SizedBox(width: 16),
+                              // `Expanded` di setiap sisi — kartu berisi tombol
+                              // bertema yang menuntut lebar tak terhingga, jadi
+                              // batasnya WAJIB datang dari sini.
+                              //
+                              // Baris terakhir yang tidak penuh diisi ruang
+                              // kosong, supaya kartunya selebar kartu di baris
+                              // atasnya dan tidak melar sendirian.
+                              if (i + k < kartu.length)
+                                Expanded(child: kartu[i + k])
+                              else
+                                const Expanded(child: SizedBox.shrink()),
+                            ],
                           ],
                         ),
                       );
