@@ -1392,6 +1392,7 @@
   "paymentChoosePlan": "Choose the plan that fits",
   "paymentPerMonth": "/mo",
   "paymentActivePlan": "Active Plan",
+  "paymentActivePlanBuyAgain": "Active plan — buy again",
   "paymentChoosePackage": "Choose Plan",
   "paymentSelected": "Selected",
   "planFeatureSeconds": "{seconds} seconds per video",

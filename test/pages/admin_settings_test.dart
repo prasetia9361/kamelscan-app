@@ -198,6 +198,13 @@ void main() {
         // (migrasi 30 keputusan 3).
         await buka(tester);
 
+        // 🔴 Digulir dulu, BUKAN layar ujinya yang dibesarkan. Sejak paket
+        // Bisnis ikut digambar (1 September 2026) halaman ini tiga kartu, dan
+        // tombol Simpan jatuh di bawah lipatan layar 1000x1600. Membesarkan
+        // layar uji akan membuat tes ini lulus sambil berhenti menangkap
+        // persis jenis cacat tata letak yang ia ada untuk menangkapnya.
+        await tester.ensureVisible(find.widgetWithText(FilledButton, 'Simpan'));
+        await tester.pumpAndSettle();
         await tester.tap(find.widgetWithText(FilledButton, 'Simpan'));
         await tester.pumpAndSettle();
         await tester.tap(
@@ -216,6 +223,10 @@ void main() {
     testWidgets('biaya yang diisi terbawa apa adanya', (tester) async {
       await buka(tester, biaya: 500000);
 
+      // Tiga kartu paket — tombolnya di bawah lipatan. Lihat keterangan di tes
+      // pertama kelompok ini.
+      await tester.ensureVisible(find.widgetWithText(FilledButton, 'Simpan'));
+      await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(FilledButton, 'Simpan'));
       await tester.pumpAndSettle();
       await tester.tap(
@@ -237,6 +248,10 @@ void main() {
         // saja membuat Admin menebak yang lain.
         await buka(tester);
 
+        // Tiga kartu paket — tombolnya di bawah lipatan. Lihat keterangan di
+        // tes pertama kelompok ini.
+        await tester.ensureVisible(find.widgetWithText(FilledButton, 'Simpan'));
+        await tester.pumpAndSettle();
         await tester.tap(find.widgetWithText(FilledButton, 'Simpan'));
         await tester.pumpAndSettle();
 
@@ -251,9 +266,13 @@ void main() {
         // Tanpa keterangan ini yang mengisinya akan menulis 999 — bekerja,
         // tetapi membuat aturan "tanpa batas" tidak pernah benar-benar ada.
         await buka(tester);
+        // 🔴 TIGA, bukan dua. Angka ini adalah jumlah kartu paket yang
+        // benar-benar tergambar, dan sampai 1 September 2026 ia berbunyi 2 —
+        // mengunci cacat yang membuat paket Bisnis tidak pernah digambar
+        // sama sekali. Tes yang lulus itulah yang mempertahankannya.
         expect(
           find.textContaining('Isi -1 untuk tanpa batas'),
-          findsNWidgets(2),
+          findsNWidgets(3),
         );
       },
     );

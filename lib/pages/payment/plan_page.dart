@@ -425,9 +425,19 @@ class _PlanCard extends ConsumerWidget {
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: aktif
-            ? null
-            : () => ref.read(planViewModelProvider.notifier).select(plan),
+        // 🔴 Paket yang sedang aktif TETAP dapat dipilih, dan itu bukan
+        // kelalaian. Sampai 31 Agustus 2026 modelnya naik/turun paket,
+        // sehingga membeli paket yang sedang berjalan memang tidak berarti
+        // apa-apa dan tombolnya sengaja dimatikan.
+        //
+        // Migrasi 40 menggantinya dengan model akumulatif: beli lagi menambah
+        // token DAN menambah sisa hari. Membeli paket yang sama justru menjadi
+        // jalur isi-ulang yang paling sering dipakai — dan mematikannya
+        // mengunci pelanggan yang sudah puas dengan paketnya.
+        //
+        // Dilaporkan Product Owner 1 September 2026: "owner tidak bisa beli
+        // pada tier yang sama".
+        onTap: () => ref.read(planViewModelProvider.notifier).select(plan),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
           child: Column(
@@ -473,12 +483,12 @@ class _PlanCard extends ConsumerWidget {
               const Spacer(),
               SizedBox(
                 width: double.infinity,
-                child: aktif
-                    ? OutlinedButton(
-                        onPressed: null,
-                        child: Text(t.paymentActivePlan),
-                      )
-                    : dipilih
+                // ⚠️ Paket aktif tidak lagi memakai tombol MATI. Ia tetap
+                // dikenali — garis tepinya hijau dan tombolnya menyebut
+                // "Paket aktif" — tetapi tetap dapat ditekan, karena membeli
+                // ulang paket yang sama adalah perpanjangan yang sah sejak
+                // model akumulatif berlaku (migrasi 40).
+                child: dipilih
                     ? FilledButton(
                         onPressed: null,
                         child: Text(t.paymentSelected),
@@ -487,7 +497,11 @@ class _PlanCard extends ConsumerWidget {
                         onPressed: () => ref
                             .read(planViewModelProvider.notifier)
                             .select(plan),
-                        child: Text(t.paymentChoosePackage),
+                        child: Text(
+                          aktif
+                              ? t.paymentActivePlanBuyAgain
+                              : t.paymentChoosePackage,
+                        ),
                       ),
               ),
             ],

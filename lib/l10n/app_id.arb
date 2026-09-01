@@ -1395,6 +1395,7 @@
   "paymentChoosePlan": "Pilih paket yang sesuai",
   "paymentPerMonth": "/bln",
   "paymentActivePlan": "Paket Aktif",
+  "paymentActivePlanBuyAgain": "Paket aktif — beli lagi",
   "paymentChoosePackage": "Pilih Paket",
   "paymentSelected": "Dipilih",
   "planFeatureSeconds": "{seconds} detik per video",

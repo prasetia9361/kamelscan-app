@@ -174,22 +174,49 @@ class _AdminPricingPageState extends ConsumerState<AdminPricingPage> {
               return ListView(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
                 children: [
-                  if (batas.maxWidth >= duaKolom)
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // `Expanded` di kedua sisi — kartu berisi tombol
-                        // bertema yang menuntut lebar tak terhingga.
-                        Expanded(child: kartu[0]),
-                        const SizedBox(width: 16),
-                        Expanded(child: kartu[1]),
-                      ],
-                    )
-                  else ...[
-                    kartu[0],
-                    const SizedBox(height: 16),
-                    kartu[1],
-                  ],
+                  // 🔴 JANGAN menyebut kartu[0] dan kartu[1] satu per satu.
+                  // Sampai 1 September 2026 baris inilah yang melakukannya,
+                  // tepat di bawah komentar yang menjanjikan sebaliknya —
+                  // sehingga paket Bisnis yang sudah ada di katalog TIDAK
+                  // PERNAH digambar, di lebar mana pun. Dilaporkan Product
+                  // Owner setelah melihat Admin > Harga & Paket masih dua
+                  // kartu padahal halaman pembayaran pelanggan sudah tiga.
+                  //
+                  // Tidak ada satu pun galat: daftarnya memang berisi tiga,
+                  // hanya yang ketiga tidak pernah diminta.
+                  ...(() {
+                    if (batas.maxWidth < duaKolom) {
+                      return <Widget>[
+                        for (var i = 0; i < kartu.length; i++) ...[
+                          if (i > 0) const SizedBox(height: 16),
+                          kartu[i],
+                        ],
+                      ];
+                    }
+                    final baris = <Widget>[];
+                    for (var i = 0; i < kartu.length; i += 2) {
+                      if (i > 0) baris.add(const SizedBox(height: 16));
+                      baris.add(
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // `Expanded` di kedua sisi — kartu berisi tombol
+                            // bertema yang menuntut lebar tak terhingga.
+                            Expanded(child: kartu[i]),
+                            const SizedBox(width: 16),
+                            // Baris terakhir yang ganjil diisi ruang kosong,
+                            // supaya kartunya selebar kartu di baris atasnya
+                            // dan tidak melar sendirian.
+                            if (i + 1 < kartu.length)
+                              Expanded(child: kartu[i + 1])
+                            else
+                              const Expanded(child: SizedBox.shrink()),
+                          ],
+                        ),
+                      );
+                    }
+                    return baris;
+                  })(),
 
                   const SizedBox(height: 16),
                   _KartuBiaya(controller: _c('infra_cost', '')),

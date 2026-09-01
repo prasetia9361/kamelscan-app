@@ -116,8 +116,24 @@ Deno.serve(async (req) => {
     return json({ error: 'INVALID_BODY' }, 400);
   }
 
+  // 🔴 JANGAN menyebut nama paket satu per satu di sini.
+  //
+  //    Sampai 1 September 2026 baris ini berbunyi
+  //    `if (plan !== 'standar' && plan !== 'pro')`, dan itu menolak `bisnis`
+  //    dengan INVALID_PLAN — sesudah paket Bisnis sudah ada di enum, di
+  //    katalog, di `platform_settings.pricing` (migrasi 39), dan sudah
+  //    tergambar di halaman pembayaran. Owner dapat memilihnya, menekan bayar,
+  //    lalu hanya melihat "terjadi kesalahan, coba lagi beberapa saat".
+  //
+  //    Dilaporkan Product Owner setelah mencoba dua kali berturut-turut.
+  //
+  // ⚠️ Yang sah ditentukan oleh `platform_settings.pricing` di langkah 5, satu
+  //    tempat yang sama dengan tempat harganya dibaca — jadi paket keempat
+  //    suatu hari nanti tidak menuntut berkas ini disentuh lagi. Di sini cukup
+  //    dipastikan bentuknya aman untuk dipakai sebagai kunci objek dan
+  //    dituliskan ke kolom enum `subscriptions.plan`.
   const plan = (body.plan ?? '').trim();
-  if (plan !== 'standar' && plan !== 'pro') {
+  if (!/^[a-z][a-z0-9_]{0,30}$/.test(plan)) {
     return json({ error: 'INVALID_PLAN' }, 400);
   }
 

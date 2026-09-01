@@ -96,6 +96,21 @@ class UserRepository {
             '${AppConstants.tblShopPackers}(${AppConstants.tblShops}(shop_name))',
           )
           .eq('role', UserRole.packer.wire)
+          // 🔴 Menghapus video di aplikasi adalah penghapusan LUNAK: barisnya
+          // tetap ada dengan `status = 'deleted'` (video_repository). Tanpa
+          // saringan ini hitungannya memuat video yang di mata Owner sudah
+          // hilang dari setiap layar — dan `canDelete` (videoCount == 0) ikut
+          // salah, sehingga packer yang videonya sudah dibersihkan tetap
+          // menolak dihapus.
+          //
+          // Dilaporkan Product Owner 1 September 2026 pada packer "Pepus".
+          // Diukur langsung ke produksi hari itu: tanpa saringan Pepus = 1,
+          // dengan saringan Pepus = 0.
+          //
+          // ⚠️ Saringan pada tabel tersemat hanya menyaring baris TERSEMAT-nya,
+          // bukan membuang packer-nya dari daftar — sudah dibuktikan pada 13
+          // packer sungguhan, semuanya tetap kembali.
+          .neq('${AppConstants.tblPackageVideos}.status', VideoStatus.deleted.wire)
           .order('created_at', ascending: false);
 
       return Result.ok(

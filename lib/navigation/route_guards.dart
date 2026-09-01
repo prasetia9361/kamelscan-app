@@ -237,6 +237,13 @@ class GoRouterRefreshNotifier extends ChangeNotifier {
     // Bab 6.8 — tautan reset tiba saat aplikasi sedang terbuka. Sesinya
     // berubah tanpa mengubah status login maupun peran.
     _ref.listen(passwordResetPendingProvider, (_, _) => notifyListeners());
+
+    // Bab 9.6 — permintaan hapus akun diterima, atau dibatalkan. Yang hilang
+    // sampai 1 September 2026, dan gejalanya persis seperti yang sudah
+    // diperingatkan di kepala berkas ini: Owner menekan Hapus Akun,
+    // permintaannya BERHASIL, `deletion_requested_at` terisi — dan layarnya
+    // diam di tempat, tanpa satu pun galat.
+    _ref.listen(deletionPendingProvider, (_, _) => notifyListeners());
   }
 
   final Ref _ref;

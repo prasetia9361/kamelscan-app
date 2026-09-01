@@ -246,6 +246,27 @@ bool needsProfileCompletion(Ref ref) =>
 UserRole? currentRole(Ref ref) =>
     ref.watch(sessionProvider).value?.role;
 
+/// Bab 9.6 — akun sedang menunggu dimusnahkan.
+///
+/// 🔴 Ada HANYA supaya `GoRouterRefreshNotifier` punya sesuatu yang sempit
+/// untuk disimak. `RouteGuards.redirect` membaca
+/// `sessionProvider.value.tenant.isDeletionPending`, dan nilai yang dibaca
+/// penjaga tetapi tidak disimak notifier menghasilkan gejala yang sudah
+/// memakan waktu berkali-kali di proyek ini: **layar yang seharusnya
+/// berpindah, diam di tempat, tanpa satu pun galat.**
+///
+/// Persis itu yang dilaporkan Product Owner 1 September 2026 — *"akun sudah
+/// dihapus tapi tidak ada respon sama sekali"*. Permintaannya berhasil,
+/// `deletion_requested_at` benar-benar terisi, dan routernya tidak pernah
+/// diberi tahu untuk menilai ulang.
+///
+/// ⚠️ Selalu `false` selagi sesi masih dimuat, mengikuti alasan yang sama
+/// dengan [needsProfileCompletion]: jangan melempar orang ke layar kunci
+/// sekelebat sebelum tenant-nya sempat terbaca.
+@riverpod
+bool deletionPending(Ref ref) =>
+    ref.watch(sessionProvider).value?.tenant.isDeletionPending ?? false;
+
 /// Saldo token langsung dari server, agar indikator ikut berubah saat packer
 /// lain menyelesaikan unggahan (Bab 7.3).
 @riverpod
