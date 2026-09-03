@@ -133,16 +133,36 @@ class _Tab extends StatelessWidget {
                   Icon(selected ? item.activeIcon : item.icon,
                       size: 25, color: tint),
                   const SizedBox(height: 4),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 2),
-                    child: Text(
-                      item.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: tint,
+                  // 🔴 Skala teks DIJEPIT. Menu ini berdiri di kotak setinggi
+                  // 58 dp yang ditetapkan mati; ikon 25 + jarak 4 menyisakan
+                  // 29 dp untuk labelnya.
+                  //
+                  // `labelSmall` 11 sp pada setelan huruf sistem 200% —
+                  // setelan yang wajar bagi mata yang sudah tidak muda —
+                  // tumbuh menjadi sekitar 31 dp dan meluber. Akibatnya garis
+                  // kuning-hitam `RenderFlex overflowed` di menu bawah, pada
+                  // SETIAP layar sekaligus.
+                  //
+                  // ⚠️ `NavigationBar` bawaan Material yang digantikan widget
+                  // ini menjepit skalanya sendiri, jadi cacat ini lahir
+                  // bersama penggantinya dan tidak akan pernah terlihat pada
+                  // perangkat yang memakai ukuran huruf normal.
+                  //
+                  // 1.3 dipilih supaya pembesarannya tetap terasa menolong
+                  // tanpa menembus 29 dp: 11 sp × 1,3 ≈ 20 dp.
+                  MediaQuery.withClampedTextScaling(
+                    maxScaleFactor: 1.3,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 2),
+                      child: Text(
+                        item.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: tint,
+                        ),
                       ),
                     ),
                   ),

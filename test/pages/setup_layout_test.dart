@@ -64,6 +64,13 @@ void main() {
                     SizedBox(
                       height: 92,
                       child: ListView.separated(
+                        // Rumus yang SAMA dengan `_ShopPickerState._offsetAwal`
+                        // di `recording_setup_page.dart`. Bila salah satunya
+                        // diubah tanpa yang lain, tes ini berhenti menjaga
+                        // widget yang sebenarnya.
+                        controller: ScrollController(
+                          initialScrollOffset: offsetAwal(shops, terpilih),
+                        ),
                         scrollDirection: Axis.horizontal,
                         itemCount: shops.length,
                         separatorBuilder: (_, _) => const SizedBox(width: 8),
@@ -150,12 +157,101 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  // ==========================================================================
+  // 🔴 Toko yang SUDAH TERPILIH wajib terlihat
+  // ==========================================================================
+  //
+  // Cacat yang lahir 3 September 2026 bersama perubahan grid menjadi baris
+  // mendatar, ditemukan review kode 4 September dan TIDAK tertangkap satu pun
+  // tes yang ada.
+  //
+  // `RecordingSetupViewModel` memilih toko terakhir dari `prefLastShopId`.
+  // Saat pemilihnya masih grid, seluruh toko selalu terlihat sehingga pilihan
+  // itu mustahil tersembunyi. Pada baris mendatar hanya sekitar tiga petak
+  // yang muat di layar 402 dp — tenant dengan empat toko atau lebih membuka
+  // layar ini dengan pilihannya **berada di luar pandangan**.
+  //
+  // Yang dilihat packer: tiga petak tanpa satu pun tertandai, sementara tombol
+  // Mulai sudah menyala. Di layar yang gunanya menetapkan nama toko yang
+  // terbakar ke dalam video bukti, pilihan yang tidak terlihat bukan sekadar
+  // kurang rapi.
+  group('🔴 petak terpilih terlihat saat layar dibuka', () {
+    /// Petak [id] benar-benar berada di dalam layar.
+    ///
+    /// ⚠️ Diperiksa dari KOORDINATNYA, bukan dari `find` semata. `ListView`
+    /// mendatar tetap membangun beberapa petak di luar layar, jadi menemukan
+    /// widget-nya sama sekali tidak membuktikan ia terlihat.
+    bool terlihat(WidgetTester tester, String nama) {
+      final f = find.text(nama);
+      if (f.evaluate().isEmpty) return false;
+      final kiri = tester.getTopLeft(f).dx;
+      final kanan = tester.getBottomRight(f).dx;
+      return kanan > 0 && kiri < 402;
+    }
+
+    testWidgets('toko keempat yang terpilih ikut tergulir ke pandangan',
+        (tester) async {
+      await pasang(tester, enam, terpilih: '4');
+
+      expect(terlihat(tester, 'Kamel Store'), isTrue,
+          reason: 'toko terpilih berada di luar layar — packer tidak dapat '
+              'melihat toko apa yang akan ditulis ke videonya');
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('toko terakhir pun ikut tergulir', (tester) async {
+      await pasang(tester, enam, terpilih: '6');
+      expect(terlihat(tester, 'Toko Offline'), isTrue);
+    });
+
+    testWidgets('toko pertama tidak menggeser apa pun', (tester) async {
+      // Menggulir saat pilihannya sudah terlihat hanya menyembunyikan petak
+      // di kirinya tanpa alasan.
+      await pasang(tester, enam, terpilih: '1');
+      expect(offsetAwal(enam, '1'), 0);
+      expect(terlihat(tester, 'Sugeh kabeh'), isTrue);
+    });
+
+    testWidgets('tanpa pilihan, barisnya mulai dari awal', (tester) async {
+      await pasang(tester, enam);
+      expect(offsetAwal(enam, null), 0);
+      expect(terlihat(tester, 'Sugeh kabeh'), isTrue);
+    });
+
+    test('🔴 petak sebelumnya tetap terintip, bukan menempel tepi', () {
+      // Petak terpilih yang menempel persis di tepi kiri membuat barisnya
+      // terbaca seolah tidak ada apa-apa lagi sebelumnya.
+      final offset = offsetAwal(enam, '4');
+      expect(offset, lessThan(3 * (128 + 8)),
+          reason: 'petak sebelumnya harus ikut terintip');
+      expect(offset, greaterThan(0));
+    });
+  });
+
   testWidgets('satu toko pun tidak merusak susunannya', (tester) async {
     await pasang(tester, [enam.first]);
 
     expect(tester.takeException(), isNull);
     expect(find.text('Mulai Rekam'), findsOneWidget);
   });
+}
+
+/// Posisi gulir awal — salinan `_ShopPickerState._offsetAwal`.
+///
+/// 🔴 Angkanya WAJIB sama dengan yang di `recording_setup_page.dart`. Ini
+/// salinan, dan salinan selalu berisiko menyimpang — tetapi widget-nya privat
+/// dan tidak dapat dipanggil dari sini. Menjaga bentuknya tetap jauh lebih
+/// baik daripada tidak menjaga sama sekali.
+double offsetAwal(List<Shop> shops, String? terpilih) {
+  const lebarPetak = 128.0;
+  const jarak = 8.0;
+  const intip = 44.0;
+
+  final i = shops.indexWhere((s) => s.id == terpilih);
+  if (i <= 0) return 0;
+
+  final offset = (i * (lebarPetak + jarak)) - intip;
+  return offset < 0 ? 0 : offset;
 }
 
 /// Salinan bentuk petak untuk pengujian tata letak — bukan widget produksi.

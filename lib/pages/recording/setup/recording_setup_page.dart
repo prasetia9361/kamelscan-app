@@ -413,7 +413,7 @@ class _TypeMarker extends StatelessWidget {
 /// Logo marketplace memakai [MarketplaceBadge] yang sama dengan Riwayat dan
 /// daftar Toko — menyalinnya ke sini berarti warna dan bentuknya perlahan
 /// menyimpang di antara layar.
-class _ShopPicker extends StatelessWidget {
+class _ShopPicker extends StatefulWidget {
   const _ShopPicker({
     required this.shops,
     required this.selected,
@@ -425,6 +425,61 @@ class _ShopPicker extends StatelessWidget {
   final ValueChanged<String> onSelect;
 
   @override
+  State<_ShopPicker> createState() => _ShopPickerState();
+}
+
+class _ShopPickerState extends State<_ShopPicker> {
+  /// Lebar satu petak beserta jaraknya ke petak berikutnya.
+  static const double _lebarPetak = 128;
+  static const double _jarak = 8;
+
+  /// Sisa ruang yang sengaja disisakan di kiri petak terpilih.
+  ///
+  /// Tanpa ini petak terpilih menempel persis di tepi kiri, dan barisnya
+  /// terbaca seolah tidak ada apa-apa lagi sebelumnya. Potongan petak
+  /// sebelumnya adalah satu-satunya tanda bahwa daftarnya masih berlanjut ke
+  /// kiri — alasan yang sama dengan potongan di tepi kanan.
+  static const double _intip = 44;
+
+  late final ScrollController _gulir =
+      ScrollController(initialScrollOffset: _offsetAwal());
+
+  /// Posisi gulir awal supaya toko yang SUDAH TERPILIH terlihat.
+  ///
+  /// 🔴 Ini menutup cacat yang lahir 3 September 2026 bersama perubahan grid
+  /// menjadi baris mendatar, dan tidak tertangkap satu pun tes.
+  ///
+  /// `RecordingSetupViewModel` memilih toko terakhir dari `prefLastShopId`.
+  /// Saat pemilihnya masih grid, seluruh toko selalu terlihat sehingga
+  /// pilihan itu mustahil tersembunyi. Pada baris mendatar hanya sekitar tiga
+  /// petak yang muat di layar 402 dp — tenant dengan empat toko atau lebih
+  /// membuka layar ini dengan **pilihannya berada di luar pandangan**.
+  ///
+  /// Yang dilihat packer: tiga petak tanpa satu pun tertandai, sementara
+  /// tombol Mulai sudah menyala. Di layar yang gunanya menetapkan nama toko
+  /// yang **terbakar ke dalam video bukti**, pilihan yang tidak terlihat
+  /// bukan sekadar kurang rapi.
+  ///
+  /// ⚠️ Dihitung sekali saat controller lahir, BUKAN digulirkan ulang tiap
+  /// kali pilihannya berubah. Menggulir sendiri saat packer baru saja
+  /// mengetuk sebuah petak akan memindahkan barisnya di bawah jarinya.
+  double _offsetAwal() {
+    final i = widget.shops.indexWhere((s) => s.id == widget.selected);
+    if (i <= 0) return 0;
+
+    final offset = (i * (_lebarPetak + _jarak)) - _intip;
+    // Negatif mustahil di sini (i >= 1), tetapi dijaga supaya perubahan angka
+    // di atas tidak diam-diam menghasilkan offset tak sah.
+    return offset < 0 ? 0 : offset;
+  }
+
+  @override
+  void dispose() {
+    _gulir.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     // Tinggi ditetapkan dari luar, bukan diukur dari isinya: bagian ini
     // berdiri di dalam `ListView`, dan di dalam gulir tinggi yang tersedia
@@ -432,17 +487,18 @@ class _ShopPicker extends StatelessWidget {
     return SizedBox(
       height: 92,
       child: ListView.separated(
+        controller: _gulir,
         scrollDirection: Axis.horizontal,
-        itemCount: shops.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemCount: widget.shops.length,
+        separatorBuilder: (_, _) => const SizedBox(width: _jarak),
         itemBuilder: (context, i) {
-          final shop = shops[i];
+          final shop = widget.shops[i];
           return SizedBox(
-            width: 128,
+            width: _lebarPetak,
             child: _ShopTile(
               shop: shop,
-              selected: selected == shop.id,
-              onTap: () => onSelect(shop.id),
+              selected: widget.selected == shop.id,
+              onTap: () => widget.onSelect(shop.id),
             ),
           );
         },
