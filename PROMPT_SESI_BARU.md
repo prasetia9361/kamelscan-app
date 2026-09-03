@@ -377,14 +377,71 @@ npm install --prefix <folder> --include=optional supabase@2.116.0
 & '<folder>\node_modules\@supabase\cli-windows-x64\bin\supabase.exe' functions deploy <nama> --project-ref ofggpithmvgnhsshglwx
 ```
 
+✅ **Sudah terpasang di worktree `31-agustus`** pada 3 September 2026, di
+folder `.supabase-cli/` (ter-gitignore, isinya binari). Jadi tinggal:
+
+```powershell
+$env:SUPABASE_ACCESS_TOKEN = 'sbp_...'
+& '.\.supabase-cli\node_modules\@supabase\cli-windows-x64\bin\supabase.exe' functions deploy <nama> --project-ref ofggpithmvgnhsshglwx
+```
+
+⚠️ Tulis kedua baris itu **terpisah**. Menyatukannya dengan `;` di satu baris
+panjang pernah gagal 3 September 2026: barisnya terpotong saat ditempel, `&`
+berdiri tanpa perintah, dan PowerShell menjawab *"Missing expression after '&'
+in pipeline element"* — galat yang sama sekali tidak menyebut sebab
+sebenarnya. Tanda `<...>` pada token juga jangan ikut disalin.
+
+⚠️ `WARNING: Docker is not running` saat deploy adalah **normal**; berkasnya
+tetap diunggah. Docker hanya dibutuhkan untuk menjalankan fungsi secara lokal.
+
 ⚠️ `dart run build_runner build` sekarang menolak `--delete-conflicting-outputs`
 (*"These options have been removed and were ignored"*). Bukan galat, hanya
 peringatan — tetapi perintah di bagian Lingkungan di atas perlu dibaca dengan
 itu di kepala.
 
-🔴 `midtrans-webhook` WAJIB di-deploy dengan `--no-verify-jwt`. Periksa dengan
-`supabase functions list` — kolom `verify_jwt` harus `False` untuk webhook itu
-saja, `True` untuk semua yang lain.
+🔴 `midtrans-webhook` WAJIB di-deploy dengan `--no-verify-jwt`, dan hanya dia.
+
+⚠️ **Cara memeriksanya di catatan lama sudah TIDAK BERLAKU.** `supabase
+functions list` pada CLI 2.116.0 **tidak lagi punya kolom `verify_jwt`** —
+kolomnya hanya ID, NAME, SLUG, STATUS, VERSION, UPDATED_AT. Diukur
+3 September 2026; melebarkan terminal tidak menolong, kolomnya memang tidak
+ada.
+
+🔴 **Cara yang benar sekarang: panggil fungsinya TANPA header Authorization
+dan lihat siapa yang menjawab.** Tidak butuh token sama sekali:
+
+```bash
+U=https://ofggpithmvgnhsshglwx.supabase.co/functions/v1
+curl -s -o /dev/null -w "%{http_code}\n" -X POST $U/create-payment \
+     -H "Content-Type: application/json" -d '{}'
+```
+
+| Jawaban | Artinya |
+|---|---|
+| `401` `UNAUTHORIZED_NO_AUTH_HEADER` | ditolak **gerbang** → `verify_jwt` **true** |
+| apa pun yang lain | **kodenya sendiri** yang menjawab → `verify_jwt` **false** |
+
+Hasil pengukuran 3 September 2026, dan inilah keadaan yang benar:
+
+```
+create-payment    -> 401 UNAUTHORIZED_NO_AUTH_HEADER   (true)
+get-upload-url    -> 401 UNAUTHORIZED_NO_AUTH_HEADER   (true)
+purge-storage     -> 401 UNAUTHORIZED_NO_AUTH_HEADER   (true)
+midtrans-webhook  -> 403 invalid signature             (false - BENAR)
+```
+
+`midtrans-webhook` menjawab dengan kalimatnya sendiri, dan itu justru buktinya:
+gerbangnya memang dilewati, lalu tanda tangan Midtrans yang menjaganya.
+
+✅ Cara ini **lebih kuat daripada membaca kolom**, dan bukan hanya karena
+kolomnya hilang: ia membuktikan **perilaku sungguhan di produksi**, bukan label
+pengaturan. Sebuah kolom dapat berbunyi benar sementara gerbangnya tidak
+menegakkan apa pun.
+
+⚠️ `functions deploy` **tanpa** `--no-verify-jwt` menyetel `verify_jwt`
+menjadi `true`. Jadi men-deploy ulang `midtrans-webhook` tanpa flag itu akan
+mematikan webhook Midtrans secara diam-diam — pembayaran berhasil di Midtrans,
+tetapi langganan tidak pernah aktif.
 
 ## Keadaan proyek — sudah selesai dan TERBUKTI di peramban/perangkat
 
@@ -710,7 +767,12 @@ pembelian terakhir: Standar pukul 15:25, lalu Bisnis 15:26, dan tier akhirnya
 jangan diuji ulang dari nol tanpa alasan.
 
 ⚠️ **Jebakan Windows yang baru:** `npx supabase@latest` tidak lagi jalan di
-Windows; uraiannya di bagian Supabase di atas.
+Windows; uraiannya di bagian Supabase di atas. CLI-nya sudah dipasang di
+`.supabase-cli/` pada 3 September 2026, jadi tidak perlu diulang.
+
+⚠️ **Dan cara memeriksa `verify_jwt` sudah berubah** — kolomnya hilang dari
+`functions list`. Penggantinya, beserta hasil pengukuran 3 September 2026,
+ada di bagian Supabase.
 
 ### Catatan berkas
 
