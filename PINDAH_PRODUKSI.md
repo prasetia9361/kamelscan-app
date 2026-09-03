@@ -134,28 +134,96 @@ Yang **TIDAK boleh ada**: `reset-monthly-tokens` (dicabut migrasi 40) dan
 `mark-expired-videos` (dicabut migrasi 41). Kalau keduanya muncul, ada migrasi
 yang terlewat.
 
-## 1.4 Memindahkan data
+## 1.4 Data lama: TIDAK dipindahkan
 
-⚠️ **Bagian ini belum pernah dikerjakan sekali pun**, dan saya tidak dapat
-menuliskan langkah yang sudah terbukti. Yang dapat saya tuliskan adalah hal-hal
-yang sudah diukur dan akan menggigit.
+✅ **Keputusan Product Owner 4 September 2026: mulai bersih.**
 
-**Urutan tabel tidak boleh sembarangan.** Diukur di produksi 1 September 2026:
-menghapus lewat `auth.users` gagal dengan `23503 package_videos_user_id_fkey`,
-sedangkan lewat `tenants` justru berhasil karena cascade menghapus
-`package_videos` sebelum `users`. Urutan yang sama berlaku saat memasukkan,
-terbalik: `tenants` → `users` → `shops` → `package_videos`.
+Ditanya dan dijawab langsung — seluruh isi database lama adalah akun, toko, dan
+video **pengujian Product Owner sendiri**. Tidak ada satu pun pelanggan yang
+datanya hilang kalau ditinggalkan.
 
-**Video TIDAK ikut pindah.** Berkasnya di Cloudflare R2, dan R2 tidak menyentuh
-Supabase sama sekali. Yang pindah hanya barisnya. Selama `storage_key` ikut
-terbawa apa adanya, video lama tetap dapat dibuka.
+Itu cocok dengan keadaan yang tercatat: Midtrans masih Sandbox, dan **belum
+satu rupiah sungguhan pun pernah berpindah**. Saldo 135.092 token itu hasil
+tujuh pembelian sandbox di akun Product Owner sendiri.
 
-**Yang paling mudah terlupa:** `token_wallets` dan `token_ledger`. Saldo token
-pelanggan hidup di sana. Pelanggan yang saldonya hilang akan tahu dalam hitungan
-menit.
+🔴 **Karena itu jangan dipindahkan.** Memindahkan data antar-project Supabase
+menuntut `pg_dump` dan `psql` — keduanya tidak ada di komputer ini, jadi
+PostgreSQL harus dipasang lebih dulu — dan bagian tersulitnya bukan tabel
+`public`, melainkan skema `auth`: kata sandi, sesi, dan identitas Google hidup
+di sana. Salah sedikit, akunnya ada tetapi tidak seorang pun dapat masuk.
 
-🔴 **Jangan menghapus project lama sampai produksi baru berjalan sekurangnya
-satu minggu penuh** — cukup untuk seluruh cron harian berjalan beberapa kali.
+Menanggung risiko itu demi data pengujian sendiri adalah pertukaran yang salah.
+
+### Yang perlu dibuat ulang, berurutan
+
+**1. Akun Owner.** Daftar biasa lewat `kamelscan.com/app/register` memakai
+project baru. Akun ini otomatis mendapat tenant, masa uji coba, dan 100 token
+(Bab 7.5).
+
+**2. Akun Admin.** Daftar dulu seperti biasa, lalu naikkan perannya lewat
+**SQL Editor**:
+
+```sql
+select public.promote_to_admin('email-admin@contoh.com');
+```
+
+⚠️ **Sesudah dinaikkan, akun itu WAJIB keluar lalu masuk lagi.** Peran dibawa
+di dalam JWT (jebakan nomor 8); tanpa keluar-masuk, panel Admin tetap menolak
+dan tidak ada satu pun galat yang menjelaskan kenapa.
+
+**3. Toko.** Buat ulang lewat aplikasi, **Toko → Tambah Toko**.
+
+⚠️ Nama toko yang dipakai watermark diambil dari baris ini. Kalau Anda ingin
+video baru terbaca sama dengan video lama, tulis nama dan marketplace-nya
+persis sama.
+
+**4. Gambar iklan.** **Admin → Gambar iklan** — spanduk landing page dan
+gambar tiap paket. Bucket-nya dibuat migrasi 46, jadi sudah siap.
+
+**5. Tutorial.** **Admin → Tutorial** — tautan YouTube tiap langkah.
+
+**6. Harga TIDAK perlu diisi.** Migrasi 39 sudah menanam ketiga paket beserta
+angkanya:
+
+```
+standar  Rp   149.000   30 detik    2.000 token
+pro      Rp   299.000   60 detik    5.000 token
+bisnis   Rp 1.490.000    3 menit   30.000 token
+```
+
+Buka **Admin → Harga & Paket** hanya untuk memastikan ketiganya tergambar. Tiga
+kartu, bukan dua — kalau hanya dua yang muncul, migrasi 39 belum jalan.
+
+**7. Kontak dan metode pembayaran.** **Admin → Kontak** dan
+**Admin → Metode pembayaran**. Nomor rekening tidak ikut migrasi mana pun.
+
+### 🔴 Video lama di R2 menjadi yatim
+
+Ini konsekuensi yang paling mudah terlupa, dan ia **berbiaya**.
+
+Berkas video hidup di Cloudflare R2, bukan di Supabase. Meninggalkan database
+lama **tidak menghapus satu berkas pun** — yang hilang hanya baris yang menunjuk
+ke sana. Berkasnya tetap ada, tidak dapat dibuka siapa pun lagi, dan **tetap
+ditagihkan setiap bulan**.
+
+Dua jalan:
+
+1. **Biarkan.** Dari 50 video terukur, rata-rata 1,07 MB — beberapa puluh video
+   pengujian berarti puluhan megabyte. Biayanya kecil, tetapi ia tidak akan
+   pernah berkurang sendiri.
+2. **Hapus dari Cloudflare Dashboard.** R2 → bucket video → hapus isinya.
+
+⚠️ **Jangan menghapus sebelum project lama benar-benar ditinggalkan.** Selama
+Anda masih mungkin kembali ke sana untuk memeriksa sesuatu, videonya masih
+dibutuhkan agar Riwayat di project lama tetap dapat dibuka.
+
+### Kalau nanti sudah ada pelanggan sungguhan
+
+Bagian ini ditulis untuk keadaan **sekarang**. Begitu ada Owner selain Anda yang
+membayar dengan uang sungguhan, "mulai bersih" berhenti menjadi pilihan — dan
+pemindahan data harus dikerjakan dengan `pg_dump`, termasuk skema `auth`.
+
+Jangan menyalin bagian ini untuk keadaan itu.
 
 ## 1.5 Mengganti kredensial di aplikasi
 
@@ -402,6 +470,8 @@ Sebelum menyatakan produksi siap:
 - [ ] `verify_jwt`: hanya `midtrans-webhook` yang `false`
 - [ ] Satu transaksi sungguhan terlacak sampai `token_ledger`
 - [ ] APK dan web dibangun ulang dengan kredensial baru
+- [ ] Akun Owner, Admin, toko, gambar iklan, dan tutorial dibuat ulang
+- [ ] Tiga kartu paket tergambar di Admin > Harga & Paket, bukan dua
 - [ ] Project lama **belum** dihapus
 
 ⚠️ Yang paling mudah terlewat dari daftar ini adalah baris kedua. Auth Hook
