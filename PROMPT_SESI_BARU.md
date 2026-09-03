@@ -336,8 +336,13 @@ Editor. Beri saya isi berkasnya beserta langkah yang **detail** — sebutkan men
 yang diklik dan hasil yang seharusnya muncul (`Success. No rows returned`).
 Instruksi ringkas pernah membuat saya tersinggung karena terasa seperti diuji.
 
-**Migrasi terakhir yang sudah dijalankan: 42** (1 September 2026). Seluruhnya
+**Migrasi terakhir yang sudah dijalankan: 44** (2 September 2026). Seluruhnya
 sudah berjalan di produksi:
+
+⚠️ **43 dilewati dengan sengaja** — nomor itu milik
+`43_user_settings_show_record_fab.sql` di worktree
+`revisi-desain-aplikasimobile`, dan ia **belum pernah dijalankan**. Jangan
+menyimpulkan "44 sudah, berarti 43 sudah".
 
 - **30** `get_platform_stats()` — angka Dasbor Platform
 - **31** `admin_list_tenants()` — tabel Kelola Pengguna
@@ -353,6 +358,8 @@ sudah berjalan di produksi:
 - **40** rollover token, cabut cron isi ulang, token hangus, `admin_change_tier`
 - **41** antrean retensi 30 hari, cabut `mark-expired-videos`
 - **42** `get_capacity_stats()` — RPC kartu Kapasitas
+- **44** `check_packer_limit()` membaca kunci `trial`, menutup celah batas
+  packer masa uji coba yang sebelumnya tidak ditegakkan di mana pun
 
 **Edge Function terpasang: 10.** Dua yang terbaru `delete-packer` (versi 6,
 di-deploy ulang 1 Sep 2026 karena memanggil RPC migrasi 38) dan `purge-storage`
@@ -446,14 +453,18 @@ adanya setelah diberi tahu risikonya. Jangan membuka ulang keputusan itu.
    laptop layar penuh, tema gelap.
 3. Apakah ada yang berubah di server sejak prompt ini ditulis.
 
-## 🔴 SESI 31 AGUSTUS – 1 SEPTEMBER 2026 — BACA INI LEBIH DULU
+## 🔴 SESI 31 AGUSTUS – 3 SEPTEMBER 2026 — BACA INI LEBIH DULU
 
 Seluruh pekerjaan di bawah ada di worktree **`31-agustus`** (cabang
 `worktree-31-agustus`, lahir dari master `4cb9cbc`).
 
-**Keadaannya:** `dart analyze lib test` bersih, **623 uji lolos**, dan seluruh
-pekerjaannya **sudah di-commit** di cabang `worktree-31-agustus` (1 September
-2026). Belum di-push, belum digabung ke `master`.
+**Keadaannya:** `dart analyze lib test` bersih, **625 uji lolos**, seluruhnya
+**sudah di-commit** dalam **9 commit**. Belum di-push, dan **belum digabung ke
+`master` atas keputusan Product Owner** — penggabungannya menyusul.
+
+Migrasi **37–44 sudah dijalankan di produksi**, Edge Function berjumlah **10**,
+dan aplikasi webnya sudah diterbitkan ulang. Seluruh pekerjaan sesi ini
+**diuji Product Owner langsung di produksi**, bukan hanya lewat tes.
 
 ### ✅ TABRAKAN NOMOR MIGRASI — SUDAH BERES 1 September 2026
 
@@ -619,6 +630,86 @@ memakai tanggal reset DOMPET"*. Tes itu benar saat ditulis dan menjadi salah
 tanpa pernah gagal. Sesudah mengubah aturan dagang di SQL, **tes yang lulus
 adalah tempat pertama yang harus dicurigai**, bukan yang terakhir.
 
+### 🔴 PUTARAN PENGUJIAN PRODUKSI 1–3 September 2026 — sembilan cacat lagi
+
+Product Owner menguji seluruh pekerjaan sesi ini **langsung di produksi**, satu
+butir demi satu butir. Sembilan cacat yang ditemukan tidak satu pun tertangkap
+oleh 620 tes yang lolos. Seluruhnya sudah diperbaiki dan **diverifikasi ulang
+oleh Product Owner**.
+
+⚠️ **Pelajaran nomor satu, dan ia mahal:** putaran pengujian pertama nyaris
+seluruhnya sia-sia karena **webnya tidak pernah di-deploy**. Lima dari enam
+"cacat" hari itu hanyalah kode lama yang masih tayang. Sebelum menguji apa pun,
+**buktikan dulu build yang tayang memang memuat pekerjaannya**:
+
+```bash
+curl -s https://kamelscan.com/app/main.dart.js | grep -c "<kalimat baru dari ARB>"
+```
+
+**Tiga pola yang berulang, dan ketiganya layak dicurigai lebih dulu di sesi
+berikutnya:**
+
+**Pola A — kode yang menyebut nama paket satu per satu.** Muncul **tiga kali**,
+seluruhnya berdiri tepat di sebelah komentar yang menjanjikan katalognya
+dibangun dinamis:
+
+- `admin_pricing_page.dart` menyusun `kartu[0]` dan `kartu[1]` di kedua cabang
+  tata letak, sehingga paket Bisnis **tidak pernah digambar**
+- `create-payment/index.ts` menolak `plan !== 'standar' && plan !== 'pro'`,
+  sehingga membeli Bisnis gagal dengan pesan *"terjadi kesalahan"* yang tidak
+  menyebut apa pun
+- tesnya sendiri mengunci `findsNWidgets(2)`
+
+**Pola B — tes yang lulus sambil mengunci cacatnya.** Dua kali dalam satu sesi:
+tanggal reset dompet, dan jumlah kartu paket. Keduanya benar saat ditulis.
+
+**Pola C — nilai yang dibaca penjaga rute tetapi tidak disimak notifier.**
+Jebakan nomor 11, dan ia **berulang dua kali dalam satu sesi**: pertama karena
+keadaan penghapusan tidak disimak sama sekali, lalu karena yang disimak hanya
+turunan sempitnya sementara penjaganya membaca `sessionProvider` utuh. Aturannya
+harfiah — **yang DIBACA `redirect`, itu yang wajib disimak.**
+
+**Daftar sembilan cacatnya:**
+
+| # | Cacat | Tempat |
+|---|---|---|
+| 1 | `LedgerReason` melempar untuk `token_expired` | `enums.dart` |
+| 2 | Lima kalimat Admin menjanjikan "reset" yang sudah dicabut | ARB + `admin_tenant_row.dart` |
+| 3 | Rute `/deletion-pending` tidak terdaftar di `_redirects` | `deploy_web.ps1` |
+| 4 | Landing page rusak di alamat dalam (jalur aset relatif) | `landing/*.html` |
+| 5 | Batas 5 packer masa uji coba tidak ditegakkan di mana pun | `create-packer` + migrasi 44 |
+| 6 | Admin Harga & Paket hanya menggambar dua kartu | `admin_pricing_page.dart` |
+| 7 | `create-payment` menolak paket Bisnis | `create-payment/index.ts` |
+| 8 | Paket yang sedang aktif tidak dapat dibeli lagi | `plan_page.dart` |
+| 9 | Hitungan video packer memuat video yang sudah dihapus | `user_repository.dart` |
+
+Ditambah dua cacat navigasi hapus akun (permintaan dan pembatalan), dan dua
+perbaikan kartu token pelanggan.
+
+🔴 **Cacat nomor 5 yang paling perlu diingat sebagai pelajaran menulis migrasi.**
+Migrasi 39 **meramalkannya sendiri di komentarnya** — *"pendaftar baru dapat
+membuat seratus akun packer tanpa membayar sepeser pun"* — lalu menambal
+`platform_settings` kunci `trial` dan menulis bahwa Dart harus membacanya.
+Tambalannya benar. Yang tidak pernah terjadi: **tidak ada satu pun penegak yang
+membaca kunci itu.** Menulis peringatan di komentar bukan menutup celah.
+
+**Bukti model token akumulatif, dari `token_ledger` produksi.** Tujuh pembelian
+beruntun pada akun *Sarang sarung*, seluruhnya **menambah**, tidak satu pun
+menimpa:
+
+```
++5000 → 5992    +2000 → 7992    +5000 → 12992   +30000 → 42992
++30000 → 72992  +2000 → 74992   +30000 → 104992
+```
+
+Sisa hari ikut bertumpuk (`period_end` 28 Apr 2027), dan tier mengikuti
+pembelian terakhir: Standar pukul 15:25, lalu Bisnis 15:26, dan tier akhirnya
+`bisnis`. **Ketiga aturan Bab 7.2 terbukti sekaligus pada data sungguhan** —
+jangan diuji ulang dari nol tanpa alasan.
+
+⚠️ **Jebakan Windows yang baru:** `npx supabase@latest` tidak lagi jalan di
+Windows; uraiannya di bagian Supabase di atas.
+
 ### Catatan berkas
 
 - **`panduan_dokumentasi.md` ada di `.gitignore`.** Revisi besar sesi ini
@@ -628,6 +719,133 @@ adalah tempat pertama yang harus dicurigai**, bukan yang terakhir.
   `pubspec.lock` sebagai transitif dengan versi sama, jadi tidak menarik paket
   baru — hanya dinyatakan karena `file_download_web.dart` mengimpornya
   langsung.
+
+## 🔴 TUGAS SESI BERIKUTNYA — ditetapkan Product Owner 3 September 2026
+
+Dikerjakan **berurutan**. Yang (a) lebih dulu, karena (b) menambah layar di
+atas rancangan yang sedang diganti — mengerjakannya terbalik berarti menulis
+layar dua kali.
+
+### a. Implementasi rancangan ulang aplikasi HP
+
+Desainer sudah membuat rancangan UI/UX aplikasi HP di worktree
+**`revisi-desain-aplikasimobile`**.
+
+🔴 **Masalah pokoknya: worktree itu lahir dari `master`, jadi programnya
+TERTINGGAL JAUH dari `31-agustus`.** Ia tidak punya satu pun pekerjaan sesi ini
+— hapus akun, tier Bisnis, rollover token, ekspor CSV, kartu Kapasitas,
+perbaikan packer, dan sembilan cacat produksi di atas.
+
+**Karena itu urutannya WAJIB begini, dan jangan dibalik:**
+
+1. **Baca dulu** program di `revisi-desain-aplikasimobile`. Jangan menyalin apa
+   pun sebelum tahu apa saja yang berubah di sana.
+2. **Buat rencana kerja** dan tunjukkan ke Product Owner sebelum menulis kode.
+3. **Bawa rancangannya ke worktree ini**, bukan sebaliknya. Menggabungkan arah
+   sebaliknya akan membuang pekerjaan sesi 31 Agustus – 3 September.
+
+⚠️ **Jangan sampai pekerjaan di worktree ini terbuang.** Itu kalimat Product
+Owner sendiri, dan ia menyebutnya sebagai syarat, bukan harapan.
+
+⚠️ Worktree itu juga memuat `43_user_settings_show_record_fab.sql` yang **belum
+pernah dijalankan**. Kolom `show_record_fab` belum ada di database.
+
+### b. Setelah rancangan selesai — tiga pekerjaan
+
+**1. Menu Tutorial (Bab 9.9).** Utang paling lama di proyek ini, dan sekarang
+dijadwalkan.
+
+- Admin: halaman untuk memasukkan **tautan YouTube** beserta daftarnya
+- Owner dan packer: daftar tutorial yang sudah didaftarkan Admin, diketuk →
+  membuka videonya di YouTube (`url_launcher`)
+- Tabel `tutorials` sudah ada sejak migrasi 10; CRUD Admin-nya yang belum
+
+**2. Riwayat pembayaran.** Diminta Product Owner setelah melihat saldonya
+sendiri menjadi 105.092 token dari tujuh pembelian, dan menyadari **tidak ada
+satu layar pun yang dapat menjelaskan angka itu**. Sejak model akumulatif
+(migrasi 40) riwayat berhenti menjadi kemewahan.
+
+Yang wajib ditampilkan tiap baris:
+
+- Waktu pembayaran
+- Tier yang dibeli
+- Jumlah token yang dibeli
+- Tanggal dan waktu masa aktifnya berakhir
+- Jenis pembayaran yang dipakai
+
+Datanya sudah lengkap di `subscriptions` dan `token_ledger`; belum ada yang
+menampilkannya.
+
+**3. Nomor HP di halaman Kelola Pengguna milik Admin.** Kolomnya ditambahkan
+ke tabel yang sudah ada.
+
+### c. Analisis sistem perekaman — penjelasan dulu, baru optimasi
+
+Product Owner meminta **penjelasan menyeluruh** cara kerja perekaman packing
+dan retur, dari persiapan sampai selesai, lalu menilai apakah prosesnya sudah
+efektif dan efisien.
+
+**Sasaran ukurannya:** dari **3,48 MB/menit** (angka terukur dari 50 video
+produksi) turun ke **2–3 MB/menit**.
+
+🔴 **Syarat yang tidak boleh dilanggar: FPS harus lancar, jangan sampai patah-
+patah.** Product Owner menyatakan hal lain masih dapat ditoleransi, tetapi yang
+ini tidak. Artinya: **jangan menukar kelancaran demi ukuran berkas.**
+
+⚠️ Sebelum menyelidiki laporan "patah-patah", **tanyakan dulu mode apa yang
+dipakai** — mode debug memang sengaja lambat, dan itu sudah pernah memakan
+waktu.
+
+## 🔴 Yang belum siap produksi — daftar lengkap per 3 September 2026
+
+Diurutkan menurut yang menghalangi rilis, bukan menurut kemudahannya.
+
+**Penghalang uang:**
+
+1. 🔴 **Midtrans masih SANDBOX.** Belum satu rupiah sungguhan pernah berpindah.
+   `MIDTRANS_SERVER_KEY` dan `MIDTRANS_IS_PRODUCTION` wajib diganti
+   **bersamaan** (P.7). Ditunda Product Owner sampai database produksi final.
+2. 🔴 **Database produksi belum diganti.** Rencana 31 Agustus yang belum
+   dijalankan, dan ia menghalangi butir 1 sekaligus butir 3.
+3. **Dua kegagalan Midtrans berbagi satu pesan** — `MIDTRANS_UNREACHABLE` dan
+   `MIDTRANS_REJECTED` tidak dapat dibedakan dari layar maupun dari catatan
+   fungsi. Sudah terbukti memakan waktu; ± 30 menit memperbaikinya.
+
+**Penghalang biaya yang berjalan diam-diam:**
+
+4. 🔴 **Pemicu antrean R2 belum ada.** `purge-storage` sudah terbit tetapi
+   **tidak ada yang memanggilnya** karena `pg_net` belum aktif. Antreannya
+   terisi, berkasnya tetap di R2, dan tetap ditagihkan tiap bulan. Sengaja
+   ditunda sampai database produksi final — tetapi ia berhenti dapat diterima
+   begitu database itu final.
+
+**Penghalang toko aplikasi:**
+
+5. **Rilis iOS dan persiapan Google Play / App Store** belum dimulai.
+6. **Layar putih 30 detik** saat aplikasi pertama dibuka (O.15), diserahkan ke
+   desainer 26 Agustus.
+
+**Belum pernah diuji:**
+
+7. 🔴 **Aplikasi HP belum diuji sama sekali sejak sesi 31 Agustus.** Seluruh
+   pengujian sesi ini di web. Tiga perubahan menyentuh kode bersama: hitungan
+   video packer, halaman paket, dan hapus akun.
+8. **Satu video sungguhan lewat jalur unggah latar belakang** (L.8).
+9. **Perbaikan `LedgerReason`** hanya terbukti lewat 3 tes unit —
+   `fetchLedger()` belum punya pemanggil, jadi tidak ada yang dapat dilihat.
+
+**Belum ada:**
+
+10. **Bucket `public-assets`** tidak pernah dibuat, jadi unggah gambar iklan
+    (Bab 11.5) masih lewat Dashboard Supabase.
+11. **Menu Tutorial** — tugas (b) di atas.
+12. **Riwayat pembayaran** — tugas (b) di atas.
+
+**Kebersihan git:**
+
+13. Cabang `worktree-31-agustus` **belum di-push dan belum digabung ke
+    `master`**. Sembilan commit. Product Owner memutuskan penggabungannya
+    menyusul.
 
 ## 🔴 Utang yang belum lunas
 
@@ -662,7 +880,15 @@ Bucket `public-assets` **tidak pernah dibuat**; yang ada hanya `avatars`
 selesai. Gambar landing page dan gambar halaman pembayaran karena itu masih
 diatur lewat Supabase Dashboard.
 
-### 4. Bab 9.9 Tutorial — DITUNDA, menunggu channel YouTube
+### 4. Bab 9.9 Tutorial — ✅ TIDAK DITUNDA LAGI, kini tugas sesi berikutnya
+
+🔴 **Bagian di bawah ini sudah kedaluwarsa.** Product Owner menjadwalkannya
+pada 3 September 2026 sebagai tugas (b) — lihat bagian **TUGAS SESI
+BERIKUTNYA** di atas. Bentuknya juga ditetapkan lebih sederhana daripada yang
+tertulis di bawah: Admin memasukkan tautan YouTube, pengguna mengetuk dan
+videonya terbuka.
+
+Teks aslinya disimpan supaya alasan penundaannya dulu tetap terbaca:
 
 Halaman daftar bernomor dari tabel `tutorials`, membuka YouTube lewat
 `url_launcher`. Versi webnya grid kartu (Bab 10.5). CRUD-nya di panel Admin
