@@ -224,13 +224,26 @@ GoRouter appRouter(Ref ref) {
                 builder: (_, _) =>
                     kIsWeb ? const WebDashboardPage() : const HomePage(),
                 routes: [
-                  // Tutorial di HP hidup di bawah Beranda: dibuka dari sana,
-                  // punya tombol kembali, dan menu bawah tetap menyala di
-                  // Beranda. Di web ia menjadi cabang tersendiri — lihat
-                  // cabang 5 di bawah dan `Routes.homeTutorial`.
+                  // Tutorial di HP hidup di bawah Beranda: dibuka dari sana
+                  // dan punya tombol kembali. Di web ia menjadi cabang
+                  // tersendiri — lihat cabang 5 di bawah dan
+                  // `Routes.homeTutorial`.
+                  //
+                  // 🔴 `parentNavigatorKey: _rootNavigatorKey` — halamannya
+                  // BERDIRI DI LUAR rangka mobile, sama seperti Riwayat
+                  // pembayaran. Keputusan Product Owner 3 September 2026
+                  // sesudah melihatnya di Redmi Note 9.
+                  //
+                  // Tanpa ini ia digambar DI DALAM rangka, sehingga bilah
+                  // `KAMELSCAN` milik rangka dan bilah `Tutorial` milik
+                  // halamannya bertumpuk menjadi dua kepala di atas satu
+                  // layar — dan yang di bawahnya sudah punya tombol kembali
+                  // sendiri, jadi menu bawah yang tetap menyala hanya menambah
+                  // jalan keluar kedua yang tidak diminta siapa pun.
                   if (!kIsWeb)
                     GoRoute(
                       path: 'tutorial',
+                      parentNavigatorKey: _rootNavigatorKey,
                       builder: (_, _) => const TutorialPage(),
                     ),
                 ],
