@@ -1757,5 +1757,18 @@
   "queueRunNothingReady": "Belum ada yang bisa dikirim sekarang. Videonya masih disiapkan atau menunggu percobaan berikutnya.",
   "queueRunAllFailed": "Belum berhasil terkirim. Akan dicoba lagi otomatis.",
   "queueRunBusy": "Pengiriman sedang berjalan.",
-  "errorMidtransRejected": "Pembayaran otomatis sedang bermasalah di sisi kami, bukan di sisi Anda. Uang Anda belum terpotong. Silakan pakai transfer manual, atau hubungi kami — mencoba lagi tidak akan berhasil sampai kami membetulkannya."
+  "errorMidtransRejected": "Pembayaran otomatis sedang bermasalah di sisi kami, bukan di sisi Anda. Uang Anda belum terpotong. Silakan pakai transfer manual, atau hubungi kami — mencoba lagi tidak akan berhasil sampai kami membetulkannya.",
+  "adminBannersTitle": "Gambar iklan",
+  "adminBannersMenuSubtitle": "Spanduk landing page dan gambar kartu paket",
+  "adminBannerLandingTitle": "Landing page",
+  "adminBannerLandingBody": "Gambar dan tulisan yang dilihat orang sebelum mendaftar.",
+  "adminBannerLandingImage": "Spanduk utama",
+  "adminBannerHeadline": "Judul",
+  "adminBannerSubheadline": "Subjudul",
+  "adminBannerPlanTitle": "Kartu paket",
+  "adminBannerPlanBody": "Gambar tiap paket di halaman Pembayaran. Kosong berarti memakai ilustrasi bawaan aplikasi.",
+  "adminBannerEmpty": "Belum ada gambar",
+  "adminBannerUpload": "Unggah gambar",
+  "adminBannerReplace": "Ganti gambar",
+  "adminBannerLoadFailed": "Gambar gagal dimuat"
 }

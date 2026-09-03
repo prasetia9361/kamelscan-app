@@ -151,6 +151,17 @@ class AdminDashboardPage extends ConsumerWidget {
               subtitle: t.adminTutorialsMenuSubtitle,
               onTap: () => context.go(Routes.adminTutorials),
             ),
+            const SizedBox(height: 12),
+
+            // Bab 11.5 — utang nomor 3 daftar kesiapan produksi. Bucket-nya
+            // baru lahir di migrasi 46; sampai itu gambar iklan hanya dapat
+            // diganti lewat Supabase Dashboard.
+            _MenuAdmin(
+              icon: Icons.image_outlined,
+              title: t.adminBannersTitle,
+              subtitle: t.adminBannersMenuSubtitle,
+              onTap: () => context.go(Routes.adminBanners),
+            ),
 
             const SizedBox(height: 28),
             // Bab 9.6 butir 6 — Keluar berwarna merah dan selalu meminta

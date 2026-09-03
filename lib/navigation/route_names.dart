@@ -136,6 +136,11 @@ class Routes {
   /// Tercakup pola `admin/*` di `deploy_web.ps1`.
   static const String adminTutorials = '/admin/tutorials';
 
+  /// Bab 11.5 — gambar iklan landing page dan kartu paket.
+  ///
+  /// Tercakup pola `admin/*` di `deploy_web.ps1`.
+  static const String adminBanners = '/admin/banners';
+
   /// Bab 2.2 — panduan membuat akun Admin baru.
   ///
   /// 🔴 Halaman ini TIDAK membuat akun. Bab 2.2 melarang jalur registrasi

@@ -193,6 +193,14 @@ class AppConstants {
   /// layar mutasi rekening, dibaca hanya lewat URL bertanda tangan.
   static const String bucketPaymentProofs = 'payment-proofs';
 
+  /// Gambar iklan landing page dan kartu paket (Bab 11.5, migrasi 46).
+  ///
+  /// 🔴 **Bucket publik, dan hanya admin yang boleh menulis.** Isinya tampil
+  /// di halaman depan kepada calon pelanggan yang belum punya akun — satu
+  /// gambar yang salah di sana merusak kepercayaan sebelum ada satu kalimat
+  /// pun yang sempat dibaca.
+  static const String bucketPublicAssets = 'public-assets';
+
   // ---------- Nama Edge Function ----------
   static const String fnGetUploadUrl = 'get-upload-url';
   static const String fnGetVideoUrl = 'get-video-url';

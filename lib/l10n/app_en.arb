@@ -1749,5 +1749,18 @@
   "queueRunNothingReady": "Nothing can be sent right now. The videos are still being prepared or waiting for the next attempt.",
   "queueRunAllFailed": "Not sent yet. It will be retried automatically.",
   "queueRunBusy": "Sending is already in progress.",
-  "errorMidtransRejected": "Automatic payment is having a problem on our side, not yours. You have not been charged. Please use a bank transfer instead, or contact us — retrying will not work until we fix it."
+  "errorMidtransRejected": "Automatic payment is having a problem on our side, not yours. You have not been charged. Please use a bank transfer instead, or contact us — retrying will not work until we fix it.",
+  "adminBannersTitle": "Promo images",
+  "adminBannersMenuSubtitle": "Landing page banner and plan card images",
+  "adminBannerLandingTitle": "Landing page",
+  "adminBannerLandingBody": "The image and words people see before they sign up.",
+  "adminBannerLandingImage": "Main banner",
+  "adminBannerHeadline": "Headline",
+  "adminBannerSubheadline": "Subheadline",
+  "adminBannerPlanTitle": "Plan cards",
+  "adminBannerPlanBody": "The image for each plan on the Payment page. Empty means the app’s built-in illustration is used.",
+  "adminBannerEmpty": "No image yet",
+  "adminBannerUpload": "Upload image",
+  "adminBannerReplace": "Replace image",
+  "adminBannerLoadFailed": "Image failed to load"
 }

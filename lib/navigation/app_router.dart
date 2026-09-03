@@ -13,6 +13,7 @@ import '../pages/account/packers/packers_page.dart';
 import '../pages/admin/dashboard/admin_dashboard_page.dart';
 import '../pages/admin/dashboard/admin_stats_page.dart';
 import '../pages/admin/payments/admin_payments_page.dart';
+import '../pages/admin/settings/admin_banners_page.dart';
 import '../pages/admin/settings/admin_contact_page.dart';
 import '../pages/admin/settings/admin_new_admin_page.dart';
 import '../pages/admin/settings/admin_payment_methods_page.dart';
@@ -202,6 +203,11 @@ GoRouter appRouter(Ref ref) {
           GoRoute(
             path: 'tutorials',
             builder: (_, _) => const AdminTutorialsPage(),
+          ),
+          // Bab 11.5 — gambar iklan landing page dan kartu paket.
+          GoRoute(
+            path: 'banners',
+            builder: (_, _) => const AdminBannersPage(),
           ),
           GoRoute(
             path: 'new-admin',

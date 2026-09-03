@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/config/tier_config.dart';
+import '../../../core/models/enums.dart';
 import '../../../core/models/payment_methods.dart';
 import '../../../core/models/platform_contact.dart';
 import '../../../core/models/promo.dart';
@@ -309,6 +310,125 @@ class AdminTutorialsViewModel extends _$AdminTutorialsViewModel {
       'KAMELSCAN_ADMIN hapus tutorial '
       '${hasil.isOk ? 'BERHASIL' : 'GAGAL · ${hasil.failureOrNull}'}',
     );
+    return hasil.failureOrNull;
+  }
+}
+
+/// Gambar iklan landing page dan kartu paket (Bab 11.5).
+///
+/// 🔴 Utang nomor 3 daftar kesiapan produksi. Bab 11.5 menyebut gambar iklan
+/// diunggah ke bucket `public-assets`, tetapi buckets itu **tidak pernah
+/// dibuat** — diukur 3 September 2026, yang ada hanya `avatars` (migrasi 23)
+/// dan `payment-proofs` (migrasi 25). Bucket-nya lahir di migrasi 46.
+///
+/// Alamat gambarnya sendiri sudah punya tempat sejak migrasi 08; yang kurang
+/// hanya tempat menaruh berkasnya.
+class AdminBannerData {
+  const AdminBannerData({required this.landing, required this.payment});
+
+  /// `{image_url, headline, subheadline}`.
+  final Map<String, dynamic> landing;
+
+  /// `{standar_image_url, pro_image_url, bisnis_image_url}`.
+  final Map<String, dynamic> payment;
+
+  String get landingImage => (landing['image_url'] as String?) ?? '';
+  String get landingHeadline => (landing['headline'] as String?) ?? '';
+  String get landingSub => (landing['subheadline'] as String?) ?? '';
+
+  /// ⚠️ Kunci per paket dibangun dari `TierPlan.wire`, bukan ditulis satu per
+  /// satu. Menyebut nama paket satu per satu adalah Pola A yang sudah muncul
+  /// tiga kali di proyek ini — dan setiap kali akibatnya sama: paket Bisnis
+  /// tidak pernah tergambar.
+  String imageFor(TierPlan plan) =>
+      (payment['${plan.wire}_image_url'] as String?) ?? '';
+}
+
+@riverpod
+class AdminBannersViewModel extends _$AdminBannersViewModel {
+  @override
+  Future<AdminBannerData> build() async {
+    final session = ref.watch(sessionProvider).value;
+    if (session == null) throw AppFailure.sessionExpired;
+
+    final repo = ref.read(adminSettingsRepositoryProvider);
+    debugPrint('KAMELSCAN_ADMIN minta gambar iklan');
+
+    final landing = await repo.fetchLandingBanner();
+    if (landing.isErr) throw landing.failureOrNull!;
+    final payment = await repo.fetchPaymentBanners();
+    if (payment.isErr) throw payment.failureOrNull!;
+
+    return AdminBannerData(
+      landing: Map<String, dynamic>.from(landing.valueOrNull!),
+      payment: Map<String, dynamic>.from(payment.valueOrNull!),
+    );
+  }
+
+  Future<void> refresh() async {
+    ref.invalidateSelf();
+    await future;
+  }
+
+  /// Mengunggah satu gambar lalu menyimpan alamatnya.
+  ///
+  /// 🔴 Dua langkah yang WAJIB berurutan dan tidak boleh terbalik: berkasnya
+  /// diunggah lebih dulu, baru alamatnya disimpan. Menyimpan alamat untuk
+  /// berkas yang belum tentu sampai berarti halaman depan menunjuk gambar yang
+  /// tidak ada — dan yang melihatnya calon pelanggan, bukan kita.
+  Future<AppFailure?> unggahLanding(Uint8List bytes) async {
+    final repo = ref.read(adminSettingsRepositoryProvider);
+
+    final unggah = await repo.uploadPublicAsset(
+      nama: 'landing.jpg',
+      bytes: bytes,
+    );
+    if (unggah.isErr) {
+      debugPrint('KAMELSCAN_ADMIN unggah landing GAGAL · '
+          '${unggah.failureOrNull}');
+      return unggah.failureOrNull;
+    }
+
+    final kini = Map<String, dynamic>.from(state.value?.landing ?? {});
+    kini['image_url'] = unggah.valueOrNull;
+    final simpan = await repo.saveLandingBanner(kini);
+    if (simpan.isOk) await refresh();
+    return simpan.failureOrNull;
+  }
+
+  Future<AppFailure?> unggahPaket(TierPlan plan, Uint8List bytes) async {
+    final repo = ref.read(adminSettingsRepositoryProvider);
+
+    final unggah = await repo.uploadPublicAsset(
+      nama: 'plan-${plan.wire}.jpg',
+      bytes: bytes,
+    );
+    if (unggah.isErr) {
+      debugPrint('KAMELSCAN_ADMIN unggah paket ${plan.wire} GAGAL · '
+          '${unggah.failureOrNull}');
+      return unggah.failureOrNull;
+    }
+
+    final kini = Map<String, dynamic>.from(state.value?.payment ?? {});
+    kini['${plan.wire}_image_url'] = unggah.valueOrNull;
+    final simpan = await repo.savePaymentBanners(kini);
+    if (simpan.isOk) await refresh();
+    return simpan.failureOrNull;
+  }
+
+  /// Menyimpan judul dan subjudul landing page tanpa menyentuh gambarnya.
+  Future<AppFailure?> simpanTeksLanding({
+    required String headline,
+    required String subheadline,
+  }) async {
+    final kini = Map<String, dynamic>.from(state.value?.landing ?? {});
+    kini['headline'] = headline;
+    kini['subheadline'] = subheadline;
+
+    final hasil = await ref
+        .read(adminSettingsRepositoryProvider)
+        .saveLandingBanner(kini);
+    if (hasil.isOk) await refresh();
     return hasil.failureOrNull;
   }
 }

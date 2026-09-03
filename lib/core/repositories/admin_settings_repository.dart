@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_constants.dart';
@@ -36,6 +38,8 @@ class AdminSettingsRepository {
   static const String _keyInfraCost = 'infra_cost';
   static const String _keyPaymentMethods = 'payment_methods';
   static const String _keyContact = 'contact';
+  static const String _keyBannerLanding = 'banner_landing';
+  static const String _keyBannerPayment = 'banner_payment';
 
   /// Membaca satu baris `platform_settings`.
   ///
@@ -218,6 +222,68 @@ class AdminSettingsRepository {
     try {
       await _client.from(AppConstants.tblPromos).delete().eq('code', code);
       return okVoid;
+    } on Object catch (e, s) {
+      return Result.err(SupabaseService.mapError(e, s));
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // 11.5 Gambar iklan
+  // -------------------------------------------------------------------------
+
+  /// Spanduk landing page: `{image_url, headline, subheadline}`.
+  Future<Result<Map<String, dynamic>>> fetchLandingBanner() =>
+      _fetch(_keyBannerLanding);
+
+  Future<Result<void>> saveLandingBanner(Map<String, dynamic> value) =>
+      _save(_keyBannerLanding, value);
+
+  /// Gambar kartu paket: `{standar_image_url, pro_image_url,
+  /// bisnis_image_url}`.
+  ///
+  /// ⚠️ Kunci `bisnis_image_url` baru ditambahkan migrasi 39. Basis data yang
+  /// belum menjalankannya tidak akan punya kunci itu — dan itu bukan galat,
+  /// hanya berarti kartu Bisnis memakai ilustrasi bawaan.
+  Future<Result<Map<String, dynamic>>> fetchPaymentBanners() =>
+      _fetch(_keyBannerPayment);
+
+  Future<Result<void>> savePaymentBanners(Map<String, dynamic> value) =>
+      _save(_keyBannerPayment, value);
+
+  /// Mengunggah satu gambar iklan dan mengembalikan alamat publiknya
+  /// (Bab 11.5, bucket dibuat migrasi 46).
+  ///
+  /// 🔴 Nama berkasnya **tetap**, ditentukan pemanggil lewat [nama], dan
+  /// gambar lama ditimpa. Itu keputusan yang sama seperti foto profil
+  /// (`uploadAvatar`): tanpa nama tetap, setiap penggantian meninggalkan
+  /// berkas lama yang tidak pernah dibaca siapa pun lagi — dan tidak ada satu
+  /// pun layar yang dapat menemukannya untuk dihapus.
+  ///
+  /// ⚠️ Konsekuensinya alamatnya tidak berubah, sehingga gambar lama dapat
+  /// bertahan di cache peramban. Karena itu penanda waktu ditempelkan sebagai
+  /// query — sama seperti foto profil. Tanpa itu Admin mengganti gambar,
+  /// melihat gambar lama, lalu mengunggah lagi berkali-kali.
+  ///
+  /// 🔴 Yang menegakkan "hanya admin" adalah policy `public_assets_write_admin`
+  /// di server, bukan layar ini. Bucket-nya publik untuk dibaca, jadi
+  /// penjagaan tulisnya satu-satunya yang memisahkan gambar iklan resmi dari
+  /// gambar apa pun yang dititipkan orang.
+  Future<Result<String>> uploadPublicAsset({
+    required String nama,
+    required Uint8List bytes,
+    String contentType = 'image/jpeg',
+  }) async {
+    try {
+      await _client.storage.from(AppConstants.bucketPublicAssets).uploadBinary(
+            nama,
+            bytes,
+            fileOptions: FileOptions(contentType: contentType, upsert: true),
+          );
+
+      final url = _client.storage
+          .from(AppConstants.bucketPublicAssets)
+          .getPublicUrl(nama);
+      return Result.ok('$url?v=${DateTime.now().millisecondsSinceEpoch}');
     } on Object catch (e, s) {
       return Result.err(SupabaseService.mapError(e, s));
     }
