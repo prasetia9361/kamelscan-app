@@ -125,7 +125,13 @@ class RouteGuards {
     }
 
     // Sudah dibatalkan, tetapi layar kuncinya masih terbuka.
+    //
+    // Jejaknya sengaja permanen. Cabang ini pernah benar sepenuhnya dan tetap
+    // tidak pernah dijalankan, karena routernya tidak diberi tahu untuk
+    // menilai ulang — dan tanpa satu baris cetakan pun, keadaan "tidak pernah
+    // dipanggil" tidak dapat dibedakan dari "dipanggil lalu memutuskan diam".
     if (location == Routes.deletionPending) {
+      debugPrint('KAMELSCAN_GUARD → hapus-akun dibatalkan · pulang ke beranda');
       return _homeFor(_ref.read(currentRoleProvider));
     }
 
@@ -244,6 +250,26 @@ class GoRouterRefreshNotifier extends ChangeNotifier {
     // permintaannya BERHASIL, `deletion_requested_at` terisi — dan layarnya
     // diam di tempat, tanpa satu pun galat.
     _ref.listen(deletionPendingProvider, (_, _) => notifyListeners());
+
+    // 🔴 SESINYA SENDIRI, bukan hanya turunannya yang sempit.
+    //
+    //    Aturannya berbunyi: apa pun yang DIBACA `redirect` wajib disimak di
+    //    sini. Dan `redirect` membaca `sessionProvider` secara langsung —
+    //    `_ref.read(sessionProvider).value?.tenant` — bukan lewat salah satu
+    //    provider sempit di atas. Menyimak turunannya saja berarti menutup
+    //    satu field dari sesi, sementara penjaganya membaca seluruh objeknya.
+    //
+    //    Terbukti kurang pada 2 September 2026: permintaan hapus akun
+    //    memindahkan layar dengan benar, tetapi PEMBATALANNYA tidak. Pesan
+    //    "penghapusan dibatalkan" muncul, `deletion_requested_at` benar-benar
+    //    kosong di produksi — dan layar kuncinya tetap terpasang sampai Owner
+    //    keluar lalu masuk lagi.
+    //
+    // ⚠️ Simakan ini memang lebih lebar daripada yang lain, dan itu disengaja.
+    //    `notifyListeners` yang berlebihan hanya membuat `redirect` dihitung
+    //    ulang — murah, dan hasilnya sama. Yang mahal adalah kebalikannya:
+    //    layar yang seharusnya berpindah, diam di tempat, tanpa satu pun galat.
+    _ref.listen(sessionProvider, (_, _) => notifyListeners());
   }
 
   final Ref _ref;
