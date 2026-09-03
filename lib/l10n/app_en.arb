@@ -1748,5 +1748,6 @@
   "queueRunEmpty": "No videos are waiting.",
   "queueRunNothingReady": "Nothing can be sent right now. The videos are still being prepared or waiting for the next attempt.",
   "queueRunAllFailed": "Not sent yet. It will be retried automatically.",
-  "queueRunBusy": "Sending is already in progress."
+  "queueRunBusy": "Sending is already in progress.",
+  "errorMidtransRejected": "Automatic payment is having a problem on our side, not yours. You have not been charged. Please use a bank transfer instead, or contact us — retrying will not work until we fix it."
 }

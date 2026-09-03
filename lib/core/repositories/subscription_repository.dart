@@ -135,8 +135,26 @@ class SubscriptionRepository {
     'MIDTRANS_NOT_CONFIGURED' => AppFailure.validation(
       'errorMidtransNotConfigured',
     ),
-    'MIDTRANS_UNREACHABLE' ||
-    'MIDTRANS_REJECTED' => AppFailure.validation('errorMidtransUnreachable'),
+    // 🔴 DUA kegagalan yang berbeda, dan memisahkannya bukan kerapian.
+    //
+    // `MIDTRANS_UNREACHABLE` = permintaannya tidak pernah sampai (jaringan).
+    // Mencoba lagi masuk akal, dan uangnya pasti belum bergerak.
+    //
+    // `MIDTRANS_REJECTED` = Midtrans menjawab, dan jawabannya menolak —
+    // hampir selalu kunci server yang salah atau akun yang belum aktif.
+    // Mencoba lagi TIDAK akan pernah berhasil sampai ada yang membetulkannya
+    // di sisi kami, dan pelanggan bukan orang itu.
+    //
+    // ⚠️ Sampai 3 September 2026 keduanya dipetakan ke satu kalimat yang sama.
+    // Akibatnya terukur: 31 Agustus 2026 tiga pembayaran gagal beruntun karena
+    // kunci sandbox/produksi tertukar, dan layar menyuruh Owner "coba lagi
+    // beberapa saat" untuk keadaan yang tidak akan berubah sampai kuncinya
+    // diganti. Sebabnya baru ketahuan setelah kuncinya diuji langsung ke
+    // Midtrans.
+    'MIDTRANS_UNREACHABLE' => AppFailure.validation(
+      'errorMidtransUnreachable',
+    ),
+    'MIDTRANS_REJECTED' => AppFailure.validation('errorMidtransRejected'),
     'PENDING_EXISTS' => AppFailure.validation('errorBillPendingExists'),
     'PROMO_INVALID' => AppFailure.validation('promoNotFound'),
     'PRICING_MISSING_FOR_PLAN' => AppFailure.validation('errorPricingMissing'),

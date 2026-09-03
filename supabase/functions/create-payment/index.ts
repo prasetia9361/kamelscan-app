@@ -314,7 +314,16 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify(snapBody),
     });
-  } catch (_e) {
+  } catch (e) {
+    // 🔴 Ditulis ke catatan fungsi. Sampai 3 September 2026 blok ini menelan
+    // galatnya (`_e`) tanpa jejak apa pun, sehingga kegagalan jaringan dan
+    // penolakan Midtrans sama-sama tidak meninggalkan satu baris pun di
+    // Supabase Function Logs.
+    console.error('MIDTRANS_UNREACHABLE', {
+      subscription_id: sub.id,
+      production: isProduction,
+      message: e instanceof Error ? e.message : String(e),
+    });
     await admin.from('subscriptions').update({ status: 'failed' }).eq('id', sub.id);
     return json({ error: 'MIDTRANS_UNREACHABLE' }, 502);
   }
@@ -326,6 +335,23 @@ Deno.serve(async (req) => {
     // tanpa transaksi Midtrans di baliknya akan menghalangi percobaan
     // berikutnya selama 24 jam penuh (langkah 4 di atas), untuk kesalahan yang
     // sama sekali bukan kesalahan pelanggan.
+    // 🔴 Penolakan Midtrans WAJIB tertulis, dan inilah baris yang paling
+    // mahal ketiadaannya. 31 Agustus 2026 tiga pembayaran gagal beruntun
+    // karena kunci sandbox dan produksi tertukar; tidak ada satu pun petunjuk
+    // di layar maupun di catatan fungsi, dan sebabnya baru ketahuan setelah
+    // kuncinya diuji langsung ke Midtrans dengan tangan.
+    //
+    // ⚠️ Kunci servernya sendiri TIDAK BOLEH ikut tercetak. Yang dicetak hanya
+    // awalannya sampai tanda hubung pertama, cukup untuk membedakan sandbox
+    // dari produksi tanpa membocorkan apa pun yang dapat dipakai menagih.
+    console.error('MIDTRANS_REJECTED', {
+      subscription_id: sub.id,
+      http_status: snap.status,
+      production: isProduction,
+      key_prefix: serverKey.split('-').slice(0, 2).join('-'),
+      error_messages: snapJson?.error_messages ?? null,
+    });
+
     await admin.from('subscriptions').update({ status: 'failed' }).eq('id', sub.id);
     return json(
       {

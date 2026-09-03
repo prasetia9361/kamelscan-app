@@ -96,6 +96,7 @@ extension FailureMessages on BuildContext {
       'errorMidtransDisabled' => t.errorMidtransDisabled,
       'errorMidtransNotConfigured' => t.errorMidtransNotConfigured,
       'errorMidtransUnreachable' => t.errorMidtransUnreachable,
+      'errorMidtransRejected' => t.errorMidtransRejected,
       'errorBillPendingExists' => t.errorBillPendingExists,
       'errorPricingMissing' => t.errorPricingMissing,
       'errorAmountZero' => t.errorAmountZero,

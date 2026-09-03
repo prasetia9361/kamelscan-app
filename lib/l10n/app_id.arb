@@ -1756,5 +1756,6 @@
   "queueRunEmpty": "Tidak ada video yang menunggu.",
   "queueRunNothingReady": "Belum ada yang bisa dikirim sekarang. Videonya masih disiapkan atau menunggu percobaan berikutnya.",
   "queueRunAllFailed": "Belum berhasil terkirim. Akan dicoba lagi otomatis.",
-  "queueRunBusy": "Pengiriman sedang berjalan."
+  "queueRunBusy": "Pengiriman sedang berjalan.",
+  "errorMidtransRejected": "Pembayaran otomatis sedang bermasalah di sisi kami, bukan di sisi Anda. Uang Anda belum terpotong. Silakan pakai transfer manual, atau hubungi kami — mencoba lagi tidak akan berhasil sampai kami membetulkannya."
 }
