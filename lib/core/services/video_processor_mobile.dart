@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
 import 'package:ffmpeg_kit_flutter_new/ffprobe_kit.dart';
 import 'package:ffmpeg_kit_flutter_new/return_code.dart';
+import 'package:flutter/foundation.dart';
 
 import '../config/app_constants.dart';
 import '../domain/watermark_command.dart';
@@ -69,10 +70,30 @@ class MobileVideoProcessor implements VideoProcessor {
       final code = await session.getReturnCode();
 
       if (!ReturnCode.isSuccess(code)) {
-        final logs = await session.getAllLogsAsString();
+        final logs = await session.getAllLogsAsString() ?? '';
         _log.e('FFmpeg gagal (${code?.getValue()})', logs);
+
+        // 🔴 Catatan FFmpeg WAJIB ikut keluar, bukan hanya ke `AppLogger`.
+        //
+        // Sampai 3 September 2026 baris ini hanya menulis "FFmpeg keluar
+        // dengan kode 1", dan catatan aslinya dibuang ke `AppLogger` yang
+        // memakai `dart:developer` — tidak pernah sampai ke logcat (jebakan
+        // nomor 9). Akibatnya sebuah kegagalan watermark yang menghentikan
+        // seluruh perekaman hanya menyisakan satu kalimat yang tidak
+        // menyebutkan apa pun, dan pesan itulah yang tersimpan di antrean
+        // lokal sebagai satu-satunya keterangan.
+        //
+        // FFmpeg sendiri menyebut kesalahannya dengan jelas; yang kurang
+        // hanyalah membawanya keluar.
+        final ringkas = _ringkasLog(logs);
+        debugPrint('KAMELSCAN_PIPA Watermark GAGAL · kode='
+            '${code?.getValue()} · $ringkas');
+
         return Result.err(
-          AppFailure.storage('FFmpeg keluar dengan kode ${code?.getValue()}'),
+          AppFailure.storage(
+            'FFmpeg keluar dengan kode ${code?.getValue()}'
+            '${ringkas.isEmpty ? '' : ' · $ringkas'}',
+          ),
         );
       }
 
@@ -201,7 +222,12 @@ class MobileVideoProcessor implements VideoProcessor {
       fontFile: fontFile,
       position: settings.watermarkPosition,
       heightPx: AppConstants.recordingHeightPx,
-      boxOpacity: settings.watermarkOpacity.clamp(0.0, 1.0),
+      // 🔴 KONSTANTA, bukan lagi `settings.watermarkOpacity`. Uraiannya di
+      // dartdoc `WatermarkCommand.plaqueBoxOpacity`: nilai tenant itu sudah
+      // tidak dapat diubah dari mana pun sejak grup Merek dihapus 29 Agustus
+      // 2026, dan angkanya (0,75) disetel untuk bentuk lama — kotak kecil per
+      // baris, bukan satu bidang selebar video.
+      boxOpacity: WatermarkCommand.plaqueBoxOpacity,
     );
 
     return WatermarkCommand.build(
@@ -233,6 +259,50 @@ class MobileVideoProcessor implements VideoProcessor {
   /// Pembungkus jalur berkas. Sama dengan `WatermarkCommand.quote`, dipakai
   /// oleh perintah thumbnail yang tidak melewati penyusun watermark.
   String _q(String path) => WatermarkCommand.quote(path);
+
+  /// Beberapa baris terakhir catatan FFmpeg yang benar-benar menyebut sebabnya.
+  ///
+  /// Catatan penuh FFmpeg panjangnya ribuan baris dan hampir seluruhnya berupa
+  /// keterangan konfigurasi build. Yang menyebutkan sebab kegagalan selalu ada
+  /// di **ujungnya**, dan hampir selalu memuat salah satu kata di bawah.
+  ///
+  /// ⚠️ Dipotong 400 huruf: nilainya ikut tersimpan ke kolom `last_error`
+  /// antrean lokal, dan catatan sepanjang ribuan baris di sana hanya membuat
+  /// barisnya tidak terbaca sama sekali.
+  static String _ringkasLog(String logs) {
+    if (logs.trim().isEmpty) return '';
+
+    const penanda = [
+      'Error',
+      'error',
+      'Invalid',
+      'invalid',
+      'failed',
+      'Failed',
+      'No such',
+      'Conversion failed',
+      'Unable to',
+    ];
+
+    final baris = logs
+        .split('\n')
+        .map((b) => b.trim())
+        .where((b) => b.isNotEmpty)
+        .toList();
+
+    final penting = baris
+        .where((b) => penanda.any(b.contains))
+        .toList();
+
+    // Tanpa satu pun penanda, ujung catatannya tetap lebih berguna daripada
+    // tidak ada apa-apa.
+    final dipakai = penting.isNotEmpty
+        ? penting.sublist(penting.length > 3 ? penting.length - 3 : 0)
+        : baris.sublist(baris.length > 2 ? baris.length - 2 : 0);
+
+    final gabung = dipakai.join(' | ');
+    return gabung.length > 400 ? '${gabung.substring(0, 400)}…' : gabung;
+  }
 }
 
 VideoProcessor createPlatformVideoProcessor() => MobileVideoProcessor();

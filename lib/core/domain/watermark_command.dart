@@ -94,6 +94,60 @@ class WatermarkCommand {
   /// Jarak dari garis aksen ke teks.
   static const int accentGap = 9;
 
+  /// Jarak dari tepi bidang gelap ke teks, atas dan bawah.
+  ///
+  /// 🔴 Ditambahkan 3 September 2026. Sebelumnya tidak ada sama sekali di sisi
+  /// video: baris kepala digambar tepat pada tepi atas bidang gelapnya,
+  /// sehingga hurufnya duduk menempel di garis batas — sementara pratinjau di
+  /// layar rekam memberinya 8 dp. Product Owner melihat kedua bentuk itu
+  /// berdampingan dan melaporkan bahwa keduanya tidak sama.
+  static const int padTop = 8;
+  static const int padBottom = 6;
+
+  /// Warna kepala plakat, sebagai ARGB.
+  ///
+  /// 🔴 SATU sumber untuk video dan pratinjau, dan itu bukan kerapian.
+  /// Sampai 3 September 2026 keduanya menulis warnanya sendiri-sendiri:
+  /// pratinjau memakai emas terang `#D9A441`, sedangkan video memakai
+  /// `#9A5B00` — warna aksen yang sama dengan garis tepinya. Di atas bidang
+  /// gelap yang tembus pandang, coklat gelap itu praktis tidak terbaca, dan
+  /// packer yang membaca kepalanya di layar tidak menemukannya lagi di video.
+  ///
+  /// ⚠️ Sengaja BUKAN [accentArgb]. Garis aksen adalah bidang penuh selebar
+  /// 3 px yang tetap terlihat walau gelap; huruf setinggi 11 px tidak.
+  static const int kickerArgb = 0xFFD9A441;
+
+  /// Warna garis aksen camel di tepi plakat.
+  static const int accentArgb = 0xFF9A5B00;
+
+  /// Kepekatan bidang gelap di belakang plakat.
+  ///
+  /// 🔴 Diminta Product Owner 3 September 2026: *"warna dasar watermark lebih
+  /// transparan sedikit"*, sesudah melihat video sungguhan pertamanya.
+  /// Sebelumnya 0,75 — dibaca dari `tenant_settings.watermark_opacity`.
+  ///
+  /// ⚠️ Konstanta, BUKAN lagi pengaturan tenant, dan itu perubahan perilaku
+  /// yang disengaja. Dua alasan:
+  ///
+  /// 1. Nilai itu **sudah tidak dapat diubah dari mana pun** sejak grup
+  ///    pengaturan Merek dihapus 29 Agustus 2026, sehingga ia beku di 0,75
+  ///    bagi setiap tenant. Membacanya dari database hanya memberi kesan ada
+  ///    yang mengaturnya, padahal tidak ada.
+  /// 2. 0,75 disetel untuk bentuk yang **lama**: kotak gelap kecil di belakang
+  ///    tiap baris. Plakat sekarang satu bidang selebar video, jadi kepekatan
+  ///    yang sama menutupi jauh lebih banyak gambar buktinya.
+  ///
+  /// 🔴 Batas bawahnya bukan selera. Bab 8.5 menyebut bidang gelap ini ada
+  /// karena teks putih di atas kardus terang tidak terbaca. Menurunkannya
+  /// terlalu jauh mengembalikan persis masalah yang dijawabnya — dan yang
+  /// dikorbankan adalah keterbacaan nomor resi pada dokumen yang gunanya
+  /// menyelesaikan sengketa.
+  static const double plaqueBoxOpacity = 0.55;
+
+  /// Bentuk `0xRRGGBB` yang dimengerti FFmpeg.
+  static String hexOf(int argb) =>
+      '0x${(argb & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
+
   static List<String> buildLines({
     required String resiCode,
     required DateTime serverTime,
@@ -122,17 +176,22 @@ class WatermarkCommand {
   /// Dipakai bersama oleh penyusun FFmpeg dan pratinjau di layar, supaya
   /// keduanya menaruh plakat pada tempat yang sama.
   static int plaqueHeight(int lineCount) =>
+      padTop +
       _kickerLine +
       _resiLine +
-      (_metaLine * (lineCount <= 1 ? 0 : lineCount - 1));
+      (_metaLine * (lineCount <= 1 ? 0 : lineCount - 1)) +
+      padBottom;
 
   /// Jarak dari puncak blok ke puncak baris ke-[index].
   ///
   /// Indeks −1 berarti kepala plakat.
+  ///
+  /// ⚠️ Seluruhnya bergeser [padTop] ke bawah. Tanpa itu baris kepala digambar
+  /// tepat pada tepi bidang gelapnya dan hurufnya menempel di garis batas.
   static int plaqueOffset(int index) {
-    if (index < 0) return 0;
-    if (index == 0) return _kickerLine;
-    return _kickerLine + _resiLine + (_metaLine * (index - 1));
+    if (index < 0) return padTop;
+    if (index == 0) return padTop + _kickerLine;
+    return padTop + _kickerLine + _resiLine + (_metaLine * (index - 1));
   }
 
   /// Susun seluruh rantai filter: skala 480p + baris-baris watermark.
@@ -160,7 +219,7 @@ class WatermarkCommand {
     required int heightPx,
     int margin = 16,
     double boxOpacity = 0.5,
-    String accentColor = '0x9A5B00',
+    String? accentColor,
   }) {
     final isTop = position == WatermarkPosition.topLeft ||
         position == WatermarkPosition.topRight;
@@ -179,9 +238,35 @@ class WatermarkCommand {
     // pratinjau di layar rekam menggambarnya selebar layar — dan pratinjau
     // yang berbeda dari videonya persis kesalahan yang dilarang dartdoc
     // `watermark_preview_overlay.dart`. Satu bentuk untuk keduanya.
-    final blockY = isTop ? '$margin' : 'h-$margin-$blockH';
+    // 🔴 `ih`, BUKAN `h` — dan perbedaannya menghentikan seluruh perekaman.
+    //
+    // Di `drawbox`, `w` dan `h` di dalam ekspresi berarti **ukuran kotak yang
+    // sedang digambar**, bukan ukuran videonya; ukuran video adalah `iw`/`ih`.
+    // Di `drawtext` justru sebaliknya: di sana `w`/`h` memang berarti ukuran
+    // video. Dua filter yang berdiri bersebelahan memakai arti yang berlawanan
+    // untuk huruf yang sama.
+    //
+    // ⚠️ Yang ditulis semula `h-$margin-$blockH`. Karena `h` di drawbox adalah
+    // tinggi kotak — yang nilainya `$blockH` itu sendiri — hasilnya menjadi
+    // `blockH - margin - blockH`, yaitu **−16**. Lebarnya `w-32` bahkan
+    // menunjuk dirinya sendiri. FFmpeg menolak kotak seperti itu dan keluar
+    // dengan kode 1, sehingga video TIDAK PERNAH selesai diberi watermark dan
+    // berhenti selamanya di antrean lokal.
+    //
+    // Ditemukan Product Owner 3 September 2026. Ia sudah gagal sejak plakat ini
+    // dibuat — terbukti sama di worktree `revisi-desain-aplikasimobile` maupun
+    // di sini — dan tidak satu pun dari 687 tes menangkapnya, karena seluruh
+    // tes memeriksa STRING yang disusun, bukan apakah FFmpeg menerimanya.
+    final blockY = isTop ? '$margin' : 'ih-$margin-$blockH';
+    final blockW = 'iw-${margin * 2}';
+
+    // Warna aksen boleh ditimpa pemanggil (dipakai tes), tetapi bawaannya
+    // datang dari [accentArgb] — satu sumber yang sama dengan pratinjau.
+    final aksen = accentColor ?? hexOf(accentArgb);
     final textX = '${margin + accentWidth + accentGap}';
 
+    // ⚠️ `h` di sini BENAR dan sengaja berbeda dari [blockY] di atas: nilainya
+    // dipakai `drawtext`, tempat `h` memang berarti tinggi video.
     String yAt(int index) {
       final off = plaqueOffset(index);
       return isTop ? '${margin + off}' : 'h-$margin-${blockH - off}';
@@ -192,11 +277,11 @@ class WatermarkCommand {
       // Satu bidang gelap untuk seluruh plakat, menggantikan kotak per baris.
       // Di atas kardus terang, teks putih tanpa bidang gelap tidak terbaca
       // (Bab 8.5).
-      'drawbox=x=$margin:y=$blockY:w=w-${margin * 2}:h=$blockH'
+      'drawbox=x=$margin:y=$blockY:w=$blockW:h=$blockH'
           ':color=black@$boxOpacity:t=fill',
       // Garis aksen camel di tepi blok — satu-satunya warna merek pada bukti.
       'drawbox=x=$margin:y=$blockY:w=$accentWidth:h=$blockH'
-          ':color=$accentColor@0.95:t=fill',
+          ':color=$aksen@0.95:t=fill',
       drawText(
         text: plaqueKicker,
         fontFile: fontFile,
@@ -204,9 +289,14 @@ class WatermarkCommand {
         y: yAt(-1),
         fontSize: kickerFontSize,
         boxOpacity: 0,
-        // Kepala plakat memakai warna aksen, bukan putih: ia keterangan, dan
-        // tidak boleh bersaing dengan nomor resi di bawahnya.
-        fontColor: '$accentColor@0.95',
+        // 🔴 Kepala plakat memakai [kickerArgb], BUKAN warna aksennya.
+        //
+        // Ia keterangan dan tidak boleh bersaing dengan nomor resi — tetapi
+        // sampai 3 September 2026 ia memakai coklat gelap `#9A5B00` yang di
+        // atas bidang tembus pandang praktis tidak terbaca sama sekali,
+        // sementara pratinjau di layar rekam memakai emas terang. Tidak
+        // bersaing bukan berarti tidak terbaca.
+        fontColor: '${hexOf(kickerArgb)}@0.95',
       ),
     ];
 

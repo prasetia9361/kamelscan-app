@@ -1076,7 +1076,11 @@ class RecordingCameraViewModel extends _$RecordingCameraViewModel {
         showGps: settings.showGpsOnWatermark,
       ),
       position: settings.watermarkPosition,
-      opacity: settings.watermarkOpacity.clamp(0.0, 1.0),
+      // 🔴 KONSTANTA, sama seperti sisi video (`video_processor_mobile.dart`).
+      // Membaca `settings.watermarkOpacity` di sini saja akan mengembalikan
+      // ketidakcocokan yang baru diperbaiki: pratinjau menampilkan satu
+      // kepekatan, videonya kepekatan lain.
+      opacity: WatermarkCommand.plaqueBoxOpacity,
       timeVerified: scanTime?.verified ?? false,
     );
   }

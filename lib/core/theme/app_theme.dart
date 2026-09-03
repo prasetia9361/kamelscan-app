@@ -126,10 +126,13 @@ class AppTheme {
       appBarTheme: AppBarTheme(
         // Bilah atas menyatu dengan halaman: tidak ada dua permukaan berbeda
         // yang bertemu di garis yang tidak berarti apa pun.
-        backgroundColor: scheme.surfaceContainer,
+        backgroundColor: scheme.surface,
         foregroundColor: scheme.onSurface,
         elevation: 0,
         scrolledUnderElevation: 0,
+        shape: Border(
+          bottom: BorderSide(color: scheme.outlineVariant, width: 1),
+        ),
         centerTitle: false,
         titleTextStyle: text.titleMedium,
       ),

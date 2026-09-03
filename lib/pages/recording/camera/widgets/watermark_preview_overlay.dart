@@ -91,12 +91,23 @@ class _Plaque extends StatelessWidget {
             // Garis aksen camel — satu-satunya warna merek pada bukti.
             Container(
               width: WatermarkCommand.accentWidth.toDouble(),
-              color: const Color(0xFF9A5B00),
+              color: const Color(WatermarkCommand.accentArgb),
             ),
             SizedBox(width: WatermarkCommand.accentGap.toDouble()),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(0, 8, 10, 9),
+                // 🔴 Angkanya datang dari `WatermarkCommand`, bukan ditulis
+                // ulang di sini. Sampai 3 September 2026 baris ini menulis
+                // `fromLTRB(0, 8, 10, 9)` sendiri sementara sisi video tidak
+                // punya jarak atas sama sekali — dan tidak ada apa pun yang
+                // menandai perbedaannya sampai Product Owner membandingkan
+                // layar rekam dengan videonya.
+                padding: EdgeInsets.fromLTRB(
+                  0,
+                  WatermarkCommand.padTop.toDouble(),
+                  10,
+                  WatermarkCommand.padBottom.toDouble(),
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
@@ -106,7 +117,7 @@ class _Plaque extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: Color(0xFFD9A441),
+                        color: Color(WatermarkCommand.kickerArgb),
                         fontFamily: AppFonts.sans,
                         fontSize: 8.5,
                         height: 1.3,

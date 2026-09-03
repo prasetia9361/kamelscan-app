@@ -831,7 +831,7 @@ Diurutkan menurut yang menghalangi rilis, bukan menurut kemudahannya.
 
 5. **Rilis iOS dan persiapan Google Play / App Store** belum dimulai.
 6. **Layar putih 30 detik** saat aplikasi pertama dibuka (O.15), diserahkan ke
-   desainer 26 Agustus.
+   desainer 26 Agustus. (sudah tertangani, saya lupa menyampaikan )
 
 **Belum pernah diuji:**
 
@@ -930,27 +930,6 @@ Perkiraan ± 2 jam begitu videonya ada.
 
 Isolatenya terbukti hidup, tetapi antriannya selalu keburu dihabiskan jalur
 aplikasi-terbuka. Prosedurnya di `DEVIASI_LIBRARY.md` **L.8**; butuh Wi-Fi.
-
-### 6. Zoom peramban pada aplikasi web
-
-Belum jelas apakah perlu diperbaiki. Tidak ada apa pun di kode yang menguncinya
-(tidak ada `user-scalable=no`), tetapi Flutter web menata ulang isinya alih-alih
-memperbesar, sehingga tidak terasa seperti zoom biasa. Bila saya
-membutuhkannya, jalan yang lebih pasti adalah menambah pengaturan **ukuran
-huruf** di Pengaturan → Tampilan (± 1 jam), bukan mengandalkan perilaku
-peramban.
-
-### 7. Layar putih 30 detik saat aplikasi pertama dibuka
-
-Diserahkan ke desainer 26 Agustus 2026, briefnya sudah diberikan. Uraiannya di
-**O.15**. Jangan memperkecil `main.dart.js` diam-diam sambil menunggu — itu
-pekerjaan lain yang belum diputuskan.
-
-### 8. Versi tabel untuk Toko, Packer, dan Pembayaran — DIBATALKAN
-
-Bab 10.5 memintanya, tetapi saya memutuskan 29 Agustus 2026 bahwa bentuk
-sekarang (tampilan HP di dalam rangka web) sudah cukup. **Jangan
-mengerjakannya** tanpa saya minta ulang.
 
 ## ✅ Yang sudah lunas 29 Agustus 2026 — jangan dikerjakan ulang
 
