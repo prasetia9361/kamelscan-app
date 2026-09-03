@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 
@@ -245,8 +247,8 @@ class MobileLocalDbService implements LocalDbService {
             .go();
       });
 
-  @override
-  Stream<int> watchPendingCount() {
+  /// Satu pembacaan jumlah antrian, tanpa aliran.
+  Future<int> _hitungPending() {
     final count = _database.uploadQueue.videoId.count();
     final query = _database.selectOnly(_database.uploadQueue)
       ..addColumns([count])
@@ -256,7 +258,95 @@ class MobileLocalDbService implements LocalDbService {
           UploadTaskStatus.duplicate.wire,
         ]),
       );
-    return query.map((row) => row.read(count) ?? 0).watchSingle();
+    return query.map((row) => row.read(count) ?? 0).getSingle();
+  }
+
+  /// Selang antara pembacaan ulang saat antrian **tidak kosong**.
+  ///
+  /// Tidak ada denyut sama sekali saat antrian kosong — keadaan itu tidak
+  /// dapat basi (lihat catatan pada [watchPendingCount]).
+  static const Duration _denyutAntrean = Duration(seconds: 8);
+
+  /// 🔴 Aliran Drift SAJA tidak cukup, dan alasannya bukan teori.
+  ///
+  /// Antrian unggah dijalankan dari **dua isolate**: aplikasi yang sedang
+  /// terbuka, dan isolate latar WorkManager (`upload_worker_mobile.dart`),
+  /// yang memanggil `createLocalDbService()` sendiri. Keduanya karena itu
+  /// memegang sambungan SQLite yang **berbeda**, dan Drift hanya memberi tahu
+  /// aliran miliknya sendiri — tulisan di satu isolate tidak pernah
+  /// membangunkan aliran di isolate lain.
+  ///
+  /// Akibat yang dilaporkan Product Owner 3 September 2026: video terunggah
+  /// dan barisnya terhapus oleh isolate latar, tetapi spanduk Beranda tetap
+  /// menulis *"1 video dalam antrean — menunggu Wi-Fi"* sampai aplikasi
+  /// ditutup dan dibuka lagi. Diukur langsung: tabelnya nol baris sementara
+  /// layarnya masih menampilkan satu.
+  ///
+  /// ⚠️ Denyutnya hanya berjalan saat hitungannya **lebih dari nol**, dan itu
+  /// disengaja: hitungan basi selalu terlalu TINGGI, tidak pernah terlalu
+  /// rendah. Baris baru selalu ditulis isolate aplikasi sendiri — dan tulisan
+  /// itu membangunkan alirannya sendiri seketika. Jadi nol yang basi tidak
+  /// mungkin terjadi, dan HP dengan antrian kosong tidak membayar apa pun
+  /// untuk penjagaan ini.
+  @override
+  Stream<int> watchPendingCount() {
+    late final StreamController<int> kendali;
+    StreamSubscription<int>? langganan;
+    Timer? denyut;
+    var terakhir = 0;
+
+    void aturDenyut() {
+      if (terakhir > 0 && denyut == null) {
+        denyut = Timer.periodic(_denyutAntrean, (_) async {
+          final n = await _hitungPending();
+          if (!kendali.isClosed && n != terakhir) {
+            terakhir = n;
+            kendali.add(n);
+            if (n == 0) {
+              denyut?.cancel();
+              denyut = null;
+            }
+          }
+        });
+      } else if (terakhir == 0) {
+        denyut?.cancel();
+        denyut = null;
+      }
+    }
+
+    kendali = StreamController<int>(
+      onListen: () {
+        final count = _database.uploadQueue.videoId.count();
+        final query = _database.selectOnly(_database.uploadQueue)
+          ..addColumns([count])
+          ..where(
+            _database.uploadQueue.status.isNotIn([
+              UploadTaskStatus.done.wire,
+              UploadTaskStatus.duplicate.wire,
+            ]),
+          );
+
+        langganan =
+            query.map((row) => row.read(count) ?? 0).watchSingle().listen(
+          (n) {
+            terakhir = n;
+            if (!kendali.isClosed) kendali.add(n);
+            aturDenyut();
+          },
+          onError: kendali.addError,
+        );
+      },
+      onCancel: () async {
+        denyut?.cancel();
+        denyut = null;
+        await langganan?.cancel();
+        // Ditutup di sini, bukan di pemanggil: `kendali` lahir dan mati di
+        // dalam metode ini, jadi hanya di sinilah penutupannya dapat dijamin.
+        await kendali.close();
+      },
+    );
+
+    return kendali.stream;
   }
 
   // ---------------------------------------------------------------------

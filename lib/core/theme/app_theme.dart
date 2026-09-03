@@ -257,12 +257,31 @@ class AppTheme {
         minVerticalPadding: 12,
         contentPadding: EdgeInsets.symmetric(horizontal: AppSizes.spaceMd),
       ),
+      // 🔴 Warna LATAR wajib disebut, bukan hanya warna teksnya.
+      //
+      // Sampai 3 September 2026 blok ini hanya menyetel `contentTextStyle`
+      // berwarna putih dan membiarkan latarnya ke bawaan Material 3, yaitu
+      // `ColorScheme.inverseSurface`. Di tema TERANG nilai itu gelap, jadi
+      // teks putih terbaca dan tidak ada yang menyadari apa pun.
+      //
+      // Di tema GELAP `inverseSurface` justru TERANG — dan putih di atas
+      // terang tidak terbaca sama sekali. Product Owner menemukannya di Redmi
+      // Note 9: pesan "Resi ... sudah pernah direkam" muncul sebagai kotak
+      // putih kosong, tepat pada peringatan yang paling perlu dibaca packer
+      // sebelum ia merekam ulang paket yang sama.
+      //
+      // ⚠️ Keduanya sekarang datang dari pasangan yang sama
+      // (`inverseSurface` / `onInverseSurface`), jadi kontrasnya dijamin
+      // Material di kedua tema — bukan kebetulan seperti sebelumnya.
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
         ),
-        contentTextStyle: text.bodyMedium?.copyWith(color: Colors.white),
+        backgroundColor: scheme.inverseSurface,
+        contentTextStyle:
+            text.bodyMedium?.copyWith(color: scheme.onInverseSurface),
+        actionTextColor: scheme.inversePrimary,
       ),
     );
   }
