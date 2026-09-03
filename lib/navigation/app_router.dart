@@ -328,7 +328,24 @@ GoRouter appRouter(Ref ref) {
               ),
               GoRoute(
                 path: Routes.payment,
-                builder: (_, _) => const PlanPage(),
+                // Bab 12.5 — `?plan=` dibawa dari aplikasi HP, yang menutup
+                // jalur bayarnya sendiri dan melempar pelanggan ke dasbor web.
+                //
+                // 🔴 Dicocokkan ke daftar nilai enum, BUKAN lewat
+                //    `TierPlan.fromWire`. `fromWire` menjawab `standar` untuk
+                //    apa pun yang tidak dikenal — jatuhan yang benar di
+                //    tempatnya, tetapi di sini ia akan mengubah alamat yang
+                //    salah ketik menjadi "Standar terpilih" tanpa satu pun
+                //    tanda. Tidak dikenal harus berarti "tidak memilih apa-apa",
+                //    supaya halamannya memakai pilihan bawaannya.
+                builder: (_, state) {
+                  final wire = state.uri.queryParameters['plan'];
+                  TierPlan? awal;
+                  for (final p in TierPlan.values) {
+                    if (p.wire == wire) awal = p;
+                  }
+                  return PlanPage(planAwal: awal);
+                },
                 routes: [
                   // 🔴 Bab 12.5 — halaman Checkout TIDAK didaftarkan di HP.
                   //

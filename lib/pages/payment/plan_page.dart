@@ -17,13 +17,48 @@ import 'plan_view_model.dart';
 import 'widgets/promo_field.dart';
 
 /// Halaman Pembayaran — pilih paket (Bab 9.8, Owner saja).
-class PlanPage extends ConsumerWidget {
-  const PlanPage({super.key});
+class PlanPage extends ConsumerStatefulWidget {
+  const PlanPage({super.key, this.planAwal});
+
+  /// Paket yang sudah dipilih pelanggan **sebelum** ia sampai di halaman ini,
+  /// dibaca dari `?plan=` (Bab 12.5).
+  ///
+  /// 🔴 Dipakai jalur HP → web. Di HP paketnya boleh dilihat tetapi tidak boleh
+  /// dibayar, jadi tombolnya membuka dasbor web. Sampai 3 September 2026
+  /// alamatnya dibuka **tanpa membawa pilihannya**, sehingga web memulai dari
+  /// pilihan bawaannya sendiri.
+  ///
+  /// Akibatnya bukan sekadar merepotkan: pelanggan menekan **Bisnis** di HP,
+  /// peramban terbuka dengan **Standar** terpilih, dan tidak ada satu pun
+  /// kalimat yang menjelaskan pilihannya berubah. Yang paling mungkin terjadi
+  /// berikutnya adalah ia membayar paket yang tidak ia maksud.
+  ///
+  /// Dilaporkan Product Owner setelah menguji di Android.
+  final TierPlan? planAwal;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PlanPage> createState() => _PlanPageState();
+}
+
+class _PlanPageState extends ConsumerState<PlanPage> {
+  /// Hanya sekali. Sesudah itu pilihannya milik pelanggan — menerapkannya
+  /// ulang tiap build akan membatalkan setiap ketukan pada kartu lain.
+  bool _awalDiterapkan = false;
+
+  @override
+  Widget build(BuildContext context) {
     final async = ref.watch(planViewModelProvider);
     final vm = ref.read(planViewModelProvider.notifier);
+
+    final awal = widget.planAwal;
+    if (!_awalDiterapkan && awal != null && async.hasValue) {
+      _awalDiterapkan = true;
+      // Ditunda ke sesudah frame: `select()` mengubah state provider, dan
+      // mengubahnya di tengah build melempar.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) ref.read(planViewModelProvider.notifier).select(awal);
+      });
+    }
 
     return SafeArea(
       child: switch (async) {
@@ -758,8 +793,15 @@ class _PayButtonState extends ConsumerState<_PayButton> {
                   onPressed: () async {
                     final messenger = ScaffoldMessenger.of(context);
                     final pesan = t.paymentOpenFailed;
+                    // 🔴 Pilihannya IKUT DIBAWA. Tanpa `?plan=`, peramban
+                    // membuka halaman ini dengan pilihan bawaannya sendiri —
+                    // dan pelanggan yang menekan Bisnis di HP menemukan
+                    // Standar terpilih di web, tanpa penjelasan apa pun.
                     final dibuka = await launchUrl(
-                      Uri.parse('${Env.webAppBaseUrl}${Routes.payment}'),
+                      Uri.parse(
+                        '${Env.webAppBaseUrl}${Routes.payment}'
+                        '?plan=${widget.data.selected.wire}',
+                      ),
                       mode: LaunchMode.externalApplication,
                     );
                     if (!dibuka) {
