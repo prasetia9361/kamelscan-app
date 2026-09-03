@@ -33,6 +33,17 @@ abstract class AdminTenantRow with _$AdminTenantRow {
     /// sekaligus dan PostgREST menolak yang rancu seperti itu.
     String? ownerEmail,
 
+    /// Nomor HP pemilik (Bab 11.2, migrasi 45).
+    ///
+    /// 🔴 Dibaca lewat `t.owner_id` yang SAMA dengan [ownerEmail] di dalam
+    /// `admin_list_tenants()`. Bila suatu saat sumbernya diubah, keduanya
+    /// harus diubah bersamaan — dua sumber berbeda pada satu baris kontak
+    /// adalah cara tercepat menelepon orang yang salah.
+    ///
+    /// **Boleh kosong**, dan sering: `users.phone` tidak wajib diisi (migrasi
+    /// 03), dan pendaftar lewat Google tidak pernah ditanya nomornya.
+    String? ownerPhone,
+
     /// Tenant ini milik akun **admin**, bukan pelanggan.
     ///
     /// 🔴 Setiap akun yang mendaftar memperoleh satu tenant sendiri, termasuk

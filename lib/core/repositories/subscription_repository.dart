@@ -39,6 +39,37 @@ class SubscriptionRepository {
     }
   }
 
+  /// Seluruh upaya pembayaran milik tenant aktif — bahan Riwayat pembayaran
+  /// (Bab 7.2), diminta Product Owner 3 September 2026.
+  ///
+  /// ⚠️ Menyaring statusnya diserahkan ke [PaymentHistoryEntry.susun], bukan
+  /// dikerjakan di sini dengan `.eq('status', 'paid')`. Alasannya: yang
+  /// dikembalikan repository ini adalah *apa yang ada di tabel*, sedangkan
+  /// keputusan "mana yang layak disebut pembayaran" adalah aturan dagang yang
+  /// diuji tanpa perangkat. Menaruhnya di kueri berarti aturan itu tidak dapat
+  /// diuji sama sekali kecuali dengan database sungguhan.
+  ///
+  /// 🔴 Tidak ada `.eq('tenant_id', ...)`. Policy `sub_select` (migrasi 14)
+  /// sudah membatasinya ke tenant sendiri, sama seperti [fetchLatest] di atas.
+  /// Menambahkannya di sini akan terlihat seperti penjagaan padahal bukan —
+  /// dan penjagaan palsu lebih berbahaya daripada tidak ada, karena orang
+  /// berhenti mencari yang asli.
+  Future<Result<List<Subscription>>> fetchHistory({int limit = 100}) async {
+    try {
+      final rows = await _client
+          .from(AppConstants.tblSubscriptions)
+          .select()
+          .order('created_at', ascending: false)
+          .limit(limit);
+
+      return Result.ok(
+        rows.map((r) => Subscription.fromJson(r)).toList(growable: false),
+      );
+    } on Object catch (e, s) {
+      return Result.err(SupabaseService.mapError(e, s));
+    }
+  }
+
   /// Membuat tagihan **Midtrans** dan mengembalikan halaman pembayarannya
   /// (Bab 12.3) — Edge Function `create-payment`.
   ///

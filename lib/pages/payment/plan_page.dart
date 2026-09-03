@@ -157,6 +157,22 @@ class _Body extends ConsumerWidget {
 
           const SizedBox(height: 20),
           _PayButton(data: data),
+
+          // 🔴 Jalan masuk ke Riwayat pembayaran (Bab 7.2).
+          //
+          // Ditaruh DI SINI dan bukan di menu tersendiri karena halaman inilah
+          // yang membawa orang bertanya "kenapa saldo saya segini". Layar yang
+          // tidak punya jalan masuk sama saja belum ada — panel Admin sempat
+          // kehilangan keduanya, dan cacat itu lolos ratusan tes karena tidak
+          // ada yang rusak (P.2, jebakan nomor 13).
+          const SizedBox(height: 12),
+          Center(
+            child: TextButton.icon(
+              onPressed: () => context.push(Routes.paymentHistory),
+              icon: const Icon(Icons.receipt_long_outlined, size: 18),
+              label: Text(t.paymentHistoryMenu),
+            ),
+          ),
         ],
       ),
     );

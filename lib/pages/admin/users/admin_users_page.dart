@@ -385,6 +385,7 @@ class _Isi extends StatelessWidget {
 enum _Kolom {
   business(lebar: 200, sort: AdminTenantSort.business),
   email(lebar: 210),
+  phone(lebar: 140),
   tier(lebar: 96, sort: AdminTenantSort.tier),
   status(lebar: 128, sort: AdminTenantSort.status),
   joined(lebar: 116, sort: AdminTenantSort.created),
@@ -406,6 +407,7 @@ enum _Kolom {
   String label(AppL10n t) => switch (this) {
     _Kolom.business => t.tableColBusiness,
     _Kolom.email => t.tableColEmail,
+    _Kolom.phone => t.tableColPhone,
     _Kolom.tier => t.tableColTier,
     _Kolom.status => t.tableColStatus,
     _Kolom.joined => t.tableColJoined,
@@ -428,6 +430,16 @@ enum _Kolom {
   static const List<_Kolom> urutanBuang = [
     _Kolom.shops,
     _Kolom.packers,
+
+    // 🔴 Nomor HP dibuang SEBELUM email, bukan sesudahnya.
+    //
+    // Keduanya kontak, jadi salah satu memang harus pergi lebih dulu di layar
+    // sempit. Yang dipertahankan email karena ia satu-satunya yang tidak
+    // pernah kosong: `users.phone` tidak wajib diisi dan pendaftar lewat
+    // Google tidak pernah ditanya nomornya, sehingga kolom nomor HP pada
+    // sebagian pelanggan hanya berisi tanda hubung — kolom yang memakan lebar
+    // tanpa memberi apa pun justru di layar yang paling kekurangan lebar.
+    _Kolom.phone,
     _Kolom.email,
     _Kolom.tokens,
     _Kolom.joined,
@@ -678,6 +690,22 @@ class _BarisData extends StatelessWidget {
                     ),
                     _Kolom.email => Text(
                       baris.ownerEmail ?? '—',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+
+                    // ⚠️ Tanda hubung, bukan sel kosong. Sel kosong terbaca
+                    // seperti tabel yang gagal memuat; tanda hubung menyatakan
+                    // nomornya memang tidak ada — dan pada halaman yang
+                    // dipakai menghubungi pelanggan, perbedaan itu menentukan
+                    // apakah Admin mencari nomornya di tempat lain.
+                    _Kolom.phone => Text(
+                      (baris.ownerPhone ?? '').trim().isEmpty
+                          ? '—'
+                          : baris.ownerPhone!,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodyMedium?.copyWith(

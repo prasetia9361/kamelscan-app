@@ -5,6 +5,7 @@ import '../../../core/config/tier_config.dart';
 import '../../../core/models/payment_methods.dart';
 import '../../../core/models/platform_contact.dart';
 import '../../../core/models/promo.dart';
+import '../../../core/models/tutorial.dart';
 import '../../../core/providers/repository_providers.dart';
 import '../../../core/providers/session_provider.dart';
 import '../../../core/utils/app_failure.dart';
@@ -240,6 +241,72 @@ class AdminPromosViewModel extends _$AdminPromosViewModel {
 
     debugPrint(
       'KAMELSCAN_ADMIN hapus promo '
+      '${hasil.isOk ? 'BERHASIL' : 'GAGAL · ${hasil.failureOrNull}'}',
+    );
+    return hasil.failureOrNull;
+  }
+}
+
+/// Daftar langkah tutorial (Bab 9.9).
+///
+/// 🔴 Memakai `fetchTutorials()`, bukan `TutorialRepository.fetchActive()`.
+/// Yang kedua disaring policy `tutorials_read` (`using (is_active)`), sehingga
+/// langkah yang baru saja dinonaktifkan Admin akan **lenyap dari layarnya
+/// sendiri** dan tidak ada lagi cara mengaktifkannya kembali dari aplikasi.
+@riverpod
+class AdminTutorialsViewModel extends _$AdminTutorialsViewModel {
+  @override
+  Future<List<Tutorial>> build() async {
+    final session = ref.watch(sessionProvider).value;
+    if (session == null) throw AppFailure.sessionExpired;
+
+    debugPrint('KAMELSCAN_ADMIN minta daftar tutorial');
+    final hasil =
+        await ref.read(adminSettingsRepositoryProvider).fetchTutorials();
+
+    debugPrint(
+      'KAMELSCAN_ADMIN daftar tutorial '
+      '${hasil.isOk ? 'OK · ${hasil.valueOrNull?.length} langkah' : 'GAGAL · ${hasil.failureOrNull}'}',
+    );
+    return hasil.unwrap();
+  }
+
+  Future<void> refresh() async {
+    ref.invalidateSelf();
+    await future;
+  }
+
+  Future<AppFailure?> upsert(Tutorial tutorial) async {
+    debugPrint('KAMELSCAN_ADMIN simpan tutorial "${tutorial.title}"');
+    final hasil = await ref
+        .read(adminSettingsRepositoryProvider)
+        .upsertTutorial(tutorial);
+    if (hasil.isOk) await refresh();
+
+    debugPrint(
+      'KAMELSCAN_ADMIN simpan tutorial '
+      '${hasil.isOk ? 'BERHASIL' : 'GAGAL · ${hasil.failureOrNull}'}',
+    );
+    return hasil.failureOrNull;
+  }
+
+  /// Menghidupkan atau mematikan satu langkah tanpa membuka formulirnya.
+  ///
+  /// Aksi yang paling sering dibutuhkan: video sedang direkam ulang, dan yang
+  /// diperlukan hanya menyembunyikannya sementara — bukan menghapusnya lalu
+  /// mengetik ulang seluruh isinya nanti.
+  Future<AppFailure?> setActive(Tutorial tutorial, bool active) =>
+      upsert(tutorial.copyWith(isActive: active));
+
+  Future<AppFailure?> delete(String id) async {
+    debugPrint('KAMELSCAN_ADMIN hapus tutorial $id');
+    final hasil = await ref
+        .read(adminSettingsRepositoryProvider)
+        .deleteTutorial(id);
+    if (hasil.isOk) await refresh();
+
+    debugPrint(
+      'KAMELSCAN_ADMIN hapus tutorial '
       '${hasil.isOk ? 'BERHASIL' : 'GAGAL · ${hasil.failureOrNull}'}',
     );
     return hasil.failureOrNull;

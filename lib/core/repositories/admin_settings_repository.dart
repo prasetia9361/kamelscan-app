@@ -5,6 +5,7 @@ import '../config/tier_config.dart';
 import '../models/payment_methods.dart';
 import '../models/platform_contact.dart';
 import '../models/promo.dart';
+import '../models/tutorial.dart';
 import '../services/supabase_service.dart';
 import '../utils/result.dart';
 
@@ -216,6 +217,82 @@ class AdminSettingsRepository {
   Future<Result<void>> deletePromo(String code) async {
     try {
       await _client.from(AppConstants.tblPromos).delete().eq('code', code);
+      return okVoid;
+    } on Object catch (e, s) {
+      return Result.err(SupabaseService.mapError(e, s));
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // 9.9 Tutorial
+  // -------------------------------------------------------------------------
+
+  /// Seluruh langkah tutorial, **termasuk yang nonaktif**.
+  ///
+  /// 🔴 Berbeda dari `TutorialRepository.fetchActive()` yang dipakai pelanggan,
+  /// dan perbedaannya bukan pilihan gaya. Policy `tutorials_read` memakai
+  /// `using (is_active)`, sehingga langkah nonaktif **tidak terlihat sama
+  /// sekali** lewat jalur itu — Admin yang menonaktifkan sebuah langkah akan
+  /// melihatnya lenyap dan tidak punya cara mengaktifkannya kembali.
+  ///
+  /// Yang membuat kueri ini melihat semuanya adalah policy kedua,
+  /// `tutorials_admin` (`for all using (is_admin())`); policy PostgreSQL
+  /// digabung dengan OR, jadi Admin lolos lewat policy itu tanpa peduli
+  /// `is_active`.
+  Future<Result<List<Tutorial>>> fetchTutorials() async {
+    try {
+      final rows =
+          await _client.from(AppConstants.tblTutorials).select();
+
+      final daftar = rows.map((r) => Tutorial.fromJson(r)).toList()
+        ..sort(Tutorial.urutkan);
+      return Result.ok(List.unmodifiable(daftar));
+    } on Object catch (e, s) {
+      return Result.err(SupabaseService.mapError(e, s));
+    }
+  }
+
+  /// Membuat atau memperbarui satu langkah tutorial.
+  ///
+  /// ⚠️ `id` kosong berarti **langkah baru**: kuncinya dibiarkan dibuat server
+  /// lewat `default gen_random_uuid()`. Mengirim string kosong sebagai `id`
+  /// akan ditolak PostgreSQL sebagai uuid tidak sah — galat yang benar, tetapi
+  /// dengan pesan yang tidak menolong siapa pun.
+  ///
+  /// `created_at` tidak pernah ikut dikirim; ia milik server.
+  Future<Result<void>> upsertTutorial(Tutorial tutorial) async {
+    try {
+      final baris = <String, dynamic>{
+        if (tutorial.id.isNotEmpty) 'id': tutorial.id,
+        'step_order': tutorial.stepOrder,
+        'title': tutorial.title,
+        'description': tutorial.description,
+        'youtube_url': tutorial.youtubeUrl,
+        'platform': tutorial.platform,
+        'is_active': tutorial.isActive,
+      };
+
+      if (tutorial.id.isEmpty) {
+        await _client.from(AppConstants.tblTutorials).insert(baris);
+      } else {
+        await _client.from(AppConstants.tblTutorials).upsert(baris);
+      }
+      return okVoid;
+    } on Object catch (e, s) {
+      return Result.err(SupabaseService.mapError(e, s));
+    }
+  }
+
+  /// Menghapus satu langkah tutorial secara permanen.
+  ///
+  /// ⚠️ Tidak seperti promo, menghapus tutorial tidak membuang keterangan apa
+  /// pun tentang peristiwa yang sudah lewat — tidak ada tabel lain yang
+  /// menyimpan rujukan ke `tutorials.id`. Meski begitu layar tetap menawarkan
+  /// **menonaktifkan** lebih dulu: langkah yang videonya sedang direkam ulang
+  /// biasanya ingin kembali dengan nomor dan judul yang sama.
+  Future<Result<void>> deleteTutorial(String id) async {
+    try {
+      await _client.from(AppConstants.tblTutorials).delete().eq('id', id);
       return okVoid;
     } on Object catch (e, s) {
       return Result.err(SupabaseService.mapError(e, s));

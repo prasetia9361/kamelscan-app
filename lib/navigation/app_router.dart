@@ -18,6 +18,7 @@ import '../pages/admin/settings/admin_new_admin_page.dart';
 import '../pages/admin/settings/admin_payment_methods_page.dart';
 import '../pages/admin/settings/admin_pricing_page.dart';
 import '../pages/admin/settings/admin_promos_page.dart';
+import '../pages/admin/settings/admin_tutorials_page.dart';
 import '../pages/admin/users/admin_users_page.dart';
 import '../pages/auth/callback/auth_callback_page.dart';
 import '../pages/auth/change_password/change_password_page.dart';
@@ -33,6 +34,7 @@ import '../pages/home/home_page.dart';
 import '../pages/not_found_page.dart';
 import '../pages/payment/checkout/checkout_page.dart';
 import '../pages/payment/payment_access.dart';
+import '../pages/payment/payment_history_page.dart';
 import '../pages/payment/plan_page.dart';
 import '../pages/public/public_video_page.dart';
 import '../pages/recording/camera/recording_camera_page.dart';
@@ -195,6 +197,11 @@ GoRouter appRouter(Ref ref) {
           GoRoute(
             path: 'contact',
             builder: (_, _) => const AdminContactPage(),
+          ),
+          // Bab 9.9 — Admin memasukkan tautan YouTube tiap langkah.
+          GoRoute(
+            path: 'tutorials',
+            builder: (_, _) => const AdminTutorialsPage(),
           ),
           GoRoute(
             path: 'new-admin',
@@ -364,6 +371,19 @@ GoRouter appRouter(Ref ref) {
                       parentNavigatorKey: _rootNavigatorKey,
                       builder: (_, _) => const CheckoutPage(),
                     ),
+
+                  // 🔴 Riwayat pembayaran TIDAK dijaga `PaymentAccess`.
+                  //
+                  // Bab 12.5 menutup jalur MEMBAYAR di HP supaya tidak ditolak
+                  // App Store. Melihat apa yang sudah dibayar bukan pembelian
+                  // dalam aplikasi, dan justru di HP-lah kartu token dilihat
+                  // sehari-hari — Owner yang hanya memegang HP tidak punya
+                  // cara lain menjelaskan saldonya.
+                  GoRoute(
+                    path: 'history',
+                    parentNavigatorKey: _rootNavigatorKey,
+                    builder: (_, _) => const PaymentHistoryPage(),
+                  ),
                 ],
               ),
             ],

@@ -75,6 +75,18 @@ class Routes {
   static const String payment = '/payment';
   static const String checkout = '/payment/checkout';
 
+  /// Riwayat pembayaran (Bab 7.2) — diminta Product Owner 3 September 2026.
+  ///
+  /// ⚠️ Anak dari [payment], jadi ia sudah tercakup pola `payment/*` yang ada
+  /// di `deploy_web.ps1`. Tidak ada baris baru yang perlu ditambahkan di sana
+  /// — dan itu disengaja: rute tingkat atas yang terlupa menjawab 200 sambil
+  /// menyajikan halaman landing, bukan 404 (lihat catatan `deploy_web.ps1`).
+  ///
+  /// 🔴 Berbeda dari [checkout], rute ini TETAP hidup di HP. Bab 12.5 menutup
+  /// jalur **membayar**, bukan jalur melihat apa yang sudah dibayar; riwayat
+  /// tidak dipersoalkan App Store.
+  static const String paymentHistory = '/payment/history';
+
   /// Tutorial versi **web** — menu sidebar tersendiri (Bab 10.3).
   ///
   /// 🔴 Di HP alamatnya BUKAN ini, melainkan [homeTutorial]. Tutorial di HP
@@ -118,6 +130,11 @@ class Routes {
   static const String adminPromos = '/admin/promos';
   static const String adminPaymentMethods = '/admin/payment-methods';
   static const String adminContact = '/admin/contact';
+
+  /// Bab 9.9 — Admin memasukkan tautan YouTube tiap langkah tutorial.
+  ///
+  /// Tercakup pola `admin/*` di `deploy_web.ps1`.
+  static const String adminTutorials = '/admin/tutorials';
 
   /// Bab 2.2 — panduan membuat akun Admin baru.
   ///
