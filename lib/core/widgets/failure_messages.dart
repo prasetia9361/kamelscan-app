@@ -104,6 +104,25 @@ extension FailureMessages on BuildContext {
       'errorDeleteConfirmMismatch' => t.errorDeleteConfirmMismatch,
       'errorCancelDeleteTooLate' => t.errorCancelDeleteTooLate,
 
+      // 🔴 Ketiga kunci ini BUKAN milik `AppFailure` — mereka datang dari
+      // `RecordingSetup.blockedReasonKey`, yang menjelaskan kenapa tombol
+      // Mulai masih mati (Bab 9.10).
+      //
+      // Justru karena bukan `AppFailure`, mereka lolos dari penjagaan
+      // `failure_message_keys_test.dart` yang lahir dari kegagalan 20 Agustus
+      // 2026 — tes itu hanya membaca `app_failure.dart`. Kalimatnya sudah ada
+      // di ARB sejak layar Setup dibuat, tetapi tidak pernah tersambung ke
+      // sini, sehingga layar Setup berbunyi *"Terjadi kesalahan. Coba lagi
+      // beberapa saat."* untuk keadaan yang sama sekali bukan kesalahan:
+      // penggunanya hanya belum memilih toko.
+      //
+      // Ditemukan Product Owner 3 September 2026 di Redmi Note 9, dan sudah
+      // ada sejak sebelum revisi tampilan — bukan akibatnya. Penjagaannya
+      // sekarang ikut membaca `recording_machine.dart`.
+      'setupPickCamera' => t.setupPickCamera,
+      'setupPickTrigger' => t.setupPickTrigger,
+      'setupPickShop' => t.setupPickShop,
+
       _ => t.errorUnknown,
     };
   }

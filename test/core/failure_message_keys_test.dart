@@ -78,4 +78,67 @@ void main() {
     expect(kunciAppFailure, contains('packersEmailTaken'));
     expect(sumberPenerjemah, contains("'packersEmailTaken' =>"));
   });
+
+  // ===========================================================================
+  // Lubang yang ditemukan 3 September 2026
+  // ===========================================================================
+  //
+  // 🔴 Penjagaan di atas hanya membaca `app_failure.dart`, jadi ia buta
+  // terhadap kunci pesan yang datang dari tempat lain — dan ada satu tempat
+  // lain: `RecordingSetup.blockedReasonKey`, yang menjelaskan kenapa tombol
+  // Mulai masih mati (Bab 9.10).
+  //
+  // Akibatnya persis kegagalan yang sama seperti 20 Agustus 2026, hanya lewat
+  // pintu yang berbeda: `setupPickCamera`, `setupPickTrigger`, dan
+  // `setupPickShop` sudah punya kalimatnya di ARB sejak layar Setup dibuat,
+  // tetapi tidak satu pun tersambung ke `failure_messages.dart`. Layar Setup
+  // karena itu berbunyi "Terjadi kesalahan. Coba lagi beberapa saat." untuk
+  // keadaan yang bukan kesalahan sama sekali — penggunanya hanya belum memilih
+  // toko.
+  //
+  // Ditemukan Product Owner di Redmi Note 9, bukan oleh 662 tes yang lulus.
+  // Pelajarannya sama seperti dulu: penjagaan yang membaca satu sumber hanya
+  // menjaga satu sumber.
+  group('blockedReasonKey layar Setup — sumber kunci KEDUA', () {
+    late Set<String> kunciBlocked;
+
+    setUpAll(() {
+      final sumberMesin =
+          File('lib/core/domain/recording_machine.dart').readAsStringSync();
+
+      // Hanya yang berada di dalam badan `blockedReasonKey`, supaya string
+      // lain di berkas yang sama tidak ikut terbawa.
+      final awal = sumberMesin.indexOf('blockedReasonKey');
+      expect(awal, greaterThan(-1),
+          reason: 'blockedReasonKey berpindah tempat — penjagaan ini buta');
+      final badan = sumberMesin.substring(awal, awal + 600);
+
+      kunciBlocked = RegExp(r"return\s*'([A-Za-z0-9_]+)'")
+          .allMatches(badan)
+          .map((m) => m.group(1)!)
+          .toSet();
+    });
+
+    test('sumbernya terbaca — penjagaan ini tidak boleh lolos karena kosong',
+        () {
+      expect(kunciBlocked.length, greaterThanOrEqualTo(4));
+      expect(kunciBlocked, contains('setupPickShop'));
+    });
+
+    test('🔴 setiap alasan tombol Mulai mati punya kalimatnya sendiri', () {
+      final belumTerdaftar = kunciBlocked
+          .where((k) => !sumberPenerjemah.contains("'$k' =>"))
+          .toList()
+        ..sort();
+
+      expect(
+        belumTerdaftar,
+        isEmpty,
+        reason: 'Kunci berikut dipakai blockedReasonKey tetapi tidak punya '
+            'cabang di failure_messages.dart, sehingga layar Setup akan '
+            'berbunyi "Terjadi kesalahan" alih-alih menyebutkan apa yang '
+            'kurang:\n  ${belumTerdaftar.join('\n  ')}',
+      );
+    });
+  });
 }

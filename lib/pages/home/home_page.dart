@@ -90,6 +90,7 @@ class _HomeBody extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final t = context.l10n;
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final colors = theme.extension<AppColors>()!;
     final session = ref.watch(sessionProvider).value;
     final isTrial = session?.isTrial ?? false;
@@ -176,14 +177,28 @@ class _HomeBody extends ConsumerWidget {
 
         // Ketiga angka tetap terlihat sekaligus tanpa gulir mendatar — syarat
         // Bab 9.2 dan keputusan Product Owner 18 Agustus 2026.
+        // 🔴 Petak Pantauan memakai warna yang SAMA PERSIS dengan kartu Rekam
+        // sejenisnya di bawah — keputusan Product Owner 3 September 2026,
+        // sesudah melihat Beranda di mode terang dan gelap berdampingan.
+        //
+        // Sebelumnya petak Pantauan memakai pasangan *container* (pucat)
+        // sedangkan kartu Rekam Packing memakai `primary` (penuh). Akibatnya
+        // satu halaman memakai dua biru berbeda untuk satu hal yang sama, dan
+        // hubungan "petak ini dan kartu itu bicara tentang packing yang sama"
+        // hilang — padahal petaknya memang menuju riwayat jenis itu.
+        //
+        // ⚠️ Karena itu sumbernya sengaja disebut lewat `scheme.primary` /
+        // `colors.returnContainer` yang sama dengan `record_action_row.dart`,
+        // bukan disalin nilainya. Menyalin angka warna berarti keduanya akan
+        // menyimpang diam-diam pada perubahan palet berikutnya.
         MonitoringBand(
           packingLabel: t.homeKickerPacking,
           packingCount: stats.packingCount,
-          packingColor: colors.packing,
-          packingBackground: colors.packingContainer,
+          packingColor: scheme.onPrimary,
+          packingBackground: scheme.primary,
           returnLabel: t.homeKickerReturn,
           returnCount: stats.returnCount,
-          returnColor: colors.returnColor,
+          returnColor: colors.onReturnContainer,
           returnBackground: colors.returnContainer,
           tokenLabel: quota.isTrial ? t.trialQuotaLabel : t.tokenBalanceLabel,
           tokenValue: quota.balance,
