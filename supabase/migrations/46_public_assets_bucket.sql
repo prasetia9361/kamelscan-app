@@ -97,7 +97,25 @@ drop policy if exists public_assets_delete_admin on storage.objects;
 create policy public_assets_delete_admin on storage.objects for delete
   using (bucket_id = 'public-assets' and public.is_admin());
 
-comment on table storage.objects is
-  'Berkas Supabase Storage. Bucket: avatars (foto profil, migrasi 23), '
-  'payment-proofs (bukti transfer, migrasi 25), public-assets (gambar iklan, '
-  'migrasi 46). Video bukti TIDAK di sini - ia di Cloudflare R2 (Bab 8.7).';
+-- ------------------------------------------------------------
+-- Daftar bucket, untuk dibaca manusia
+-- ------------------------------------------------------------
+-- 🔴 Ditulis sebagai komentar SQL biasa, BUKAN `comment on table
+-- storage.objects`. Dicoba begitu 4 September 2026 dan ditolak:
+--
+--     ERROR: 42501: must be owner of table objects
+--
+-- `storage.objects` milik peran internal Supabase, bukan milik pemilik
+-- project. Membuat POLICY di atasnya diizinkan — migrasi 23 dan 25 sudah
+-- membuktikannya — tetapi mengubah metadata tabelnya tidak.
+--
+-- ⚠️ SQL Editor menjalankan seluruh isi kotak sebagai SATU transaksi, jadi
+-- satu baris yang ditolak membatalkan semuanya. Bucket dan keempat policy di
+-- atas tidak akan ada sampai baris ini dibuang.
+--
+--   avatars        - foto profil (migrasi 23), publik, tulis oleh pemiliknya
+--   payment-proofs - bukti transfer (migrasi 25), PRIVAT
+--   public-assets  - gambar iklan (migrasi 46), publik, tulis hanya admin
+--
+-- Video bukti TIDAK ada di Supabase Storage sama sekali — ia langsung ke
+-- Cloudflare R2 (Bab 8.7).
