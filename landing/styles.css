@@ -446,7 +446,34 @@ a { color: var(--primary); }
 }
 .paket-nama { font-size: 15px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--on-surface-variant); }
 .paket-harga { display: flex; align-items: baseline; gap: var(--space-xs); margin-top: var(--space-sm); flex-wrap: wrap; }
-.paket-harga .angka { font-size: 38px; line-height: 46px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+/* 🔴 `clamp`, bukan 38px tetap. Sejak paket ketiga ada (4 September 2026)
+   kartunya berjajar TIGA, dan "Rp 1.490.000" pada 38px meluber keluar kartu di
+   lebar 900–1100 px — persis rentang laptop yang paling banyak dipakai.
+   Angka terbesarlah yang menentukan, bukan yang paling sering dilihat. */
+.paket-harga .angka { font-size: clamp(26px, 2.6vw, 38px); line-height: 1.2;
+                      font-weight: 700; letter-spacing: -.02em;
+                      font-variant-numeric: tabular-nums; }
+
+/* Pemisah "Fitur" — mengikuti pola kartu harga SaasAble (uikit/tailwind,
+   `pricing-9.html`): satu garis rambut melintang dengan label kecil duduk di
+   tengahnya.
+
+   Gunanya memisahkan "berapa harganya" dari "apa isinya" tanpa menambah satu
+   pun kotak. Sebelum ini daftar fitur menempel langsung di bawah kalimat
+   penjelas, dan keduanya terbaca sebagai satu paragraf panjang. */
+.paket-pemisah { position: relative; margin: var(--space-lg) 0 var(--space-md);
+                 text-align: center; }
+.paket-pemisah::before { content: ""; position: absolute; inset: 50% 0 auto;
+                         border-top: 1px solid var(--outline-variant); }
+/* 🔴 Latarnya WAJIB `--surface`, sama dengan latar kartunya. Pil ini
+   menutupi garis di belakangnya; latar yang berbeda sedikit pun membuat
+   garisnya terlihat menembus tulisan. */
+.paket-pemisah span { position: relative; display: inline-block;
+                      padding: 3px 12px;
+                      background: var(--surface);
+                      font-size: 12px; font-weight: 700; letter-spacing: .08em;
+                      text-transform: uppercase;
+                      color: var(--on-surface-variant); }
 .paket-harga .satuan { font-size: 15px; color: var(--on-surface-variant); font-weight: 600; }
 .paket > p.teks-dukung { margin-top: var(--space-sm); }
 

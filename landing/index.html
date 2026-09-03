@@ -368,11 +368,29 @@
 <!-- 6. HARGA                                                              -->
 <!-- ===================================================================== -->
 <!--
-  🔴 Angka di bawah ditulis mati. Sumber kebenarannya ada di
-  `platform_settings.pricing` di Supabase. Setiap kali Admin mengubah harga di
-  sana, blok ini WAJIB diperbarui manual. Ini pertukaran yang disadari
-  (Bab 10.2) demi menghindari halaman pemasaran yang bergantung pada API.
-  Terakhir disamakan dengan Bab 7.1: 26 Agustus 2026.
+  🔴 Angka di bawah DITULIS MATI. Sumber kebenarannya
+  `platform_settings.pricing` di Supabase, dan cadangannya
+  `lib/core/config/tier_config.dart`. Setiap kali harga berubah, blok ini WAJIB
+  diperbarui manual — pertukaran yang disadari (Bab 10.2) demi menghindari
+  halaman pemasaran yang bergantung pada API.
+
+  ⚠️ Pertukaran itu MEMANG SUDAH MENGGIGIT. Diperiksa 4 September 2026, dan
+  halaman ini sudah salah selama berminggu-minggu:
+
+      Standar   Rp 99.000    -> sebenarnya Rp 149.000
+      Pro       Rp 249.000   -> sebenarnya Rp 299.000
+      Bisnis    tidak ada    -> paket ketiga sejak migrasi 39
+      Retensi   60 hari (Pro)-> 30 hari untuk KETIGANYA
+      Packer    5 di Standar -> tak terbatas di ketiganya
+      Watermark logo toko    -> DIBATALKAN 1 September 2026
+
+  Calon pelanggan datang dengan angka yang salah di kepalanya, lalu menemukan
+  harga lain di halaman pembayaran. Itu bukan sekadar tampilan yang basi.
+
+  🔴 Kalau harga berubah lagi, ubah DI SINI juga. Tidak ada satu pun tes yang
+  dapat menangkapnya — halaman ini di luar Flutter.
+
+  Terakhir disamakan dengan `tier_config.dart`: 4 September 2026.
 -->
 <section class="bagian" id="harga">
   <div class="wrap">
@@ -388,60 +406,100 @@
         <p data-i18n="harga.trial.isi">
           Diberikan otomatis saat mendaftar, sekali per akun. Tidak ada batas
           waktu — batasnya jumlah video, bukan jumlah hari. Fiturnya setara
-          paket Standar.
+          paket Standar, dengan maksimal 5 akun packer.
         </p>
       </div>
       <a class="tombol tombol-utama" href="/app/register" data-i18n="harga.trial.cta">Ambil uji coba</a>
     </div>
 
-    <div class="kisi kisi-2">
+    <div class="kisi kisi-3">
       <article class="kartu paket">
         <span class="paket-nama" data-i18n="harga.standar.nama">Standar</span>
         <p class="paket-harga">
-          <span class="angka" data-i18n="harga.standar.harga">Rp 99.000</span>
+          <span class="angka" data-i18n="harga.standar.harga">Rp 149.000</span>
           <span class="satuan" data-i18n="harga.perbulan">/ bulan</span>
         </p>
         <p class="teks-dukung" data-i18n="harga.standar.untuk">Untuk toko yang dikerjakan sendiri atau tim kecil.</p>
+
+        <div class="paket-pemisah" aria-hidden="true">
+          <span data-i18n="harga.fitur">Fitur</span>
+        </div>
+
         <ul>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="harga.standar.f1"><b>1.000 video</b> per bulan</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="harga.standar.f1"><b>2.000 token</b> per pembelian</span></li>
           <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="harga.standar.f2">Durasi maksimal <b>30 detik</b> per video</span></li>
           <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="harga.standar.f3">Video tersimpan <b>30 hari</b></span></li>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="harga.standar.f4">Sampai <b>5 akun packer</b></span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="harga.standar.f4">Akun packer <b>tidak dibatasi</b></span></li>
           <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="harga.standar.f5">Jumlah toko tidak dibatasi</span></li>
           <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="harga.standar.f6">Tautan publik untuk berbagi bukti</span></li>
-          <li class="tak-ada"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg><span data-i18n="harga.standar.f7">Watermark memakai teks nama toko</span></li>
         </ul>
         <a class="tombol tombol-garis tombol-lebar" href="/app/register" data-i18n="harga.standar.cta">Pilih Standar</a>
       </article>
 
       <article class="kartu paket paket-unggulan">
-        <span class="paket-label" data-i18n="harga.pro.label">Paling lengkap</span>
+        <span class="paket-label" data-i18n="harga.pro.label">Paling banyak dipilih</span>
         <span class="paket-nama" data-i18n="harga.pro.nama">Pro</span>
         <p class="paket-harga">
-          <span class="angka" data-i18n="harga.pro.harga">Rp 249.000</span>
+          <span class="angka" data-i18n="harga.pro.harga">Rp 299.000</span>
           <span class="satuan" data-i18n="harga.perbulan">/ bulan</span>
         </p>
         <p class="teks-dukung" data-i18n="harga.pro.untuk">Untuk gudang dengan banyak packer dan volume kirim tinggi.</p>
+
+        <div class="paket-pemisah" aria-hidden="true">
+          <span data-i18n="harga.fitur">Fitur</span>
+        </div>
+
         <ul>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="harga.pro.f1"><b>5.000 video</b> per bulan</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="harga.pro.f1"><b>5.000 token</b> per pembelian</span></li>
           <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="harga.pro.f2">Durasi maksimal <b>60 detik</b> per video</span></li>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="harga.pro.f3">Video tersimpan <b>60 hari</b></span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="harga.pro.f3">Video tersimpan <b>30 hari</b></span></li>
           <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="harga.pro.f4">Akun packer <b>tidak dibatasi</b></span></li>
           <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="harga.pro.f5">Jumlah toko tidak dibatasi</span></li>
           <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="harga.pro.f6">Tautan publik untuk berbagi bukti</span></li>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="harga.pro.f7"><b>Watermark logo toko</b> sendiri</span></li>
         </ul>
         <a class="tombol tombol-utama tombol-lebar" href="/app/register" data-i18n="harga.pro.cta">Pilih Pro</a>
+      </article>
+
+      <article class="kartu paket">
+        <span class="paket-nama" data-i18n="harga.bisnis.nama">Bisnis</span>
+        <p class="paket-harga">
+          <span class="angka" data-i18n="harga.bisnis.harga">Rp 1.490.000</span>
+          <span class="satuan" data-i18n="harga.perbulan">/ bulan</span>
+        </p>
+        <p class="teks-dukung" data-i18n="harga.bisnis.untuk">Untuk paket bernilai tinggi yang perlu direkam lebih lama.</p>
+
+        <div class="paket-pemisah" aria-hidden="true">
+          <span data-i18n="harga.fitur">Fitur</span>
+        </div>
+
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="harga.bisnis.f1"><b>30.000 token</b> per pembelian</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="harga.bisnis.f2">Durasi maksimal <b>3 menit</b> per video</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="harga.bisnis.f3">Video tersimpan <b>30 hari</b></span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="harga.bisnis.f4">Akun packer <b>tidak dibatasi</b></span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="harga.bisnis.f5">Jumlah toko tidak dibatasi</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="harga.bisnis.f6">Tautan publik untuk berbagi bukti</span></li>
+        </ul>
+        <a class="tombol tombol-garis tombol-lebar" href="/app/register" data-i18n="harga.bisnis.cta">Pilih Bisnis</a>
       </article>
     </div>
 
     <p class="catatan-retensi">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
       <span data-i18n="harga.retensi">
-        <b>Video terhapus otomatis setelah masa simpannya habis</b> — 30 hari
-        pada paket Standar, 60 hari pada Pro, dihitung dari waktu perekaman.
-        Ini bagian dari cara kerja layanan, bukan kesalahan. Unduh video yang
-        ingin Anda simpan lebih lama sebelum tenggatnya.
+        <b>Video terhapus otomatis setelah 30 hari</b> — berlaku sama untuk
+        ketiga paket, dihitung dari waktu perekaman. Ini bagian dari cara kerja
+        layanan, bukan kesalahan. Unduh video yang ingin Anda simpan lebih lama
+        sebelum tenggatnya.
+      </span>
+    </p>
+
+    <p class="catatan-retensi">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      <span data-i18n="harga.token">
+        <b>Token bertambah, tidak menimpa.</b> Membeli paket lagi menambahkan
+        tokennya ke sisa yang masih ada, dan sisa harinya ikut bertambah.
+        Tokennya hidup selama langganan Anda hidup.
       </span>
     </p>
   </div>
