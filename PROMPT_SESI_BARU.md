@@ -339,10 +339,11 @@ Instruksi ringkas pernah membuat saya tersinggung karena terasa seperti diuji.
 **Migrasi terakhir yang sudah dijalankan: 44** (2 September 2026). Seluruhnya
 sudah berjalan di produksi:
 
-⚠️ **43 dilewati dengan sengaja** — nomor itu milik
-`43_user_settings_show_record_fab.sql` di worktree
-`revisi-desain-aplikasimobile`, dan ia **belum pernah dijalankan**. Jangan
-menyimpulkan "44 sudah, berarti 43 sudah".
+⚠️ **43 ada di worktree lain, dan sudah dijalankan juga.** Berkasnya
+`43_user_settings_show_record_fab.sql` di `revisi-desain-aplikasimobile`,
+dijalankan Product Owner 3 September 2026. Diukur ke produksi hari itu: kolom
+`user_settings.show_record_fab` **ada** dan terisi. Jadi 37–44 lengkap tanpa
+lubang, hanya berkas nomor 43-nya yang tidak berada di worktree ini.
 
 - **30** `get_platform_stats()` — angka Dasbor Platform
 - **31** `admin_list_tenants()` — tabel Kelola Pengguna
@@ -458,9 +459,11 @@ adanya setelah diberi tahu risikonya. Jangan membuka ulang keputusan itu.
 Seluruh pekerjaan di bawah ada di worktree **`31-agustus`** (cabang
 `worktree-31-agustus`, lahir dari master `4cb9cbc`).
 
-**Keadaannya:** `dart analyze lib test` bersih, **625 uji lolos**, seluruhnya
-**sudah di-commit** dalam **9 commit**. Belum di-push, dan **belum digabung ke
-`master` atas keputusan Product Owner** — penggabungannya menyusul.
+**Keadaannya:** `dart analyze lib test` bersih, **625 uji lolos**, dan pohon
+kerjanya **bersih — tidak ada yang belum di-commit**. Belum di-push, dan
+**belum digabung ke `master` atas keputusan Product Owner** — penggabungannya
+menyusul. Jumlah commit sengaja tidak ditulis di sini; `git log 4cb9cbc..HEAD`
+selalu lebih benar daripada angka yang disalin tangan.
 
 Migrasi **37–44 sudah dijalankan di produksi**, Edge Function berjumlah **10**,
 dan aplikasi webnya sudah diterbitkan ulang. Seluruh pekerjaan sesi ini
@@ -473,10 +476,9 @@ Owner menomori ulang yang di `revisi-desain-aplikasimobile` menjadi
 `43_user_settings_show_record_fab.sql`, dan itu arah yang benar — menomori ulang
 migrasi yang sudah terlanjur berjalan di produksi hanya merusak catatannya.
 
-⚠️ **43 masih BELUM dijalankan.** Kolom `show_record_fab` belum ada, dan
-worktree `revisi-desain-aplikasimobile` masih mengerjakan UI aplikasi HP di
-atasnya. Jangan menyimpulkan "42 sudah, berarti aman" — 43 lahir belakangan
-justru karena penomoran ulang ini.
+✅ **43 sudah dijalankan juga**, pada 3 September 2026, dan Product Owner sudah
+menjalankan aplikasinya. Penomoran ulang itu terbukti benar: tidak ada nomor
+kembar, tidak ada yang terlewat, dan 37–44 kini lengkap di produksi.
 
 ### Migrasi yang dibuat sesi ini
 
@@ -747,8 +749,14 @@ perbaikan packer, dan sembilan cacat produksi di atas.
 ⚠️ **Jangan sampai pekerjaan di worktree ini terbuang.** Itu kalimat Product
 Owner sendiri, dan ia menyebutnya sebagai syarat, bukan harapan.
 
-⚠️ Worktree itu juga memuat `43_user_settings_show_record_fab.sql` yang **belum
-pernah dijalankan**. Kolom `show_record_fab` belum ada di database.
+✅ **Migrasi 43 sudah dijalankan** (3 September 2026), dan Product Owner sudah
+menjalankan aplikasi dari worktree itu. Kolom `user_settings.show_record_fab`
+terverifikasi ada di produksi. Jadi databasenya **sudah siap** menerima
+rancangan itu — yang tertinggal hanya kode Dart-nya.
+
+⚠️ Berkas migrasi 43 **tidak ada di worktree ini**. Bila kodenya dibawa ke
+sini, berkas SQL-nya perlu ikut dibawa supaya riwayat migrasinya tidak
+berlubang — meskipun isinya sudah terlanjur berjalan di database.
 
 ### b. Setelah rancangan selesai — tiga pekerjaan
 
