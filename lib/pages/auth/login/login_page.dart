@@ -64,6 +64,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
     return AuthScaffold(
       showBack: false,
+      // Layar Masuk adalah satu-satunya layar yang dilihat orang sebelum tahu
+      // aplikasi apa ini, jadi ia satu-satunya yang memakai kepala bermerek.
+      header: AuthBrandHeader(tagline: t.authTagline),
+      centerTitle: true,
       title: t.authSignInTitle,
       subtitle: t.authSignInSubtitle,
       children: [
@@ -156,7 +160,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     width: 20,
                     child: CircularProgressIndicator(strokeWidth: 2.5),
                   )
-                : const Icon(Icons.g_mobiledata, size: 28),
+                // Logo Google yang sebenarnya, bukan `Icons.g_mobiledata` —
+                // ikon itu huruf G polos sewarna teks tombol, dan tombol masuk
+                // pihak ketiga dikenali orang justru dari logonya. Panduan
+                // merek Google juga meminta logo aslinya, bukan tiruan.
+                : Image.asset(
+                    'assets/images/google.png',
+                    width: 20,
+                    height: 20,
+                  ),
             label: Text(t.authContinueWithGoogle),
           ),
         ],

@@ -9,6 +9,7 @@ import '../../../core/providers/repository_providers.dart';
 import '../../../core/providers/upload_queue_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/theme/app_text_styles_display.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/failure_messages.dart';
 import '../../../l10n/generated/app_localizations.dart';
@@ -123,7 +124,20 @@ class _RecordingCameraPageState extends ConsumerState<RecordingCameraPage> {
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) _confirmExit(t);
       },
-      child: Scaffold(
+      // 🔴 Bilah status dipaksa terang selama layar ini terbuka.
+      //
+      // Layar kamera **selalu** gelap, apa pun tema pilihan pengguna, tetapi
+      // glif bilah status mengikuti tema itu. Pemakai bertema terang mendapat
+      // jam, sinyal, dan indikator baterai berwarna tinta gelap di atas latar
+      // gelap — kontrasnya sekitar 1:1, jadi selama merekam ia kehilangan
+      // penunjuk baterai justru saat baterainya paling terkuras.
+      //
+      // `AnnotatedRegion`, bukan `SystemChrome.setSystemUIOverlayStyle`:
+      // gayanya dikembalikan sendiri saat layar ini ditutup, tanpa perlu
+      // diingat di `dispose`.
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle.light,
+        child: Scaffold(
         backgroundColor: Colors.black,
         body: _RecordingScope(
           cameraName: widget.cameraName,
@@ -150,7 +164,16 @@ class _RecordingCameraPageState extends ConsumerState<RecordingCameraPage> {
                   SafeArea(
                     child: Column(
                       children: [
-                        _TopBar(state: state),
+                        // Jenis dioper dari sini, bukan dibaca dari `state`:
+                        // ViewModel menyimpannya sebagai `_type` privat, dan
+                        // membocorkannya ke state hanya demi satu chip berarti
+                        // menambah field yang bisa menyimpang dari query rute.
+                        // `widget.typeWire` adalah sumber yang sama yang
+                        // dipakai ViewModel saat dibuat.
+                        _TopBar(
+                          state: state,
+                          type: VideoType.fromWire(widget.typeWire),
+                        ),
                         const Spacer(),
                         // Ringkasan rekaman terakhir. Tidak menghalangi apa
                         // pun: pemindaian sudah hidup lagi di belakangnya, dan
@@ -175,6 +198,7 @@ class _RecordingCameraPageState extends ConsumerState<RecordingCameraPage> {
                   _stopButton,
                 ],
               ),
+        ),
         ),
       ),
     );
@@ -442,9 +466,10 @@ class _QueueBadge extends ConsumerWidget {
 }
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.state});
+  const _TopBar({required this.state, required this.type});
 
   final RecordingScreenState state;
+  final VideoType type;
 
   @override
   Widget build(BuildContext context) {
@@ -492,44 +517,67 @@ class _TopBar extends StatelessWidget {
           Row(
             children: [
               BackButton(color: Colors.white, onPressed: () => context.pop()),
-              if (state.isRecording) ...[
-                _RecordingDot(color: colors.recording),
-                const SizedBox(width: AppSizes.spaceSm),
-              ],
+              // Chip jenis: penanda, bukan pemilih. Jenisnya sudah ditentukan
+              // sejak Beranda dan tidak dapat diubah di sini.
+              _CameraTypeChip(type: type),
               const Spacer(),
               const _QueueBadge(),
+            ],
+          ),
+          const SizedBox(height: AppSizes.spaceSm),
+          // Pil keadaan rata tengah — `MEREKAM · SPX2846017395JD` saat
+          // merekam, kalimat arahan saat belum.
+          if (caption.isNotEmpty)
+            Center(
+              child: _StatusPill(
+                label: state.isRecording && headline.isNotEmpty
+                    ? '${context.l10n.recordCameraTitle}  ·  $headline'
+                    : caption,
+                recordingColor: state.isRecording ? colors.recording : null,
+              ),
+            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Bab 8.3.5 — nomor resi tampil besar. Ini bukan estetika:
+                    // packer harus sempat menyadari salah baca sebelum
+                    // videonya jadi.
+                    //
+                    // 🔴 Hanya saat **belum** merekam. Begitu perekaman jalan,
+                    // nomor itu sudah berdiri besar di plakat bukti dan ikut
+                    // terbakar ke video; menampilkannya dua kali besar-besar
+                    // hanya menutupi pandangan ke barang yang sedang dikemas.
+                    // Justru saat menimbang pembacaan — sebelum videonya jadi
+                    // — nomor besar itu paling dibutuhkan.
+                    if (headline.isNotEmpty && !state.isRecording)
+                      Padding(
+                        padding: const EdgeInsets.only(top: AppSizes.spaceSm),
+                        child: Text(
+                          headline,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontFamily: 'JetBrainsMono',
+                            fontSize: 26,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
               if (state.isRecording) ...[
-                const SizedBox(width: AppSizes.spaceSm),
-                _Countdown(state: state, warning: colors.warning),
+                const SizedBox(width: AppSizes.spaceMd),
+                _ElapsedBlock(state: state, warning: colors.warning),
               ],
             ],
           ),
-          if (headline.isNotEmpty)
-            // Bab 8.3.5 — nomor resi tampil besar. Ini bukan estetika: packer
-            // harus sempat menyadari salah baca sebelum videonya jadi.
-            Padding(
-              padding: const EdgeInsets.only(top: AppSizes.spaceSm),
-              child: Text(
-                headline,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontFamily: 'JetBrainsMono',
-                  fontSize: 26,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.2,
-                ),
-              ),
-            ),
-          if (caption.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: AppSizes.spaceXs),
-              child: Text(
-                caption,
-                style: const TextStyle(color: Colors.white70, fontSize: 14),
-              ),
-            ),
           // Bab 8.9 — mikrofon/lokasi ditolak tidak menghalangi perekaman,
           // tetapi packer tetap berhak tahu videonya bisu atau tanpa koordinat.
           for (final key in state.warningKeys)
@@ -554,43 +602,155 @@ class _TopBar extends StatelessWidget {
   }
 }
 
-class _RecordingDot extends StatelessWidget {
-  const _RecordingDot({required this.color});
+/// Penanda jenis paket di layar kamera.
+///
+/// 🔴 Penanda, **bukan pemilih** — sama seperti di layar Setup. Jenisnya sudah
+/// ditetapkan sejak Beranda dan ikut ke baris `package_videos`; menawarkannya
+/// lagi di sini berarti dua sumber kebenaran untuk satu hal.
+///
+/// Warnanya memakai pasangan container/on-container dari palet, bukan putih
+/// transparan: layar ini selalu gelap, jadi kedua warna itu selalu benar.
+class _CameraTypeChip extends StatelessWidget {
+  const _CameraTypeChip({required this.type});
 
-  final Color color;
+  final VideoType type;
 
   @override
-  Widget build(BuildContext context) => Container(
-        width: 12,
-        height: 12,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-      );
+  Widget build(BuildContext context) {
+    final t = context.l10n;
+    final colors = Theme.of(context).extension<AppColors>()!;
+    final packing = type == VideoType.packing;
+
+    final (bg, fg, icon, label) = packing
+        ? (
+            colors.packing,
+            Colors.white,
+            Icons.inventory_2_outlined,
+            t.videoTypePacking,
+          )
+        : (
+            colors.returnColor,
+            Colors.white,
+            Icons.move_to_inbox_outlined,
+            t.videoTypeReturn,
+          );
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(AppSizes.radiusFull),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // §0 palet — chip selalu memuat ikon dan tulisan, bukan warna saja.
+          Icon(icon, size: 13, color: fg),
+          const SizedBox(width: 5),
+          Text(
+            label.toUpperCase(),
+            style: AppDisplayStyles.kicker
+                .copyWith(fontSize: 9, letterSpacing: 1.3, color: fg),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-class _Countdown extends StatelessWidget {
-  const _Countdown({required this.state, required this.warning});
+/// Pil keadaan: `● MEREKAM` atau kalimat arahan.
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({required this.label, this.recordingColor});
+
+  /// Non-null hanya saat merekam — memunculkan titik merahnya.
+  final Color? recordingColor;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xB3000000),
+        borderRadius: BorderRadius.circular(AppSizes.radiusFull),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (recordingColor != null) ...[
+            Container(
+              width: 9,
+              height: 9,
+              decoration: BoxDecoration(
+                color: recordingColor,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 7),
+          ],
+          Flexible(
+            child: Text(
+              label.toUpperCase(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppDisplayStyles.kicker.copyWith(
+                fontSize: 9.5,
+                letterSpacing: 1.4,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Pencatat waktu besar + chip sisa detik, rata kanan.
+///
+/// Angkanya monospace bertabular: tanpa itu lebar tiap digit berbeda dan
+/// seluruh blok bergoyang lima kali per detik (§3.3 palet).
+class _ElapsedBlock extends StatelessWidget {
+  const _ElapsedBlock({required this.state, required this.warning});
 
   final RecordingScreenState state;
   final Color warning;
 
   @override
   Widget build(BuildContext context) {
-    final remaining = state.machine.remaining;
     final isFinal = state.machine.isFinalCountdown;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: isFinal ? warning : const Color(0x66000000),
-        borderRadius: BorderRadius.circular(AppSizes.radiusFull),
-      ),
-      child: Text(
-        context.l10n.recordRemainingLabel(remaining.inSeconds),
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          Formatters.duration(state.machine.elapsed),
+          style: AppTextStyles.timerDisplay.copyWith(
+            fontSize: 30,
+            height: 1,
+            color: Colors.white,
+          ),
         ),
-      ),
+        const SizedBox(height: 6),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+          decoration: BoxDecoration(
+            color: isFinal ? warning : const Color(0xB3000000),
+            borderRadius: BorderRadius.circular(AppSizes.radiusFull),
+          ),
+          child: Text(
+            context.l10n
+                .recordRemainingLabel(state.machine.remaining.inSeconds)
+                .toUpperCase(),
+            style: AppDisplayStyles.kicker.copyWith(
+              fontSize: 9,
+              letterSpacing: 1.2,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -615,20 +775,113 @@ class _BottomBar extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          // Senter hanya pada mode barcode (Bab 8.3.3).
-          if (state.mode == TriggerMode.barcode1d)
-            _RoundButton(
-              icon: state.torchOn ? Icons.flashlight_on : Icons.flashlight_off,
-              tooltip: state.torchOn ? t.recordTorchOff : t.recordTorchOn,
-              active: state.torchOn,
-              onPressed: vm.toggleTorch,
-            )
-          else
-            const SizedBox(width: AppSizes.touchComfort),
-          const Spacer(),
-          // 🔴 Tombol Berhenti **tidak lagi di sini** — lihat
-          // `_StopButtonOverlay`. Jangan mengembalikannya ke baris ini.
+          // Kolom kiri: berapa video menunggu terkirim. Angkanya dari antrian
+          // **lokal**, sama seperti spanduk Beranda — video yang direkam di
+          // gudang tanpa sinyal belum punya baris di server sama sekali
+          // (Bab 8.7 / L.5).
+          Expanded(child: _QueueColumn(label: t.recordQueueLabel)),
+
+          // 🔴 Ruang tengah sengaja kosong: tombol Berhenti **tidak** di baris
+          // ini, melainkan lapisan `Stack` tersendiri (`_StopButtonOverlay`).
+          // Jangan mengembalikannya ke sini — ia pernah tidak tergambar sama
+          // sekali di Redmi Note 9 saat berada di dalam baris ini.
+          const SizedBox(width: 96),
+
+          // Kolom kanan: senter menggantikan label MODE pada mode barcode,
+          // karena hanya di sana senter berguna (Bab 8.3.3).
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: state.mode == TriggerMode.barcode1d
+                  ? _RoundButton(
+                      icon: state.torchOn
+                          ? Icons.flashlight_on
+                          : Icons.flashlight_off,
+                      tooltip:
+                          state.torchOn ? t.recordTorchOff : t.recordTorchOn,
+                      active: state.torchOn,
+                      onPressed: vm.toggleTorch,
+                    )
+                  : _MetaColumn(
+                      label: t.recordModeLabel,
+                      value: switch (state.mode) {
+                        TriggerMode.qrCode => t.triggerQr,
+                        TriggerMode.barcode1d => t.triggerBarcode,
+                        TriggerMode.manual => t.triggerManual,
+                      },
+                      alignEnd: true,
+                    ),
+            ),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+/// Satu kolom palang bawah: label kecil berspasi lebar di atas nilainya.
+class _MetaColumn extends StatelessWidget {
+  const _MetaColumn({
+    required this.label,
+    required this.value,
+    this.alignEnd = false,
+  });
+
+  final String label;
+  final String value;
+  final bool alignEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment:
+          alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      children: [
+        Text(
+          label.toUpperCase(),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: AppDisplayStyles.kicker.copyWith(
+            fontSize: 8.5,
+            letterSpacing: 1.5,
+            color: Colors.white70,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 13,
+            height: 1.2,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Kolom ANTREAN. Menghilang saat tidak ada yang mengantre — ruang kosong
+/// lebih baik daripada "0 video" yang menuntut dibaca tanpa membawa kabar.
+class _QueueColumn extends ConsumerWidget {
+  const _QueueColumn({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final count = ref.watch(pendingUploadCountProvider).value ?? 0;
+    if (count == 0) return const SizedBox.shrink();
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: _MetaColumn(
+        label: label,
+        value: context.l10n.recordQueueBadge(count),
       ),
     );
   }

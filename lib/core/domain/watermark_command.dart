@@ -36,8 +36,13 @@ class WatermarkCommand {
 
   /// Satu filter `drawtext` untuk satu baris teks.
   ///
-  /// `box=1:boxcolor=black@0.5` mengikuti Bab 8.5 — kotak gelap di belakang
+  /// `box=1:boxcolor=black@0.5` mengikuti Bab 8.5 — bidang gelap di belakang
   /// teks jauh lebih terbaca di atas kardus terang daripada sekadar garis tepi.
+  ///
+  /// [boxOpacity] `0` mematikan kotaknya sama sekali, bukan menggambar kotak
+  /// tembus pandang. Dipakai plakat bukti, yang sudah punya satu bidang gelap
+  /// untuk seluruh blok — kotak per baris di atasnya hanya menumpuk gelap di
+  /// tempat yang sudah gelap.
   static String drawText({
     required String text,
     required String fontFile,
@@ -45,13 +50,14 @@ class WatermarkCommand {
     required String y,
     required int fontSize,
     double boxOpacity = 0.5,
+    String fontColor = 'white',
   }) =>
       "drawtext=text='${escapeDrawText(text)}'"
       ':fontfile=${escapeDrawText(fontFile)}'
       ':x=$x:y=$y'
       ':fontsize=$fontSize'
-      ':fontcolor=white'
-      ':box=1:boxcolor=black@$boxOpacity';
+      ':fontcolor=$fontColor'
+      '${boxOpacity <= 0 ? '' : ':box=1:boxcolor=black@$boxOpacity'}';
 
   /// Baris-baris yang tertulis di watermark, **berurutan dari tepi ke dalam**.
   ///
@@ -66,6 +72,28 @@ class WatermarkCommand {
   /// Urutannya bukan selera: indeks 0 digambar paling dekat tepi layar dan
   /// dengan huruf terbesar, jadi **nomor resi harus pertama**. Itu satu-satunya
   /// baris yang dicari petugas resolusi marketplace.
+  /// Kepala plakat bukti. Ia yang menyatakan blok di bawahnya adalah nomor
+  /// resi, sehingga baris resinya sendiri tidak lagi memerlukan awalan
+  /// `RESI:` yang memakan lebar di depan angka terpenting.
+  static const String plaqueKicker = 'KAMELSCAN · BUKTI VIDEO';
+
+  /// Ukuran huruf tiap bagian plakat, dalam piksel video 480p.
+  static const int kickerFontSize = 11;
+  static const int resiFontSize = 26;
+  static const int metaFontSize = 13;
+
+  /// Tinggi baris tiap bagian. Dipisah dari ukuran hurufnya karena keduanya
+  /// tidak sama: huruf 26 px butuh baris 34 px agar tidak berimpit.
+  static const int _kickerLine = 15;
+  static const int _resiLine = 34;
+  static const int _metaLine = 18;
+
+  /// Lebar garis aksen camel di tepi kiri plakat.
+  static const int accentWidth = 3;
+
+  /// Jarak dari garis aksen ke teks.
+  static const int accentGap = 9;
+
   static List<String> buildLines({
     required String resiCode,
     required DateTime serverTime,
@@ -75,47 +103,123 @@ class WatermarkCommand {
     bool showGps = true,
   }) =>
       <String>[
-        'RESI: $resiCode',
+        // 🔴 Indeks 0 tetap nomor resi — ia digambar paling besar, dan itu
+        // satu-satunya baris yang dicari petugas resolusi marketplace.
+        //
+        // Awalan `RESI:` dibuang 1 September 2026: kepala plakat
+        // [plaqueKicker] sudah menyatakan blok ini bukti video KamelScan, dan
+        // awalan itu mendorong angka terpenting ke kanan tanpa menambah arti.
+        resiCode,
         formatStamp(serverTime, timeVerified: timeVerified),
+        // Baris yang hilang membuat pembacanya tidak dapat membedakan "lokasi
+        // tidak ada" dari "versi aplikasi ini belum menulis lokasi".
+        if (showGps) coordinates ?? 'Lokasi tidak tersedia',
         shopName,
-        if (showGps)
-          coordinates == null
-              ? 'Lokasi tidak tersedia'
-              : 'GPS: $coordinates',
       ];
 
+  /// Tinggi seluruh blok plakat untuk [lineCount] baris (termasuk resi).
+  ///
+  /// Dipakai bersama oleh penyusun FFmpeg dan pratinjau di layar, supaya
+  /// keduanya menaruh plakat pada tempat yang sama.
+  static int plaqueHeight(int lineCount) =>
+      _kickerLine +
+      _resiLine +
+      (_metaLine * (lineCount <= 1 ? 0 : lineCount - 1));
+
+  /// Jarak dari puncak blok ke puncak baris ke-[index].
+  ///
+  /// Indeks −1 berarti kepala plakat.
+  static int plaqueOffset(int index) {
+    if (index < 0) return 0;
+    if (index == 0) return _kickerLine;
+    return _kickerLine + _resiLine + (_metaLine * (index - 1));
+  }
+
   /// Susun seluruh rantai filter: skala 480p + baris-baris watermark.
+  /// Susun seluruh rantai filter: skala 480p + **plakat bukti**.
+  ///
+  /// 🔴 Bentuknya berubah 1 September 2026 atas keputusan Product Owner. Dulu
+  /// tiap baris berdiri sendiri dengan kotak gelapnya masing-masing, rata
+  /// kanan. Sekarang keempat baris berkumpul menjadi satu blok rata kiri
+  /// dengan satu bidang gelap, kepala `KAMELSCAN · BUKTI VIDEO`, nomor resi
+  /// besar, dan garis aksen camel di tepinya.
+  ///
+  /// ⚠️ **Ini mengubah isi berkas video bukti**, bukan hanya tampilan layar.
+  /// Pratinjau di layar rekam (`watermark_preview_overlay.dart`) meniru bentuk
+  /// yang sama dan membaca daftar baris yang sama; bila keduanya menyimpang,
+  /// yang salah pratinjaunya.
+  ///
+  /// Blok selalu **rata kiri di dalam dirinya sendiri**. [WatermarkPosition]
+  /// menentukan sudut tempat blok itu ditambatkan, bukan perataan teksnya —
+  /// teks rata kanan membuat angka resi berpindah-pindah posisi awal setiap
+  /// kali panjangnya berbeda, dan itu justru angka yang dibaca orang.
   static String buildFilterChain({
     required List<String> lines,
     required String fontFile,
     required WatermarkPosition position,
     required int heightPx,
-    int fontSize = 18,
-    int lineHeight = 24,
     int margin = 16,
     double boxOpacity = 0.5,
+    String accentColor = '0x9A5B00',
   }) {
     final isTop = position == WatermarkPosition.topLeft ||
         position == WatermarkPosition.topRight;
-    final isLeft = position == WatermarkPosition.topLeft ||
-        position == WatermarkPosition.bottomLeft;
 
-    final x = isLeft ? '$margin' : 'w-tw-$margin';
+    final blockH = plaqueHeight(lines.length);
 
-    final filters = <String>['scale=-2:$heightPx'];
+    // 🔴 Plakat **selebar bidang video**, ditambatkan hanya ke atas atau bawah.
+    //
+    // [WatermarkPosition] karenanya hanya menentukan sisi tegaknya; kiri/kanan
+    // tidak lagi berpengaruh. Itu disengaja, dan konsekuensinya harus
+    // diketahui: pengaturan posisi watermark memang sudah tidak dapat diubah
+    // dari mana pun sejak grup Merek dihapus 29 Agustus 2026, sehingga
+    // nilainya beku di `bottom_right` bagi hampir semua tenant.
+    //
+    // Blok setengah lebar sempat dicoba agar sudut kanan tetap berarti, tetapi
+    // pratinjau di layar rekam menggambarnya selebar layar — dan pratinjau
+    // yang berbeda dari videonya persis kesalahan yang dilarang dartdoc
+    // `watermark_preview_overlay.dart`. Satu bentuk untuk keduanya.
+    final blockY = isTop ? '$margin' : 'h-$margin-$blockH';
+    final textX = '${margin + accentWidth + accentGap}';
+
+    String yAt(int index) {
+      final off = plaqueOffset(index);
+      return isTop ? '${margin + off}' : 'h-$margin-${blockH - off}';
+    }
+
+    final filters = <String>[
+      'scale=-2:$heightPx',
+      // Satu bidang gelap untuk seluruh plakat, menggantikan kotak per baris.
+      // Di atas kardus terang, teks putih tanpa bidang gelap tidak terbaca
+      // (Bab 8.5).
+      'drawbox=x=$margin:y=$blockY:w=w-${margin * 2}:h=$blockH'
+          ':color=black@$boxOpacity:t=fill',
+      // Garis aksen camel di tepi blok — satu-satunya warna merek pada bukti.
+      'drawbox=x=$margin:y=$blockY:w=$accentWidth:h=$blockH'
+          ':color=$accentColor@0.95:t=fill',
+      drawText(
+        text: plaqueKicker,
+        fontFile: fontFile,
+        x: textX,
+        y: yAt(-1),
+        fontSize: kickerFontSize,
+        boxOpacity: 0,
+        // Kepala plakat memakai warna aksen, bukan putih: ia keterangan, dan
+        // tidak boleh bersaing dengan nomor resi di bawahnya.
+        fontColor: '$accentColor@0.95',
+      ),
+    ];
+
     for (var i = 0; i < lines.length; i++) {
-      // Dari atas: baris pertama paling atas. Dari bawah: baris pertama paling
-      // bawah, sehingga nomor resi selalu paling dekat tepi layar.
-      final offset = margin + (i * lineHeight);
-      final y = isTop ? '$offset' : 'h-th-$offset';
       filters.add(
         drawText(
           text: lines[i],
           fontFile: fontFile,
-          x: x,
-          y: y,
-          fontSize: i == 0 ? fontSize : fontSize - 2,
-          boxOpacity: boxOpacity,
+          x: textX,
+          y: yAt(i),
+          // Indeks 0 adalah nomor resi — satu-satunya yang dibaca dari jauh.
+          fontSize: i == 0 ? resiFontSize : metaFontSize,
+          boxOpacity: 0,
         ),
       );
     }

@@ -135,6 +135,7 @@ class AppConstants {
   static const String prefThemeMode = 'pref_theme_mode';
   static const String prefLanguage = 'pref_language';
   static const String prefVoiceOverEnabled = 'pref_voice_over_enabled';
+  static const String prefShowRecordFab = 'pref_show_record_fab';
   static const String prefLastShopId = 'pref_last_shop_id';
   static const String prefTriggerMode = 'pref_trigger_mode';
 

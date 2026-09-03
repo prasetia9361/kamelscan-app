@@ -12,6 +12,7 @@ import '../../core/providers/pipeline_providers.dart';
 import '../../core/providers/session_provider.dart';
 import '../../core/providers/theme_provider.dart';
 import '../../core/widgets/failure_messages.dart';
+import '../../core/widgets/k_section_header.dart';
 import 'settings_view_model.dart';
 import 'widgets/cellular_upload_switch.dart';
 
@@ -80,12 +81,14 @@ class SettingsPage extends ConsumerWidget {
     final theme = Theme.of(context);
     final session = ref.watch(sessionProvider).value;
     final isOwner = session?.isOwner ?? false;
+    final showFab = ref.watch(showRecordFabProvider);
 
     return SafeArea(
       child: ListView(
         // Jarak bawah 88 dp — tombol Rekam mengambang menumpang di atas isi
-        // halaman dan akan menutupi baris terakhir.
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 88),
+        // halaman dan akan menutupi baris terakhir. Saat sakelarnya dimatikan
+        // (Bab 9.7) ruang itu tidak dibutuhkan lagi.
+        padding: EdgeInsets.fromLTRB(16, 12, 16, showFab ? 88 : 24),
         children: [
           Text(t.navSettings, style: theme.textTheme.headlineSmall),
           const SizedBox(height: 16),
@@ -104,6 +107,11 @@ class SettingsPage extends ConsumerWidget {
               const _VoiceOverSwitch(),
               const SizedBox(height: 10),
               const CellularUploadSwitch(),
+              // Bab 9.7 — diminta Product Owner 31 Agustus 2026 bersama revisi
+              // tampilan. Ia memang pengaturan perekaman: yang diaturnya adalah
+              // dari mana perekaman dimulai.
+              const SizedBox(height: 10),
+              const _RecordFabSwitch(),
               // 🔴 GPS pindah ke sini dari kelompok **Merek**, yang dihapus
               // bersama pengaturan watermark (keputusan Product Owner
               // 29 Agustus 2026). Ia memang pengaturan perekaman: yang
@@ -143,21 +151,19 @@ class _Kelompok extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Judul biru tebal berukuran sama di setiap kelompok membuat semua
+        // kelompok terasa sepenting satu sama lain. Kepala bagian memakai
+        // label kecil berspasi lebar + garis rambut: pemisahnya garis, bukan
+        // warna (`PANDUAN_TAMPILAN.md` Langkah 3).
         Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Text(
-            judul,
-            style: theme.textTheme.labelLarge
-                ?.copyWith(color: theme.colorScheme.primary),
-          ),
+          padding: const EdgeInsets.only(bottom: 10),
+          child: KSectionHeader(judul),
         ),
         ...children,
-        const SizedBox(height: 24),
+        const SizedBox(height: 22),
       ],
     );
   }
@@ -324,6 +330,49 @@ class _VoiceOverSwitch extends ConsumerWidget {
         secondary: const Icon(Icons.record_voice_over_outlined),
         title: Text(t.settingsVoiceOver),
         subtitle: Text(t.settingsVoiceOverBody),
+        isThreeLine: true,
+        contentPadding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
+      ),
+    );
+  }
+}
+
+/// Sakelar **"Tombol Rekam mengambang"** (Bab 9.7, diminta Product Owner
+/// 31 Agustus 2026).
+///
+/// Sebagian packer memulai perekaman dari kartu di Beranda dan tidak pernah
+/// memakai tombol mengambang; bagi mereka tombol itu hanya menutupi baris
+/// terakhir daftar.
+///
+/// ⚠️ Mematikannya **tidak** menutup satu pun jalan ke perekaman — kedua kartu
+/// di Beranda tetap ada, dan itu sebabnya sakelar ini boleh ada sama sekali.
+/// Kalau kelak kartu itu dihapus, sakelar ini harus ikut dihapus, bukan
+/// dibiarkan mengunci penggunanya di luar fitur utama aplikasi.
+class _RecordFabSwitch extends ConsumerWidget {
+  const _RecordFabSwitch();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = context.l10n;
+    final prefs = ref.watch(appPreferencesProvider);
+    final value = prefs.value?.showRecordFab ?? true;
+
+    return Card(
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      child: SwitchListTile(
+        value: value,
+        onChanged: prefs.isLoading
+            ? null
+            : (next) =>
+                ref.read(appPreferencesProvider.notifier).setShowRecordFab(next),
+        secondary: Icon(
+          value ? Icons.videocam_rounded : Icons.videocam_off_outlined,
+        ),
+        title: Text(t.settingsRecordFab),
+        subtitle: Text(
+          value ? t.settingsRecordFabBody : t.settingsRecordFabOffBody,
+        ),
         isThreeLine: true,
         contentPadding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
       ),

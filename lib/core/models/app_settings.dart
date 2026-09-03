@@ -19,6 +19,17 @@ abstract class UserSettings with _$UserSettings {
     /// `id` | `en` (Bab 9.11)
     @Default('id') String language,
     @Default(true) bool voiceOverEnabled,
+
+    /// Tampilkan tombol Rekam mengambang di kerangka mobile.
+    ///
+    /// Saat `false`, perekaman dimulai dari kartu di Beranda. Ditambahkan
+    /// 31 Agustus 2026 atas permintaan Product Owner bersama revisi tampilan.
+    ///
+    /// ⚠️ Default `true` disengaja dan penting: kolom ini baru, jadi seluruh
+    /// baris `user_settings` yang sudah ada tidak memilikinya. Kalau
+    /// defaultnya `false`, setiap pengguna lama akan kehilangan tombol
+    /// Rekamnya begitu aplikasi diperbarui — tanpa pernah meminta.
+    @Default(true) bool showRecordFab,
     DateTime? updatedAt,
   }) = _UserSettings;
 

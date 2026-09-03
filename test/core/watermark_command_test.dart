@@ -75,17 +75,35 @@ void main() {
       expect(chain(WatermarkPosition.bottomRight), startsWith('scale=-2:480,'));
     });
 
-    test('satu drawtext untuk tiap baris', () {
+    test('satu drawtext tiap baris, PLUS kepala plakat', () {
+      // 4 baris isi + 1 kepala `KAMELSCAN · BUKTI VIDEO`.
       expect(
         'drawtext='.allMatches(chain(WatermarkPosition.bottomLeft)).length,
-        4,
+        5,
       );
     });
 
-    test('kotak gelap di belakang teks, bukan sekadar garis tepi', () {
+    test('kepala plakat ikut tergambar', () {
       expect(
-        chain(WatermarkPosition.bottomRight),
-        contains('box=1:boxcolor=black@0.5'),
+        chain(WatermarkPosition.bottomLeft),
+        contains('KAMELSCAN'),
+      );
+    });
+
+    test('satu bidang gelap untuk seluruh plakat, bukan kotak per baris', () {
+      final c = chain(WatermarkPosition.bottomRight);
+      // Bidang gelap + garis aksen camel = dua drawbox.
+      expect('drawbox='.allMatches(c).length, 2);
+      expect(c, contains('color=black@0.5'));
+      // 🔴 Kotak per baris sudah tidak dipakai: bidang blok sudah gelap, dan
+      // menumpuknya lagi membuat teks duduk di atas gelap berlapis.
+      expect(c, isNot(contains('box=1:boxcolor')));
+    });
+
+    test('garis aksen camel ada di tepi plakat', () {
+      expect(
+        chain(WatermarkPosition.bottomLeft),
+        contains('color=0x9A5B00@0.95'),
       );
     });
 
@@ -97,27 +115,44 @@ void main() {
       );
     });
 
-    test('posisi kiri memakai x tetap, kanan memakai w-tw', () {
-      expect(chain(WatermarkPosition.bottomLeft), contains(':x=16:'));
-      expect(chain(WatermarkPosition.bottomRight), contains(':x=w-tw-16:'));
+    test('🔴 seluruh baris mulai di x yang SAMA — plakat rata kiri', () {
+      // Bentuk lama memakai `w-tw-16` pada sudut kanan, sehingga tiap baris
+      // mulai di tempat berbeda menurut panjangnya sendiri. Yang paling
+      // terganggu justru nomor resi: posisi awalnya berpindah tiap kali
+      // panjang resinya berbeda, padahal itu angka yang dibaca orang.
+      for (final pos in WatermarkPosition.values) {
+        final c = chain(pos);
+        expect('x=28:'.allMatches(c).length, 5, reason: '$pos');
+        expect(c, isNot(contains('w-tw')), reason: '$pos');
+      }
     });
 
-    test('posisi atas memakai y menaik, bawah memakai h-th', () {
+    test('plakat selebar bidang video, bukan setengahnya', () {
+      // Pratinjau di layar rekam menggambarnya selebar layar. Kalau di sini
+      // setengah lebar, packer melihat satu bentuk dan mendapat bentuk lain
+      // di videonya — kesalahan yang dilarang dartdoc pratinjau itu sendiri.
+      expect(chain(WatermarkPosition.bottomRight), contains('w=w-32:'));
+    });
+
+    test('blok ditambatkan ke sudut yang diminta', () {
+      // 4 baris → tinggi blok 15 + 34 + (18 × 3) = 103.
+      expect(chain(WatermarkPosition.bottomLeft), contains('y=h-16-103'));
       expect(chain(WatermarkPosition.topLeft), contains(':y=16:'));
-      expect(chain(WatermarkPosition.bottomLeft), contains(':y=h-th-16:'));
     });
 
     test('baris berjarak tetap, tidak saling menimpa', () {
       final c = chain(WatermarkPosition.topLeft);
-      for (final y in ['y=16', 'y=40', 'y=64', 'y=88']) {
+      // Kepala di 16, resi di 31, lalu tiga keterangan tiap 18 px.
+      for (final y in ['y=16', 'y=31', 'y=65', 'y=83', 'y=101']) {
         expect(c, contains(':$y:'), reason: 'baris $y hilang');
       }
     });
 
-    test('nomor resi memakai ukuran huruf lebih besar dari baris lain', () {
+    test('nomor resi memakai ukuran huruf jauh lebih besar', () {
       final c = chain(WatermarkPosition.bottomRight);
-      expect(c, contains('fontsize=18'));
-      expect(c, contains('fontsize=16'));
+      expect(c, contains('fontsize=26'), reason: 'resi');
+      expect(c, contains('fontsize=13'), reason: 'keterangan');
+      expect(c, contains('fontsize=11'), reason: 'kepala plakat');
     });
 
     test('titik dua pada isi baris ikut ter-escape di dalam rantai', () {
@@ -209,18 +244,22 @@ void main() {
           showGps: showGps,
         );
 
-    test('nomor resi selalu pertama — ia digambar paling dekat tepi layar', () {
+    test('nomor resi selalu pertama — ia digambar paling besar', () {
       // Bukan selera tata letak: indeks 0 adalah baris yang dicari petugas
       // resolusi marketplace, dan `buildFilterChain` memberinya huruf terbesar.
-      expect(lines().first, 'RESI: 10952ERTY');
+      //
+      // Awalan `RESI:` dibuang 1 September 2026 — kepala plakat sudah
+      // menyatakan blok ini bukti video, dan awalan itu hanya mendorong angka
+      // terpentingnya ke kanan.
+      expect(lines().first, '10952ERTY');
     });
 
-    test('urutannya resi, waktu, toko, lalu GPS', () {
+    test('urutannya resi, waktu, GPS, lalu toko', () {
       expect(lines(coordinates: '-6.972683, 109.711146'), [
-        'RESI: 10952ERTY',
+        '10952ERTY',
         WatermarkCommand.formatStamp(waktu),
+        '-6.972683, 109.711146',
         'Shopee · Toko Uji',
-        'GPS: -6.972683, 109.711146',
       ]);
     });
 

@@ -159,6 +159,11 @@ flutter:
   assets:
     - assets/images/
     - assets/icons/
+    # Logo marketplace 32x32 berlatar transparan. Dipakai `MarketplaceBadge`.
+    # ⚠️ Nama di luar keenam berkas ini TIDAK punya logo dan jatuh ke huruf
+    # awal — itu jalur normal, bukan galat: marketplace disimpan sebagai teks
+    # bebas (Bab 5.2) supaya yang baru tidak menuntut migrasi.
+    - assets/marketplace/
 
   # Dibundel sebagai aset, BUKAN google_fonts runtime.
   # palet_warna_dan_tipografi.md §3.1: di gudang bersinyal buruk, huruf yang

@@ -43,6 +43,7 @@ class SettingsRepository {
             'theme': settings.theme,
             'language': settings.language,
             'voice_over_enabled': settings.voiceOverEnabled,
+            'show_record_fab': settings.showRecordFab,
             'updated_at': DateTime.now().toUtc().toIso8601String(),
           })
           .select()

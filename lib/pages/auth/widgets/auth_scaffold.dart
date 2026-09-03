@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_text_styles.dart';
+import '../../../core/theme/app_text_styles_display.dart';
 import '../../../core/widgets/failure_messages.dart';
 
 /// Kerangka bersama seluruh layar autentikasi (Bab 6, Bab 9.2).
@@ -12,6 +14,8 @@ class AuthScaffold extends StatelessWidget {
     required this.children,
     this.subtitle,
     this.showBack = true,
+    this.header,
+    this.centerTitle = false,
     super.key,
   });
 
@@ -19,6 +23,16 @@ class AuthScaffold extends StatelessWidget {
   final String? subtitle;
   final List<Widget> children;
   final bool showBack;
+
+  /// Blok di atas judul — dipakai layar Masuk untuk logo dan tagline.
+  ///
+  /// Hanya layar Masuk yang memakainya: layar autentikasi lain dicapai dari
+  /// dalam aplikasi, dan mengulang logo di sana hanya menghabiskan tinggi yang
+  /// dibutuhkan formulirnya.
+  final Widget? header;
+
+  /// Judul & subjudul rata tengah, mengikuti [header] yang juga rata tengah.
+  final bool centerTitle;
 
   @override
   Widget build(BuildContext context) {
@@ -37,11 +51,21 @@ class AuthScaffold extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(title, style: theme.textTheme.headlineSmall),
+                  if (header != null) ...[
+                    header!,
+                    const SizedBox(height: 20),
+                  ],
+                  Text(
+                    title,
+                    textAlign: centerTitle ? TextAlign.center : TextAlign.start,
+                    style: theme.textTheme.headlineSmall,
+                  ),
                   if (subtitle != null) ...[
                     const SizedBox(height: 8),
                     Text(
                       subtitle!,
+                      textAlign:
+                          centerTitle ? TextAlign.center : TextAlign.start,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
@@ -55,6 +79,53 @@ class AuthScaffold extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Logo + tagline + garis rambut di kepala layar Masuk.
+///
+/// ⚠️ Logonya berlatar **putih solid**, bukan transparan — karena itu ia
+/// dipasang di atas bidang putih ber-radius 16 dp. Di mode terang bidang itu
+/// nyaris tak terlihat; di mode gelap ia justru menjadi bagian bentuknya.
+/// Begitu ada berkas berlatar transparan, bidang putihnya bisa dihapus tanpa
+/// mengubah tata letak.
+class AuthBrandHeader extends StatelessWidget {
+  const AuthBrandHeader({required this.tagline, super.key});
+
+  final String tagline;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFFFFF),
+            borderRadius: BorderRadius.circular(AppSizes.radiusLarge),
+          ),
+          child: Image.asset(
+            'assets/images/logo-app.png',
+            width: 96,
+            fit: BoxFit.contain,
+          ),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          tagline.toUpperCase(),
+          textAlign: TextAlign.center,
+          style: AppDisplayStyles.metaMono.copyWith(
+            fontSize: 9.5,
+            letterSpacing: 1.0,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 14),
+        Divider(color: theme.colorScheme.outlineVariant, height: 1),
+      ],
     );
   }
 }
