@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kamelscan/core/models/enums.dart';
 import 'package:kamelscan/core/models/package_video.dart';
+import 'package:kamelscan/core/models/queue_summary.dart';
 import 'package:kamelscan/core/models/upload_task.dart';
 import 'package:kamelscan/core/repositories/video_repository.dart';
 import 'package:kamelscan/core/services/connectivity_service.dart';
@@ -158,21 +159,31 @@ void main() {
       when(() => connectivity.isConnected).thenAnswer((_) async => false);
       db = _FakeDb([taskFor(writeProcessed())]);
 
-      await runnerWith().run();
+      final hasil = await runnerWith().run();
 
       expect(db.statusUpdates, isEmpty);
       verifyNever(() => videos.ensureVideoRow(any()));
+
+      // 🔴 Alasannya WAJIB terbawa keluar. Sampai 3 September 2026 jalur ini
+      // hanya `return` tanpa sepatah kata pun — layar tidak punya cara
+      // membedakannya dari antrian kosong, dan tombol "Unggah sekarang"
+      // karenanya terasa rusak.
+      expect(hasil, UploadRunOutcome.tanpaJaringan);
     });
 
     test('🔴 hanya data seluler dan belum diizinkan → menunggu Wi-Fi', () async {
       onCellular();
       db = _FakeDb([taskFor(writeProcessed())]);
 
-      await runnerWith().run();
+      final hasil = await runnerWith().run();
 
       expect(db.statusUpdates, isEmpty,
           reason: 'kuota data packer tidak boleh terbakar tanpa izin');
       verifyNever(() => videos.ensureVideoRow(any()));
+
+      // Inilah satu-satunya keadaan yang boleh menyebut Wi-Fi. Kalimat itu
+      // dulu ditulis mati di spanduk dan diucapkan untuk semua sebab.
+      expect(hasil, UploadRunOutcome.menungguWifi);
     });
 
     test('data seluler yang sudah diizinkan tetap jalan', () async {
@@ -182,9 +193,59 @@ void main() {
       db = _FakeDb([task]);
       uploadSucceeds(task);
 
-      await runnerWith(allowCellular: true).run();
+      final hasil = await runnerWith(allowCellular: true).run();
 
       expect(db.removed, contains('video-1'));
+      expect(hasil, UploadRunOutcome.terunggah);
+    });
+  });
+
+  // ==========================================================================
+  // 🔴 run() melaporkan ALASAN, bukan diam
+  // ==========================================================================
+  //
+  // Ditambahkan 3 September 2026. Product Owner melaporkan bahwa menekan
+  // "Unggah sekarang" tidak menghasilkan apa pun di layar. Ternyata benar —
+  // dan bukan karena tombolnya rusak: `run()` memang berhenti di salah satu
+  // dari lima jalur, seluruhnya tanpa satu baris pun yang tembus ke logcat
+  // (`AppLogger` memakai `dart:developer`, jebakan nomor 9).
+  //
+  // Butuh membaca `kamelscan_queue.sqlite` di perangkat untuk mengetahui
+  // sebabnya. Itu bukan sesuatu yang boleh dituntut dari pengguna.
+  group('🔴 alasan putaran antrian', () {
+    test('antrian kosong dibedakan dari antrian yang tidak ada isinya siap',
+        () async {
+      onWifi();
+      db = _FakeDb(const []);
+
+      expect(await runnerWith().run(), UploadRunOutcome.kosong);
+    });
+
+    test('🔴 berisi tetapi tidak satu pun siap — BUKAN "kosong"', () async {
+      onWifi();
+      // Jatah percobaannya habis: penjalan antrian tidak akan pernah
+      // menyentuhnya, tetapi barisnya tetap ada dan tetap terhitung di
+      // spanduk. Inilah keadaan yang membuat tombolnya terasa mati.
+      final task = taskFor(writeProcessed()).copyWith(attempts: 5);
+      db = _FakeDb([task]);
+
+      final hasil = await runnerWith().run();
+
+      expect(hasil, UploadRunOutcome.tidakAdaYangSiap);
+      expect(hasil, isNot(UploadRunOutcome.kosong),
+          reason: 'membedakan keduanya adalah inti perbaikan ini');
+      verifyNever(() => videos.ensureVideoRow(any()));
+    });
+
+    test('rekaman yang masih menunggu watermark tidak dianggap siap',
+        () async {
+      onWifi();
+      final task = taskFor(writeProcessed())
+          .copyWith(status: UploadTaskStatus.pendingProcess);
+      db = _FakeDb([task]);
+
+      expect(await runnerWith().run(), UploadRunOutcome.tidakAdaYangSiap);
+      verifyNever(() => videos.ensureVideoRow(any()));
     });
   });
 
@@ -402,6 +463,10 @@ class _FakeDb implements LocalDbService {
       okVoid;
   @override
   Stream<int> watchPendingCount() => Stream.value(0);
+
+  @override
+  Stream<QueueSummary> watchQueueSummary() =>
+      Stream<QueueSummary>.value(const QueueSummary());
 }
 
 class _SpyNotifications implements NotificationService {

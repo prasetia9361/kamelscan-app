@@ -5,6 +5,7 @@ import 'package:shimmer/shimmer.dart';
 
 import '../../core/models/enums.dart';
 import '../../core/models/home_stats.dart';
+import '../../core/models/queue_summary.dart';
 import '../../core/providers/pipeline_providers.dart';
 import '../../core/providers/session_provider.dart';
 import '../../core/providers/theme_provider.dart';
@@ -16,6 +17,8 @@ import '../../core/widgets/app_state_views.dart';
 import '../../core/widgets/failure_messages.dart';
 import '../../core/widgets/k_section_header.dart';
 import '../../core/widgets/quota_widgets.dart';
+import '../../core/workers/upload_queue_runner.dart';
+import '../../l10n/generated/app_localizations.dart';
 import '../../navigation/route_names.dart';
 import '../../navigation/shells/mobile_app_bar.dart';
 import 'home_view_model.dart';
@@ -371,23 +374,114 @@ class _RecordMenu extends StatelessWidget {
 /// milik server. Bab 8.7 / L.5: baris `package_videos` baru dibuat saat
 /// mengunggah, jadi video yang direkam di gudang tanpa sinyal belum punya baris
 /// di server sama sekali — padahal justru itu yang perlu diberitahukan.
-class _QueueBanner extends ConsumerWidget {
+/// Spanduk antrean unggah (Bab 8.7).
+///
+/// 🔴 Ditulis ulang 3 September 2026 setelah dua laporan Product Owner yang
+/// ternyata berakar pada hal yang sama: **layar ini mengarang sebab.**
+///
+/// Kalimatnya dulu ditulis mati — *"{n} video dalam antrean — menunggu
+/// Wi-Fi"* — dan diucapkan tanpa peduli apa yang sebenarnya menahan. Saat
+/// sebuah video gagal diberi watermark, layar tetap menyalahkan jaringan;
+/// Product Owner lalu menyalakan "Unggah lewat data seluler", pengaturan yang
+/// sama sekali tidak berhubungan, dan tentu saja tidak terjadi apa-apa.
+///
+/// Tombolnya pun tidak menjawab apa pun: `run()` dipanggil, berhenti diam-diam
+/// di salah satu dari lima jalur, dan layarnya tidak berubah sedikit pun.
+class _QueueBanner extends ConsumerStatefulWidget {
   const _QueueBanner();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final count = ref.watch(pendingUploadCountProvider).value ?? 0;
-    if (count == 0) return const SizedBox.shrink();
+  ConsumerState<_QueueBanner> createState() => _QueueBannerState();
+}
+
+class _QueueBannerState extends ConsumerState<_QueueBanner> {
+  bool _sedang = false;
+
+  /// 🔴 Metode State, bukan closure di dalam `build` — `context` milik `build`
+  /// dianggap analyzer tidak berhubungan dengan `mounted` milik State, dan ia
+  /// benar: keduanya memang dapat berbeda umur.
+  Future<void> _unggahSekarang() async {
+    if (_sedang) return;
+    final t = context.l10n;
+    final messenger = ScaffoldMessenger.of(context);
+
+    setState(() => _sedang = true);
+    final hasil = await ref.read(uploadQueueRunnerProvider).run();
+    if (!mounted) return;
+    setState(() => _sedang = false);
+
+    // ⚠️ SELALU memberi kabar, termasuk saat tidak terjadi apa-apa. Ketukan
+    // yang tidak menghasilkan apa pun adalah cara tercepat membuat orang
+    // mengira aplikasinya rusak (Bab 9.10) — dan itulah yang dilaporkan.
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(_kabar(t, hasil))));
+  }
+
+  static String _kabar(AppL10n t, UploadRunOutcome hasil) => switch (hasil) {
+        UploadRunOutcome.terunggah => t.queueRunUploaded,
+        UploadRunOutcome.sedangBerjalan => t.queueRunBusy,
+        UploadRunOutcome.tanpaJaringan => t.queueRunNoNetwork,
+        UploadRunOutcome.menungguWifi => t.queueRunWaitingWifi,
+        UploadRunOutcome.kosong => t.queueRunEmpty,
+        UploadRunOutcome.tidakAdaYangSiap => t.queueRunNothingReady,
+        UploadRunOutcome.semuaGagal => t.queueRunAllFailed,
+        // Web tidak punya antrian lokal, jadi spanduk ini tidak pernah tampil
+        // di sana — tetapi cabangnya tetap wajib ada.
+        UploadRunOutcome.tidakDidukung => t.queueRunEmpty,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final ringkas =
+        ref.watch(queueSummaryProvider).value ?? const QueueSummary();
+    if (ringkas.kosong) return const SizedBox.shrink();
 
     final t = context.l10n;
     final colors = Theme.of(context).extension<AppColors>()!;
+    final adaJaringan = ref.watch(networkOnlineProvider).value ?? true;
+
+    // 🔴 Urutannya bukan selera: yang disebut adalah keadaan yang paling
+    // menuntut perbuatan pengguna. Video yang menyerah tidak akan pernah
+    // terkirim sendiri, jadi ia mengalahkan yang sekadar menunggu.
+    final (String pesan, IconData ikon, Color warna) = switch (ringkas) {
+      final r when r.gagal > 0 => (
+          t.homeQueueFailedPermanent(r.gagal),
+          Icons.error_outline,
+          colors.danger,
+        ),
+      final r when r.siap > 0 && !adaJaringan => (
+          t.homeQueueWaitingNetwork(r.siap),
+          Icons.cloud_off_outlined,
+          colors.warning,
+        ),
+      final r when r.siap > 0 => (
+          t.homeQueueReady(r.siap),
+          Icons.cloud_upload_outlined,
+          colors.warning,
+        ),
+      final r when r.sedangDiproses > 0 => (
+          t.homeQueueProcessing(r.sedangDiproses),
+          Icons.hourglass_top_outlined,
+          colors.warning,
+        ),
+      final r => (
+          t.homeQueueRetryLater(r.tertunda),
+          Icons.schedule_outlined,
+          colors.warning,
+        ),
+    };
 
     return _InfoBanner(
-      message: t.homeQueueWaiting(count),
-      icon: Icons.cloud_upload_outlined,
-      color: colors.warning,
+      message: pesan,
+      icon: ikon,
+      color: warna,
       actionLabel: t.homeQueueUploadNow,
-      onAction: () => ref.read(uploadQueueRunnerProvider).run(),
+      // ⚠️ Tombolnya TIDAK dimatikan saat tidak ada yang siap. Bab 9.10
+      // melarang tombol abu-abu tanpa penjelasan; menekannya sekarang
+      // menghasilkan kalimat yang menyebutkan apa yang sedang terjadi, dan itu
+      // jauh lebih menolong daripada tombol yang diam.
+      onAction: _sedang ? null : _unggahSekarang,
     );
   }
 }
@@ -425,7 +519,9 @@ class _InfoBanner extends StatelessWidget {
   final IconData icon;
   final Color color;
   final String actionLabel;
-  final VoidCallback onAction;
+
+  /// Null berarti sedang berjalan — bukan "tidak ada gunanya ditekan".
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {

@@ -1,4 +1,5 @@
 import '../models/enums.dart';
+import '../models/queue_summary.dart';
 import '../models/upload_task.dart';
 import '../utils/app_failure.dart';
 import '../utils/result.dart';
@@ -75,6 +76,12 @@ class WebLocalDbService implements LocalDbService {
 
   @override
   Stream<int> watchPendingCount() => Stream<int>.value(0);
+
+  // Web tidak merekam (Bab 4.3), jadi antriannya selalu kosong — bukan
+  // "tidak diketahui".
+  @override
+  Stream<QueueSummary> watchQueueSummary() =>
+      Stream<QueueSummary>.value(const QueueSummary());
 }
 
 LocalDbService createPlatformLocalDbService() => const WebLocalDbService();

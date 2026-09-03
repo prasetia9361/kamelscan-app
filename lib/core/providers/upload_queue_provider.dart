@@ -1,5 +1,6 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../models/queue_summary.dart';
 import 'repository_providers.dart';
 
 part 'upload_queue_provider.g.dart';
@@ -21,4 +22,19 @@ Stream<int> pendingUploadCount(Ref ref) {
   final db = ref.watch(localDbServiceProvider);
   if (!db.isSupported) return Stream.value(0);
   return db.watchPendingCount();
+}
+
+/// Antrian dipecah menurut **apa yang menahannya** (Bab 8.7).
+///
+/// 🔴 Dipakai spanduk Beranda supaya kalimatnya menyebutkan sebab yang
+/// sebenarnya. Sampai 3 September 2026 spanduk itu hanya tahu satu angka dan
+/// kalimatnya ditulis mati *"menunggu Wi-Fi"* — diucapkan bahkan ketika yang
+/// menahan adalah watermark yang gagal. Uraiannya di [QueueSummary].
+@Riverpod(keepAlive: true)
+Stream<QueueSummary> queueSummary(Ref ref) {
+  final db = ref.watch(localDbServiceProvider);
+  if (!db.isSupported) {
+    return Stream<QueueSummary>.value(const QueueSummary());
+  }
+  return db.watchQueueSummary();
 }

@@ -25,6 +25,44 @@ import '../utils/logger.dart';
 /// sungguhan pada 13 Agustus 2026 (`supabase/README.md`):
 /// sisip baris → minta presigned URL → PUT ke R2 → tandai `uploaded`
 /// (trigger memotong 1 token) → hapus berkas lokal → hapus baris antrian.
+/// Apa yang **sebenarnya terjadi** pada satu putaran antrian.
+///
+/// 🔴 Sampai 3 September 2026 `run()` mengembalikan `void` dan setiap jalur
+/// "tidak melakukan apa-apa" hanya `return` tanpa satu baris pun yang tembus
+/// ke logcat — `AppLogger` memakai `dart:developer` (jebakan nomor 9).
+///
+/// Akibatnya dilaporkan Product Owner: menekan **Unggah sekarang** tidak
+/// menghasilkan apa pun di layar, dan tidak ada cara mengetahui apakah
+/// tombolnya rusak, jaringannya salah, atau memang tidak ada yang dapat
+/// dikerjakan. Ternyata yang ketiga — tetapi butuh membaca database perangkat
+/// untuk mengetahuinya.
+enum UploadRunOutcome {
+  /// Ada yang benar-benar terunggah.
+  terunggah,
+
+  /// Putaran lain sedang berjalan; panggilan ini tidak melakukan apa-apa.
+  sedangBerjalan,
+
+  /// Perangkat ini tidak punya antrian lokal (web, Bab 4.3).
+  tidakDidukung,
+
+  /// Tidak ada jaringan sama sekali.
+  tanpaJaringan,
+
+  /// Hanya ada data seluler dan pengguna belum mengizinkannya.
+  menungguWifi,
+
+  /// Antriannya kosong.
+  kosong,
+
+  /// Ada isinya, tetapi tidak satu pun yang siap diunggah sekarang — masih
+  /// menunggu watermark, sudah menyerah, atau menunggu giliran percobaan.
+  tidakAdaYangSiap,
+
+  /// Percobaan unggah dilakukan tetapi semuanya gagal.
+  semuaGagal,
+}
+
 class UploadQueueRunner {
   UploadQueueRunner({
     required LocalDbService db,
@@ -63,27 +101,50 @@ class UploadQueueRunner {
 
   /// Satu putaran antrian. Aman dipanggil berkali-kali; panggilan saat sedang
   /// berjalan langsung kembali.
-  Future<void> run() async {
-    if (_running || !_db.isSupported) return;
+  Future<UploadRunOutcome> run() async {
+    if (_running) {
+      debugPrint('KAMELSCAN_PIPA Putaran dilewati - satu sedang berjalan');
+      return UploadRunOutcome.sedangBerjalan;
+    }
+    if (!_db.isSupported) return UploadRunOutcome.tidakDidukung;
+
     _running = true;
     try {
-      await _runOnce();
+      final hasil = await _runOnce();
+      debugPrint('KAMELSCAN_PIPA Putaran selesai - ${hasil.name}');
+      return hasil;
     } on Object catch (e, s) {
       _log.e('Putaran antrian upload berhenti tak terduga', e, s);
+      // 🔴 Wajib `debugPrint`, bukan hanya `AppLogger` (jebakan nomor 9).
+      debugPrint('KAMELSCAN_PIPA Putaran BERHENTI tak terduga - $e');
+      return UploadRunOutcome.semuaGagal;
     } finally {
       _running = false;
     }
   }
 
-  Future<void> _runOnce() async {
-    if (!await _networkAllows()) return;
+  Future<UploadRunOutcome> _runOnce() async {
+    final jaringan = await _periksaJaringan();
+    if (jaringan != null) return jaringan;
 
     final pending = await _db.pendingTasks(limit: _batchSize);
     final tasks = pending.valueOrNull ?? const <UploadTask>[];
     final ready = tasks
         .where((t) => t.isReady(maxAttempts: AppConstants.maxUploadAttempts))
         .toList();
-    if (ready.isEmpty) return;
+
+    if (ready.isEmpty) {
+      // 🔴 Dua keadaan yang SANGAT berbeda, dan membedakannya adalah inti
+      // perbaikan ini: antrian yang memang kosong, versus antrian berisi yang
+      // tidak satu pun barisnya dapat disentuh. Yang kedua persis keadaan
+      // yang membuat "Unggah sekarang" terasa rusak.
+      final hasil = tasks.isEmpty
+          ? UploadRunOutcome.kosong
+          : UploadRunOutcome.tidakAdaYangSiap;
+      debugPrint('KAMELSCAN_PIPA Tidak ada yang diunggah - ${hasil.name} '
+          '(${tasks.length} baris di antrean)');
+      return hasil;
+    }
 
     _log.i('Mengunggah ${ready.length} video');
     debugPrint('KAMELSCAN_PIPA Mengunggah ${ready.length} video');
@@ -100,27 +161,41 @@ class UploadQueueRunner {
       // Sinyal bisa hilang di tengah antrean — jangan menghabiskan jatah
       // percobaan seluruh sisa antrean karena packer berjalan ke gudang
       // belakang.
-      if (!await _networkAllows()) break;
+      if (await _periksaJaringan() != null) break;
     }
 
     if (uploaded > 0) {
       await _notifications.showUploadComplete(uploaded: uploaded);
-    } else {
-      await _notifications.cancelAll();
+      return UploadRunOutcome.terunggah;
     }
+
+    await _notifications.cancelAll();
+    return UploadRunOutcome.semuaGagal;
   }
 
   /// Bab 8.7 langkah 1.
-  Future<bool> _networkAllows() async {
-    if (!await _connectivity.isConnected) return false;
-    if (!await _connectivity.isMobileData) return true;
-
-    final allowed = await _allowCellular();
-    if (!allowed) {
-      _log.i('Hanya ada data seluler dan pengguna belum mengizinkannya — '
-          'antrian menunggu Wi-Fi');
+  ///
+  /// Mengembalikan **null** bila jaringannya mengizinkan, atau alasan
+  /// penolakannya bila tidak.
+  ///
+  /// 🔴 Kedua jalur penolakan sekarang dicetak. Sebelumnya yang "tidak ada
+  /// jaringan" `return false` tanpa sepatah kata pun, dan yang "menunggu
+  /// Wi-Fi" hanya menulis ke `AppLogger` yang tidak pernah sampai ke logcat.
+  /// Dari luar keduanya tidak dapat dibedakan dari antrian kosong.
+  Future<UploadRunOutcome?> _periksaJaringan() async {
+    if (!await _connectivity.isConnected) {
+      debugPrint('KAMELSCAN_PIPA Tidak ada jaringan - antrean menunggu');
+      return UploadRunOutcome.tanpaJaringan;
     }
-    return allowed;
+    if (!await _connectivity.isMobileData) return null;
+
+    if (await _allowCellular()) return null;
+
+    _log.i('Hanya ada data seluler dan pengguna belum mengizinkannya — '
+        'antrian menunggu Wi-Fi');
+    debugPrint('KAMELSCAN_PIPA Hanya data seluler dan belum diizinkan - '
+        'antrean menunggu Wi-Fi');
+    return UploadRunOutcome.menungguWifi;
   }
 
   Future<bool> _uploadOne(UploadTask task) async {

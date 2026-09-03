@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 
+import '../config/app_constants.dart';
 import '../models/enums.dart';
+import '../models/queue_summary.dart';
 import '../models/upload_task.dart';
 import '../utils/app_failure.dart';
 import '../utils/logger.dart';
@@ -247,24 +249,57 @@ class MobileLocalDbService implements LocalDbService {
             .go();
       });
 
-  /// Satu pembacaan jumlah antrian, tanpa aliran.
-  Future<int> _hitungPending() {
-    final count = _database.uploadQueue.videoId.count();
-    final query = _database.selectOnly(_database.uploadQueue)
-      ..addColumns([count])
-      ..where(
-        _database.uploadQueue.status.isNotIn([
-          UploadTaskStatus.done.wire,
-          UploadTaskStatus.duplicate.wire,
-        ]),
-      );
-    return query.map((row) => row.read(count) ?? 0).getSingle();
+  /// Satu pembacaan ringkasan antrian, tanpa aliran.
+  ///
+  /// 🔴 Pemilahannya mengikuti [UploadTask.isReady] persis, dan itu wajib:
+  /// spanduk yang mengatakan "siap diunggah" untuk baris yang penjalan
+  /// antrian tidak akan sentuh adalah bentuk kebohongan yang paling mahal —
+  /// pengguna menekan "Unggah sekarang" berkali-kali dan tidak pernah terjadi
+  /// apa-apa.
+  Future<QueueSummary> _hitungRingkasan() async {
+    final baris = await (_database.select(_database.uploadQueue)
+          ..where((t) => t.status.isNotIn([
+                UploadTaskStatus.done.wire,
+                UploadTaskStatus.duplicate.wire,
+              ])))
+        .get();
+
+    var siap = 0;
+    var diproses = 0;
+    var gagal = 0;
+    var tertunda = 0;
+
+    final sekarang = DateTime.now();
+    for (final r in baris) {
+      final status = UploadTaskStatus.fromWire(r.status);
+
+      if (status == UploadTaskStatus.pendingProcess) {
+        diproses++;
+      } else if (status == UploadTaskStatus.failed ||
+          r.attempts >= AppConstants.maxUploadAttempts) {
+        gagal++;
+      } else if (status == UploadTaskStatus.paused) {
+        tertunda++;
+      } else if (r.nextAttemptAt != null &&
+          r.nextAttemptAt!.isAfter(sekarang)) {
+        tertunda++;
+      } else {
+        siap++;
+      }
+    }
+
+    return QueueSummary(
+      siap: siap,
+      sedangDiproses: diproses,
+      gagal: gagal,
+      tertunda: tertunda,
+    );
   }
 
   /// Selang antara pembacaan ulang saat antrian **tidak kosong**.
   ///
   /// Tidak ada denyut sama sekali saat antrian kosong — keadaan itu tidak
-  /// dapat basi (lihat catatan pada [watchPendingCount]).
+  /// dapat basi (lihat catatan pada [watchQueueSummary]).
   static const Duration _denyutAntrean = Duration(seconds: 8);
 
   /// 🔴 Aliran Drift SAJA tidak cukup, dan alasannya bukan teori.
@@ -278,63 +313,54 @@ class MobileLocalDbService implements LocalDbService {
   ///
   /// Akibat yang dilaporkan Product Owner 3 September 2026: video terunggah
   /// dan barisnya terhapus oleh isolate latar, tetapi spanduk Beranda tetap
-  /// menulis *"1 video dalam antrean — menunggu Wi-Fi"* sampai aplikasi
-  /// ditutup dan dibuka lagi. Diukur langsung: tabelnya nol baris sementara
-  /// layarnya masih menampilkan satu.
+  /// menulis satu video menunggu sampai aplikasi ditutup dan dibuka lagi.
+  /// Diukur langsung: tabelnya nol baris sementara layarnya menampilkan satu.
   ///
-  /// ⚠️ Denyutnya hanya berjalan saat hitungannya **lebih dari nol**, dan itu
+  /// ⚠️ Denyutnya hanya berjalan saat antriannya **tidak kosong**, dan itu
   /// disengaja: hitungan basi selalu terlalu TINGGI, tidak pernah terlalu
   /// rendah. Baris baru selalu ditulis isolate aplikasi sendiri — dan tulisan
-  /// itu membangunkan alirannya sendiri seketika. Jadi nol yang basi tidak
-  /// mungkin terjadi, dan HP dengan antrian kosong tidak membayar apa pun
+  /// itu membangunkan alirannya sendiri seketika. Jadi antrian kosong yang
+  /// basi tidak mungkin terjadi, dan HP tanpa antrian tidak membayar apa pun
   /// untuk penjagaan ini.
+  ///
+  /// 🔴 Denyutnya juga menjawab hal kedua yang tidak dapat dijawab Drift:
+  /// baris `tertunda` menjadi `siap` semata-mata karena **waktu berlalu**
+  /// (`nextAttemptAt` terlampaui). Tidak ada tulisan apa pun yang terjadi saat
+  /// itu, jadi tidak ada aliran yang dapat membangunkannya.
   @override
-  Stream<int> watchPendingCount() {
-    late final StreamController<int> kendali;
-    StreamSubscription<int>? langganan;
+  Stream<QueueSummary> watchQueueSummary() {
+    late final StreamController<QueueSummary> kendali;
+    StreamSubscription<void>? langganan;
     Timer? denyut;
-    var terakhir = 0;
+    var terakhir = const QueueSummary();
+
+    Future<void> kirim() async {
+      final r = await _hitungRingkasan();
+      if (kendali.isClosed || r == terakhir) return;
+      terakhir = r;
+      kendali.add(r);
+    }
 
     void aturDenyut() {
-      if (terakhir > 0 && denyut == null) {
-        denyut = Timer.periodic(_denyutAntrean, (_) async {
-          final n = await _hitungPending();
-          if (!kendali.isClosed && n != terakhir) {
-            terakhir = n;
-            kendali.add(n);
-            if (n == 0) {
-              denyut?.cancel();
-              denyut = null;
-            }
-          }
-        });
-      } else if (terakhir == 0) {
+      if (!terakhir.kosong && denyut == null) {
+        denyut = Timer.periodic(_denyutAntrean, (_) => kirim());
+      } else if (terakhir.kosong) {
         denyut?.cancel();
         denyut = null;
       }
     }
 
-    kendali = StreamController<int>(
+    kendali = StreamController<QueueSummary>(
       onListen: () {
-        final count = _database.uploadQueue.videoId.count();
-        final query = _database.selectOnly(_database.uploadQueue)
-          ..addColumns([count])
-          ..where(
-            _database.uploadQueue.status.isNotIn([
-              UploadTaskStatus.done.wire,
-              UploadTaskStatus.duplicate.wire,
-            ]),
-          );
-
-        langganan =
-            query.map((row) => row.read(count) ?? 0).watchSingle().listen(
-          (n) {
-            terakhir = n;
-            if (!kendali.isClosed) kendali.add(n);
-            aturDenyut();
-          },
-          onError: kendali.addError,
-        );
+        // Aliran Drift dipakai sebagai PEMICU, bukan sumber angkanya: ia
+        // memberi tahu "tabelnya berubah", lalu ringkasannya dihitung ulang.
+        langganan = _database
+            .select(_database.uploadQueue)
+            .watch()
+            .listen((_) async {
+          await kirim();
+          aturDenyut();
+        }, onError: kendali.addError);
       },
       onCancel: () async {
         denyut?.cancel();
@@ -348,6 +374,11 @@ class MobileLocalDbService implements LocalDbService {
 
     return kendali.stream;
   }
+
+  /// Turunan dari [watchQueueSummary] — satu sumber, satu denyut.
+  @override
+  Stream<int> watchPendingCount() =>
+      watchQueueSummary().map((r) => r.total);
 
   // ---------------------------------------------------------------------
 
