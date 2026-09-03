@@ -835,9 +835,24 @@ Diurutkan menurut yang menghalangi rilis, bukan menurut kemudahannya.
 
 **Belum pernah diuji:**
 
-7. 🔴 **Aplikasi HP belum diuji sama sekali sejak sesi 31 Agustus.** Seluruh
-   pengujian sesi ini di web. Tiga perubahan menyentuh kode bersama: hitungan
-   video packer, halaman paket, dan hapus akun.
+7. ✅ **Aplikasi HP sudah diuji 3 September 2026** — hapus akun benar, hitungan
+   token sama dengan web (135.092/30.000), dan tiga paket muncul. Dua temuan
+   dari putaran itu:
+
+   - **Pilihan paket hilang saat HP → web.** Nyata, sudah diperbaiki:
+     `?plan=` kini ikut dibawa. Sekalian pilihan bawaan halaman pembayaran
+     diubah menjadi **paket yang sedang aktif** (keputusan Product Owner),
+     karena rumus lama menjatuhkan Owner Bisnis ke Standar — paket terendah
+     untuk pelanggan termahal.
+   - **Hitungan video packing/return berbeda antara HP dan web.** BUKAN cacat.
+     HP menghitung sejak `token_wallets.period_start` dan layarnya menulis
+     *"sejak 31 Agu"*; web menghitung rentang hari yang dipilih. Keduanya
+     mengecualikan `status='deleted'`. Jangan "memperbaikinya" menjadi sama —
+     keduanya menjawab pertanyaan yang berbeda, dan keduanya menyebutkan
+     periodenya sendiri.
+
+   ⚠️ Yang masih belum diuji di HP: perekaman ujung ke ujung sesudah perubahan
+   sesi ini, dan ekspor CSV (web saja).
 8. **Satu video sungguhan lewat jalur unggah latar belakang** (L.8).
 9. **Perbaikan `LedgerReason`** hanya terbukti lewat 3 tes unit —
    `fetchLedger()` belum punya pemanggil, jadi tidak ada yang dapat dilihat.
