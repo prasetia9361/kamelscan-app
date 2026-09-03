@@ -127,6 +127,40 @@ if ($Landing) {
     }
     Copy-Item (Join-Path $Landing '*') $out -Recurse -Force
     Write-Host "Landing page disalin dari $Landing" -ForegroundColor Green
+
+    # 🔴 Kredensial disuntikkan SESUDAH disalin, ke salinannya — bukan ke
+    # berkas sumber. `landing/` masuk git, `env.dev.json` tidak.
+    #
+    # Sejak 4 September 2026 landing page mengambil spanduknya dari
+    # `platform_settings.banner_landing` (Bab 10.2). Kunci anon memang kunci
+    # publik — ia sudah ada di dalam `main.dart.js` yang dapat diunduh siapa
+    # saja — tetapi tetap tidak dituliskan ke repositori. Aturan yang sama
+    # sudah dipakai halaman bukti publik `/v/` di bawah.
+    $appJs = Join-Path $out 'app.js'
+    if (Test-Path $appJs) {
+        if ([string]::IsNullOrWhiteSpace($cfg.SUPABASE_URL) -or
+            [string]::IsNullOrWhiteSpace($cfg.SUPABASE_ANON_KEY)) {
+            Write-Host "BERHENTI: SUPABASE_URL atau SUPABASE_ANON_KEY kosong di $envFile." -ForegroundColor Red
+            exit 1
+        }
+
+        $js = Get-Content $appJs -Raw -Encoding UTF8
+        $js = $js.Replace('__SUPABASE_URL__', $cfg.SUPABASE_URL)
+        $js = $js.Replace('__SUPABASE_ANON_KEY__', $cfg.SUPABASE_ANON_KEY)
+
+        # ⚠️ Penanda yang lolos TIDAK merusak halaman — `spanduk()` berhenti
+        # diam dan ilustrasinya tetap berdiri. Justru karena itu ia wajib
+        # dijaga di sini: kegagalannya tidak akan terlihat siapa pun, dan
+        # spanduk yang diunggah Admin diam-diam tidak pernah tampil.
+        if ($js -match '__SUPABASE') {
+            Write-Host "BERHENTI: penanda kredensial masih tersisa di landing/app.js." -ForegroundColor Red
+            exit 1
+        }
+
+        [System.IO.File]::WriteAllText(
+            $appJs, $js, (New-Object System.Text.UTF8Encoding($false)))
+        Write-Host "Kredensial spanduk landing disuntikkan" -ForegroundColor Green
+    }
 } else {
     Write-Host "Landing page dilewati - akar situs akan menjawab 404." -ForegroundColor Yellow
 }

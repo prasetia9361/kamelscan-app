@@ -137,9 +137,16 @@
 
     <!-- Ilustrasi layar perekaman.
          ⚠️ Ini GAMBAR BUATAN, bukan tangkapan layar aplikasi sungguhan.
-         Bab 10.2 meminta gambar dari `platform_settings.banner_landing`;
-         berkas itu belum ada, jadi bagian ini sementara diisi ilustrasi.  -->
-    <div class="hero-gambar">
+
+         🔴 Ia tetap ada, dan itu disengaja. Sejak 4 September 2026 gambar dari
+         `platform_settings.banner_landing` MENGGANTIKANNYA saat berhasil
+         diunduh (lihat `spanduk()` di app.js) — tetapi ilustrasi inilah yang
+         tergambar lebih dulu, seketika, tanpa menunggu jaringan.
+
+         Halaman ini dibuka calon pelanggan dari gudang bersinyal buruk. Yang
+         menunggu unduhan sebelum menggambar apa pun akan tampak kosong justru
+         di tempat yang paling menentukan.  -->
+    <div class="hero-gambar" id="hero-gambar">
       <svg viewBox="0 0 300 600" role="img" aria-labelledby="ilus-judul">
         <title id="ilus-judul">Ilustrasi layar KamelScan sedang merekam paket dengan nomor resi JX1234567890ID</title>
         <!-- badan HP -->

@@ -210,3 +210,81 @@
     });
   }
 })();
+
+
+/* =========================================================================
+ * Spanduk landing page dari `platform_settings.banner_landing` (Bab 10.2)
+ * =========================================================================
+ *
+ * 🔴 Ini SATU-SATUNYA panggilan jaringan di seluruh landing page, dan ia
+ * sengaja dibuat tidak memblokir apa pun.
+ *
+ * Sampai 4 September 2026 halaman ini nol panggilan jaringan — keputusan
+ * sadar, karena calon pelanggan membukanya dari gudang bersinyal buruk.
+ * Keputusan itu TIDAK dibatalkan: ilustrasi SVG tetap tergambar seketika,
+ * dan gambar dari server hanya menggantikannya kalau benar-benar sampai.
+ *
+ * Product Owner memilih bentuk ini 4 September 2026, sesudah menemukan bahwa
+ * halaman Admin "Gambar iklan" menyimpan alamat spanduk yang tidak pernah
+ * dibaca siapa pun — layar yang menjanjikan sesuatu yang tidak terjadi.
+ *
+ * ⚠️ Kredensialnya DISUNTIKKAN `deploy_web.ps1`, bukan ditulis di berkas ini:
+ * `landing/` masuk git, `env.dev.json` tidak. Kunci anon memang kunci publik
+ * (ia sudah ada di dalam `main.dart.js` yang dapat diunduh siapa saja),
+ * tetapi tetap tidak dituliskan ke dalam repositori — aturan yang sama sudah
+ * dipakai halaman bukti publik `/v/`.
+ *
+ * Bila penandanya belum tergantikan — misalnya saat berkas ini dibuka
+ * langsung dari cakram untuk memeriksa tata letak — fungsinya berhenti diam
+ * dan halaman tetap memakai ilustrasinya. Itu jalur normal, bukan galat.
+ */
+(function spanduk() {
+  var URL_SB = '__SUPABASE_URL__';
+  var KUNCI = '__SUPABASE_ANON_KEY__';
+
+  // Penanda belum disuntik: dibuka dari cakram, bukan dari situs terbit.
+  //
+  // 🔴 Diperiksa dari BENTUKNYA — diawali garis bawah — dan bukan dengan
+  // menuliskan penandanya kembali di sini.
+  //
+  // Alasannya terbukti 4 September 2026: versi pertama menyebut penandanya
+  // apa adanya, teks itu ikut tertinggal di berkas terbit, dan penjaga di
+  // `deploy_web.ps1` menghentikan penerbitan karena mengira penyuntikannya
+  // gagal. Penjaga yang menghasilkan alarm palsu akan berhenti dipercaya.
+  if (URL_SB.charAt(0) === '_' || KUNCI.charAt(0) === '_') return;
+
+  var wadah = document.getElementById('hero-gambar');
+  if (!wadah) return;
+
+  var alamat = URL_SB.replace(/\/+$/, '') +
+    '/rest/v1/platform_settings?select=value&key=eq.banner_landing';
+
+  fetch(alamat, {
+    headers: { apikey: KUNCI, Authorization: 'Bearer ' + KUNCI },
+  })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (baris) {
+      if (!baris || !baris.length) return;
+      var nilai = baris[0] && baris[0].value;
+      var url = nilai && nilai.image_url;
+      if (!url) return;
+
+      // 🔴 Gambarnya dimuat DI LUAR halaman lebih dulu. Menempelkan <img>
+      // langsung ke DOM berarti ilustrasinya lenyap saat itu juga, lalu
+      // digantikan kotak kosong selama gambarnya masih diunduh — dan pada
+      // sinyal buruk kotak kosong itu bisa bertahan lama sekali.
+      var img = new Image();
+      img.onload = function () {
+        img.className = 'hero-foto';
+        img.alt = (nilai.headline || '').trim() ||
+          'Ilustrasi aplikasi KamelScan';
+        wadah.innerHTML = '';
+        wadah.appendChild(img);
+      };
+      // Gagal muat: tidak melakukan apa-apa. Ilustrasinya tetap berdiri.
+      img.src = url;
+    })
+    .catch(function () {
+      /* Sengaja diam. Halaman ini harus tetap utuh tanpa jaringan. */
+    });
+})();

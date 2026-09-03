@@ -354,6 +354,14 @@ a { color: var(--primary); }
 .hero-gambar { display: flex; justify-content: center; }
 .hero-gambar svg { width: 100%; max-width: 320px; height: auto; filter: drop-shadow(0 18px 40px rgba(16,24,40,.16)); }
 
+/* Spanduk dari platform_settings.banner_landing (Bab 10.2).
+   Ukurannya dibuat sama dengan ilustrasi SVG di atas supaya pergantiannya
+   tidak menggeser apa pun di sekitarnya — pergeseran tata letak yang terjadi
+   sedetik setelah halaman terbuka jauh lebih mengganggu daripada gambar yang
+   datang terlambat. */
+.hero-foto { width: 100%; max-width: 320px; height: auto; border-radius: 18px;
+             filter: drop-shadow(0 18px 40px rgba(16,24,40,.16)); }
+
 /* -------------------------------------------------------------------------
    Bagian umum
    ------------------------------------------------------------------------- */
