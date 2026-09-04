@@ -641,29 +641,93 @@ Product Owner sengaja menundanya sampai database final supaya tidak dipasang
 dua kali. Itu keputusan yang benar — tetapi ia berhenti dapat diterima begitu
 database itu final.
 
-## 2.2 Aktifkan dua ekstensi
+## 2.2 Tiga ekstensi — periksa dulu, jangan langsung mencari
 
-**Dashboard → Database → Extensions.** Cari dan nyalakan **keduanya**:
+🔴 **Jangan mulai dari daftar Extensions.** Panduan versi pertama
+menyuruh begitu, dan itu keliru: **`supabase_vault` sudah terpasang sendiri di
+setiap project Supabase baru**, sehingga ia sering tidak muncul di daftar yang
+dapat dinyalakan. Mencarinya di sana berakhir dengan mengira ada yang salah,
+padahal justru sudah beres.
 
-| Ekstensi | Gunanya |
-|---|---|
-| `pg_net` | mengirim HTTP dari dalam database |
-| `supabase_vault` | menyimpan kunci rahasia terenkripsi |
-
-⚠️ Sama seperti `pg_cron`, keduanya **tidak selalu dapat dibuat lewat SQL
-Editor**. Kalau `create extension` menjawab galat izin, nyalakan lewat
-Dashboard — itu jalur yang benar, bukan jalan pintas.
-
-Buktinya sudah aktif:
+Mulailah dengan bertanya kepada databasenya. **SQL Editor:**
 
 ```sql
-select extname from pg_extension
- where extname in ('pg_net', 'supabase_vault', 'pg_cron');
+select extname, extversion
+  from pg_extension
+ where extname in ('pg_net', 'supabase_vault', 'pg_cron')
+ order by extname;
 ```
 
-Harus mengembalikan **tiga baris**.
+| Yang kembali | Artinya |
+|---|---|
+| **tiga baris** | ✅ selesai, lanjut ke 2.3 |
+| dua baris | satu kurang — lihat tabel di bawah |
+| kurang dari itu | nyalakan yang belum ada |
 
 ---
+
+### Kalau `supabase_vault` yang tidak muncul
+
+Sebelum menyalakan apa pun, periksa apakah ia sebenarnya sudah bekerja.
+Ekstensi ini hidup di schema `vault`, bukan `public`:
+
+```sql
+select count(*) from vault.secrets;
+```
+
+🟢 Menjawab angka — termasuk `0` — berarti **Vault sudah siap**.
+Abaikan daftar Extensions, dan lanjut ke 2.3.
+
+🔴 Menjawab `relation "vault.secrets" does not exist` berarti ia memang
+belum ada. Baru di situ:
+
+```sql
+create extension if not exists supabase_vault with schema vault;
+```
+
+---
+
+### Kalau `pg_net` atau `pg_cron` yang tidak muncul
+
+Keduanya **tidak** terpasang sendiri, dan keduanya memang ada di daftar
+Extensions.
+
+**Dashboard → Database → Extensions**, ketik namanya di kotak pencarian, lalu
+nyalakan.
+
+⚠️ Daftar itu memuat ratusan ekstensi dan **halaman pertamanya bukan yang
+tersedia semua** — gunakan kotak pencarian, jangan menggulir.
+
+⚠️ Keduanya tidak selalu dapat dibuat lewat SQL Editor. Kalau
+`create extension` menjawab galat izin, nyalakan lewat Dashboard — itu jalur
+yang benar, bukan jalan pintas.
+
+---
+
+### Bukti yang sesungguhnya
+
+🔴 Ekstensi yang terdaftar belum tentu **dapat dipakai**. Yang
+membuktikannya adalah memanggil fungsi yang nanti benar-benar Anda butuhkan:
+
+```sql
+select vault.create_secret('uji-boleh-dihapus', 'uji_pindah_produksi');
+select name from vault.secrets where name = 'uji_pindah_produksi';
+```
+
+Baris kedua harus mengembalikan `uji_pindah_produksi`. Bersihkan setelahnya:
+
+```sql
+delete from vault.secrets where name = 'uji_pindah_produksi';
+```
+
+Dan untuk `pg_net`:
+
+```sql
+select net.http_get('https://example.com') is not null;
+```
+
+Menjawab `true` berarti `pg_net` benar-benar dapat dipanggil, bukan sekadar
+tercatat.
 
 ## 2.3 Menyimpan dua rahasia ke Vault
 
@@ -999,7 +1063,7 @@ Sebelum menyatakan produksi siap:
 - [ ] Redirect URL diisi lengkap
 - [ ] Tiga bucket ada, `payment-proofs` **tidak** publik
 - [ ] Empat cron ada; `reset-monthly-tokens` dan `mark-expired-videos` **tidak**
-- [ ] `pg_net` **dan** `supabase_vault` aktif
+- [ ] `pg_net`, `pg_cron`, dan `supabase_vault` terbukti DAPAT DIPANGGIL — bukan sekadar terdaftar
 - [ ] Dua rahasia ada di Vault: `service_role_key`, `purge_storage_url`
 - [ ] Migrasi 47 jalan, dan `net._http_response` menjawab **200**
 - [ ] Antrean R2 terbukti **turun** setelah dikuras
