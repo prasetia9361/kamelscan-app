@@ -55,6 +55,17 @@ function json(body: unknown, status = 200) {
 /// Sakelarnya `MIDTRANS_IS_PRODUCTION`. Sengaja **tidak** menebak dari awalan
 /// kunci (`SB-Mid-server-`): menebak berarti satu kunci yang salah tempel
 /// diam-diam mengarahkan uang sungguhan ke sandbox, atau sebaliknya.
+/// Nama paket sebagaimana tertulis di struk Midtrans.
+///
+/// ⚠️ Sengaja peta, bukan rangkaian ternary. Paket keempat yang
+/// ditambahkan tanpa menyentuh berkas ini akan tampil dengan kode
+/// mentahnya — janggal, tetapi jujur — bukan dengan nama paket lain.
+const NAMA_PAKET: Record<string, string> = {
+  standar: 'Standar',
+  pro: 'Pro',
+  bisnis: 'Bisnis',
+};
+
 function snapEndpoint(isProduction: boolean): string {
   return isProduction
     ? 'https://app.midtrans.com/snap/v1/transactions'
@@ -288,7 +299,12 @@ Deno.serve(async (req) => {
         id: plan,
         price: nominal,
         quantity: 1,
-        name: `KamelScan ${plan === 'pro' ? 'Pro' : 'Standar'} 30 hari`,
+        // 🔴 Dibaca dari peta, BUKAN dari `plan === 'pro' ? ... : ...`.
+        // Bentuk lamanya menulis 'KamelScan Standar 30 hari' pada
+        // pembelian BISNIS — di struk Midtrans sungguhan yang dilihat
+        // pelanggan dan masuk ke pembukuan. Nama produk yang salah pada
+        // tagihan bukan cacat tampilan.
+        name: `KamelScan ${NAMA_PAKET[plan] ?? plan} 30 hari`,
       },
     ],
     customer_details: {

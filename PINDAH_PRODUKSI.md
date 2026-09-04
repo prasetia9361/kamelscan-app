@@ -980,6 +980,63 @@ pernah menemukannya, lalu gagal dengan sebab yang terlihat seperti hal lain.
 
 # 3. Midtrans produksi
 
+## 3.0 🔴 Sebelum apa pun: akun Midtrans harus LOLOS REVIEW
+
+⚠️ **Kerjakan ini berminggu-minggu sebelum bagian 3 lainnya.** Ia tidak
+menuntut satu baris kode pun, tetapi ia menahan seluruh bagian 3 — dan
+lamanya ditentukan Midtrans, bukan Anda.
+
+**Dashboard Midtrans → sakelar Environment ke Production → Dashboard.**
+Di atas halaman ada empat langkah:
+
+```
+1 Account registration  ->  2 Business registration  ->  3 Business review  ->  4 Result
+```
+
+🔴 **Selama langkah 3 masih `In progress`, TIDAK ADA kanal pembayaran
+yang dapat aktif.** Snap akan menampilkan *"No payment channels available"* pada
+nominal berapa pun.
+
+### Kenapa ini berhak atas bagiannya sendiri
+
+Diukur 4 September 2026, dan memakan hampir satu jam:
+
+Halaman Snap kosong, dan tidak ada satu pun petunjuk yang menyebut peninjauan
+akun. Yang terlihat hanya tagihan tanpa metode pembayaran — bentuk yang persis
+sama dengan kunci salah, kanal belum dicentang, atau nominal di bawah minimum.
+Ketiganya sempat dikejar sebelum sebabnya ketemu, dan tidak satu pun ada
+hubungannya.
+
+🟢 Yang menyelesaikannya: **pratinjau bawaan Midtrans** di
+**Settings → Snap Checkout → Appearances**. Ia memakai contoh Rp 400.000, dan
+di sana pun tertulis *"No payment channels available"*. Satu layar itu
+membuktikan sekaligus bahwa penyebabnya bukan nominal, bukan promo, dan bukan
+kode — karena tagihan itu tidak berasal dari aplikasi Anda sama sekali.
+
+### Urutan yang benar
+
+| Langkah | Di mana | Lamanya |
+|---|---|---|
+| 1. Lengkapi Business registration | Account → Business | Anda |
+| 2. Tunggu **Business review** lulus | — | 🔴 **Midtrans, berhari-hari** |
+| 3. Ajukan tiap kanal | Payment Methods | Anda |
+| 4. Tunggu tiap kanal aktif | — | 3–4 hari kerja |
+
+Kanal tercepat biasanya **GoPay** dan **GoPay Dynamic QRIS** (SLA 3 hari
+kerja); bank transfer 4 hari kerja.
+
+⚠️ Buka **Doc requirements** di tiap kartu kanal. Kartu yang menunggu dokumen
+Anda terlihat sama persis dengan kartu yang menunggu antrean Midtrans — dan
+yang pertama tidak akan pernah maju sendiri.
+
+### Sementara menunggu
+
+Bagian 3.1 sampai 3.5 **dapat dikerjakan seluruhnya** tanpa kanal aktif:
+rahasia, deploy, `verify_jwt`, dan alamat webhook. Hanya **3.6** yang menuntut
+kanal yang benar-benar hidup.
+
+---
+
 ## 3.1 Aturan yang tidak boleh dilanggar
 
 🔴 **`MIDTRANS_SERVER_KEY` dan `MIDTRANS_IS_PRODUCTION` wajib diganti
@@ -1276,6 +1333,8 @@ Sebelum menyatakan produksi siap:
 - [ ] Antrean R2 terbukti **turun** setelah dikuras
 - [ ] `verify_jwt` diuji dengan `curl.exe`: `create-payment` menjawab 401, `midtrans-webhook` TIDAK 401
 - [ ] Log `create-payment` menunjukkan kunci `Mid-server-` dan `app.midtrans.com` — bukan sandbox
+- [ ] Midtrans **Business review** sudah `Done`, bukan `In progress`
+- [ ] Minimal satu kanal pembayaran berstatus **Active**, bukan "Activation in progress"
 - [ ] Satu transaksi sungguhan terlacak sampai `token_ledger`, dan tenant menjadi `active`
 - [ ] APK dan web dibangun ulang dengan kredensial baru
 - [ ] Web diperiksa di **Jendela Samaran** — bukan di tab biasa yang masih memegang service worker lama
