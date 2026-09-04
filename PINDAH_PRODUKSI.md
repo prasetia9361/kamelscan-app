@@ -40,6 +40,10 @@ aktif.** Setiap langkah punya jendela di mana layanan tidak utuh.
 ## 1.2 Urutan menjalankan migrasi
 
 🔴 **Urutannya WAJIB 00 → 46, satu per satu, tidak boleh dilompati.**
+
+⚠️ **Migrasi 47 sengaja TIDAK ikut di sini.** Ia menuntut dua ekstensi dan
+dua rahasia Vault yang belum ada pada tahap ini; menjalankannya sekarang
+hanya menghasilkan galat. Tempatnya di bagian 2.4.
 Migrasi bernomor besar mengubah apa yang dibuat migrasi bernomor kecil;
 menjalankannya terbalik menghasilkan galat yang menyesatkan.
 
@@ -261,75 +265,241 @@ Product Owner sengaja menundanya sampai database final supaya tidak dipasang
 dua kali. Itu keputusan yang benar — tetapi ia berhenti dapat diterima begitu
 database itu final.
 
-## 2.2 Aktifkan pg_net
+## 2.2 Aktifkan dua ekstensi
 
-**Dashboard → Database → Extensions** → cari `pg_net` → aktifkan.
+**Dashboard → Database → Extensions.** Cari dan nyalakan **keduanya**:
 
-⚠️ Sama seperti `pg_cron`, ia tidak selalu dapat dibuat lewat SQL Editor.
+| Ekstensi | Gunanya |
+|---|---|
+| `pg_net` | mengirim HTTP dari dalam database |
+| `supabase_vault` | menyimpan kunci rahasia terenkripsi |
 
-## 2.3 Migrasi 47 — cron pemanggil
+⚠️ Sama seperti `pg_cron`, keduanya **tidak selalu dapat dibuat lewat SQL
+Editor**. Kalau `create extension` menjawab galat izin, nyalakan lewat
+Dashboard — itu jalur yang benar, bukan jalan pintas.
 
-Belum ditulis. Bentuknya kira-kira begini, dan **jangan disalin mentah** —
-angka dan nama rahasianya perlu Anda cocokkan sendiri:
+Buktinya sudah aktif:
 
 ```sql
--- 47_purge_trigger.sql
--- Memanggil Edge Function purge-storage tiap jam.
-do $$
-begin
-  perform cron.schedule('drain-purge-queue', '0 * * * *', $job$
-    select net.http_post(
-      url     := 'https://<REF>.supabase.co/functions/v1/purge-storage',
-      headers := jsonb_build_object(
-                   'Content-Type',  'application/json',
-                   'Authorization', 'Bearer ' || current_setting('app.service_role_key')
-                 ),
-      body    := '{}'::jsonb
-    );
-  $job$);
-end $$;
+select extname from pg_extension
+ where extname in ('pg_net', 'supabase_vault', 'pg_cron');
 ```
 
-🔴 **Masalah yang harus Anda pecahkan lebih dulu: dari mana service role key
-datang.**
+Harus mengembalikan **tiga baris**.
 
-`purge-storage` memeriksa `Authorization` lawan service role key secara
-*constant-time* di dalam dirinya sendiri. Kunci itu **tidak boleh dituliskan ke
-dalam berkas migrasi**, karena migrasi masuk git.
+---
 
-Dua jalan, dan keduanya perlu Anda putuskan:
+## 2.3 Menyimpan dua rahasia ke Vault
 
-1. **`ALTER DATABASE ... SET app.service_role_key = '...'`** — dijalankan sekali
-   lewat SQL Editor, tidak masuk git. Kuncinya lalu terbaca oleh siapa pun yang
-   dapat menjalankan SQL di project itu.
-2. **Supabase Vault** — lebih benar, lebih rumit. Kuncinya disimpan terenkripsi
-   dan dibaca lewat `vault.decrypted_secrets`.
+🔴 **Ini bagian yang Anda tanyakan, dan ini langkah lengkapnya.**
 
-Saran saya: **Vault**, kalau Anda punya waktu. Kalau tidak, cara pertama masih
-jauh lebih baik daripada keadaan sekarang, di mana antreannya tidak pernah
-dikuras sama sekali.
+### Kenapa Vault, bukan ditulis di berkas migrasi
 
-## 2.4 Membuktikannya bekerja
+Berkas migrasi masuk git. **Service role key adalah kunci yang melewati seluruh
+RLS** — siapa pun yang memegangnya dapat membaca dan menghapus data setiap
+pelanggan. Ia tidak boleh berada di repositori dengan alasan apa pun.
 
-Jangan percaya "cron-nya ada" sebagai bukti.
+Vault menyimpannya terenkripsi di dalam database, dan hanya fungsi
+`security definer` yang boleh membacanya kembali.
+
+### Langkah a — ambil service role key
+
+**Dashboard → Project Settings → API Keys**.
+
+Ada dua kunci di sana. Yang Anda butuhkan yang **bawah**:
+
+| Kunci | Dipakai untuk | Boleh dilihat publik? |
+|---|---|---|
+| `anon` / `publishable` | aplikasi & landing page | ya |
+| **`service_role` / `secret`** | **yang ini** | 🔴 **TIDAK PERNAH** |
+
+Klik **Reveal**, lalu salin. Ia panjang dan diawali `eyJ`.
+
+⚠️ **Jangan menempelkannya ke mana pun selain SQL Editor.** Bukan ke chat,
+bukan ke catatan, bukan ke tangkapan layar. Kalau terlanjur, cabut dan buat
+ulang di halaman yang sama.
+
+### Langkah b — ambil alamat Edge Function
+
+Bentuknya:
+
+```
+https://<REF>.supabase.co/functions/v1/purge-storage
+```
+
+`<REF>` adalah Project Reference ID, terlihat di **Project Settings → General**
+atau di alamat Dashboard Anda. Untuk project **baru**, gunakan ref yang **baru**
+— bukan `ofggpithmvgnhsshglwx` yang lama.
+
+### Langkah c — simpan keduanya
+
+**SQL Editor → New query.** Jalankan **satu per satu**, ganti bagian bertanda:
 
 ```sql
--- Berapa yang menunggu dikuras
-select count(*) from public.storage_purge_queue;
-
--- Jalankan sekali dengan tangan, lalu hitung lagi
-select net.http_post(
-  url     := 'https://<REF>.supabase.co/functions/v1/purge-storage',
-  headers := jsonb_build_object('Authorization', 'Bearer <service_role_key>'),
-  body    := '{}'::jsonb
+select vault.create_secret(
+  'eyJhbGciOi...GANTI_DENGAN_SERVICE_ROLE_KEY...',
+  'service_role_key',
+  'Dipakai cron drain-purge-queue memanggil Edge Function purge-storage'
 );
 ```
 
-Angkanya harus **turun**. Kalau tetap, buka
-**Dashboard → Edge Functions → purge-storage → Logs** — sekarang kegagalannya
-tertulis di sana.
+```sql
+select vault.create_secret(
+  'https://GANTI_DENGAN_REF.supabase.co/functions/v1/purge-storage',
+  'purge_storage_url',
+  'Alamat Edge Function penguras antrean R2'
+);
+```
+
+Masing-masing mengembalikan satu **UUID**. Itu tandanya berhasil.
+
+### Langkah d — pastikan keduanya tersimpan
+
+```sql
+select name, created_at from vault.secrets order by created_at desc;
+```
+
+Harus muncul **dua baris**: `service_role_key` dan `purge_storage_url`.
+
+⚠️ Perhatikan bahwa kueri ini **tidak menampilkan isinya** — itu memang
+disengaja. Kalau Anda benar-benar perlu memastikan isinya benar, ada cara
+memeriksa **tanpa menampilkannya**:
+
+```sql
+select name, length(decrypted_secret) as panjang,
+       left(decrypted_secret, 6) as awalan
+  from vault.decrypted_secrets
+ where name in ('service_role_key', 'purge_storage_url');
+```
+
+`service_role_key` harus berawalan `eyJhbG` dan panjangnya beberapa ratus
+huruf. `purge_storage_url` harus berawalan `https:`.
+
+### Kalau salah menyimpan
+
+Rahasia di Vault **tidak ditimpa** oleh `create_secret` yang kedua — ia
+membuat baris baru bernama sama, dan fungsi pembacanya akan bingung. Perbaiki
+dengan mengubah, bukan menambah:
+
+```sql
+select vault.update_secret(
+  (select id from vault.secrets where name = 'service_role_key'),
+  'eyJhbGciOi...NILAI_YANG_BENAR...'
+);
+```
+
+Atau hapus lalu buat lagi:
+
+```sql
+delete from vault.secrets where name = 'service_role_key';
+```
 
 ---
+
+## 2.4 Jalankan migrasi 47
+
+Berkasnya sudah ada: `supabase/migrations/47_purge_queue_trigger.sql`.
+
+Salin seluruh isinya ke SQL Editor dan jalankan. **Tidak ada yang perlu Anda
+sunting** — alamat dan kuncinya dibaca dari Vault, jadi berkasnya sama persis
+di project lama maupun baru.
+
+**Yang seharusnya muncul:** `Success. No rows returned`.
+
+Kalau muncul galat menyebut `vault` atau `net`, berarti ekstensinya belum aktif
+— kembali ke 2.2.
+
+---
+
+## 2.5 Membuktikannya bekerja
+
+🔴 **Jangan berhenti di "cron-nya sudah ada".** `pg_net` bekerja asinkron:
+fungsinya hanya menitipkan permintaan lalu selesai, jadi ia **selalu terlihat
+berhasil** bahkan ketika panggilannya ditolak 403.
+
+**1. Hitung antreannya sekarang:**
+
+```sql
+select count(*) from public.storage_purge_queue;
+```
+
+**2. Jalankan sekali dengan tangan**, tanpa menunggu jam berikutnya:
+
+```sql
+select public.drain_purge_queue();
+```
+
+**3. Tunggu ± 10 detik, lalu lihat JAWABAN Edge Function.** Ini langkah yang
+paling sering dilewati, dan satu-satunya yang benar-benar membuktikan:
+
+```sql
+select id, status_code, content, created
+  from net._http_response
+ order by created desc limit 3;
+```
+
+| `status_code` | Artinya | Yang harus diperbaiki |
+|---|---|---|
+| **200** | ✅ berhasil | — |
+| 403 | `FORBIDDEN` | `service_role_key` di Vault salah |
+| 401 | ditolak gerbang | kunci bukan JWT yang sah — salah salin |
+| 404 | fungsinya tidak ditemukan | `purge_storage_url` salah, atau `purge-storage` belum di-deploy ke project ini |
+| `NULL` | belum ada jawaban | tunggu sebentar lagi, lalu ulangi kueri |
+
+**4. Hitung ulang. Angkanya harus TURUN:**
+
+```sql
+select count(*) from public.storage_purge_queue;
+```
+
+⚠️ Kalau antreannya memang **sudah kosong sejak awal**, langkah 4 tidak
+membuktikan apa pun. Yang membuktikan tetap `status_code = 200` di langkah 3.
+
+**5. Pastikan jadwalnya terpasang:**
+
+```sql
+select jobname, schedule, active from cron.job
+ where jobname = 'drain-purge-queue';
+```
+
+Harus satu baris, `schedule` `0 * * * *`, `active` `t`.
+
+---
+
+## 2.6 Kalau `purge-storage` belum ada di project baru
+
+Edge Function **tidak ikut** saat Anda membuat project baru — ia harus
+di-deploy ulang, beserta rahasianya.
+
+```powershell
+$env:SUPABASE_ACCESS_TOKEN = 'sbp_...'
+```
+
+```powershell
+& '.\.supabase-cli
+ode_modules\@supabase\cli-windows-x64in\supabase.exe' functions deploy purge-storage --project-ref <REF_BARU>
+```
+
+Dan rahasia R2-nya — `purge-storage` membacanya dari Edge Function Secrets,
+bukan dari Vault:
+
+```powershell
+& '.\.supabase-cli
+ode_modules\@supabase\cli-windows-x64in\supabase.exe' secrets set R2_ENDPOINT=... --project-ref <REF_BARU>
+```
+
+Ulangi untuk `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, dan
+`R2_BUCKET_VIDEOS`. Nilainya ada di `dataapp.md`.
+
+⚠️ **Dua tempat rahasia yang berbeda, dan mudah tertukar:**
+
+| Tempat | Isinya | Dibaca oleh |
+|---|---|---|
+| **Vault** (di database) | `service_role_key`, `purge_storage_url` | fungsi SQL `drain_purge_queue()` |
+| **Edge Function Secrets** | kunci R2, kunci Midtrans | kode Deno di dalam fungsinya |
+
+Menaruh kunci R2 di Vault tidak akan menghasilkan galat apa pun — fungsinya
+hanya tidak pernah menemukannya.
 
 # 3. Midtrans produksi
 
@@ -466,7 +636,10 @@ Sebelum menyatakan produksi siap:
 - [ ] Redirect URL diisi lengkap
 - [ ] Tiga bucket ada, `payment-proofs` **tidak** publik
 - [ ] Empat cron ada; `reset-monthly-tokens` dan `mark-expired-videos` **tidak**
-- [ ] `pg_net` aktif dan antrean R2 terbukti **turun** setelah dikuras
+- [ ] `pg_net` **dan** `supabase_vault` aktif
+- [ ] Dua rahasia ada di Vault: `service_role_key`, `purge_storage_url`
+- [ ] Migrasi 47 jalan, dan `net._http_response` menjawab **200**
+- [ ] Antrean R2 terbukti **turun** setelah dikuras
 - [ ] `verify_jwt`: hanya `midtrans-webhook` yang `false`
 - [ ] Satu transaksi sungguhan terlacak sampai `token_ledger`
 - [ ] APK dan web dibangun ulang dengan kredensial baru
