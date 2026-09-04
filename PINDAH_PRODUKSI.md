@@ -983,23 +983,58 @@ aktif. Tidak ada galat di mana pun.
 ⚠️ **Cara lama sudah tidak berlaku.** `supabase functions list` pada CLI
 2.116.0 tidak lagi punya kolom `verify_jwt`.
 
-Cara yang benar — panggil fungsinya **tanpa** header Authorization:
+Cara yang benar: panggil fungsinya **tanpa** header Authorization, lalu lihat
+siapa yang menolak — gerbangnya, atau kode fungsinya sendiri.
 
-```bash
-U=https://cgzvrhwlyzettnfbiiuk.supabase.co/functions/v1
-curl -s -o /dev/null -w "%{http_code}\n" -X POST $U/create-payment \
-     -H "Content-Type: application/json" -d '{}'
+🔴 **Pakai `curl.exe`, bukan `curl`.** Di PowerShell, `curl` adalah
+alias `Invoke-WebRequest` — cmdlet yang sama sekali tidak mengenal `-s`, `-o`,
+`-w`, `-X`, atau `-d`. Menempelkan perintah curl gaya Linux ke PowerShell
+menghasilkan galat `Missing an argument for parameter 'SessionVariable'`, yang
+tidak menyebut sebabnya sama sekali. Akhiran `.exe` memaksa PowerShell memakai
+curl yang sungguhan — ia sudah ada di setiap Windows 10 dan 11.
+
+```powershell
+$u = 'https://cgzvrhwlyzettnfbiiuk.supabase.co/functions/v1'
+
+curl.exe -s -o NUL -w '%{http_code}' -X POST "$u/create-payment" `
+         -H 'Content-Type: application/json' -d '{}'
 ```
+
+⚠️ Dua beda kecil dari versi Linux, dan keduanya wajib:
+
+| Linux | Windows | Kenapa |
+|---|---|---|
+| `-o /dev/null` | `-o NUL` | Windows tidak punya `/dev/null` |
+| `\` di ujung baris | `` ` `` di ujung baris | penyambung baris PowerShell |
+
+Ulangi untuk `midtrans-webhook`:
+
+```powershell
+curl.exe -s -o NUL -w '%{http_code}' -X POST "$u/midtrans-webhook" `
+         -H 'Content-Type: application/json' -d '{}'
+```
+
+### Membaca jawabannya
 
 | Jawaban | Artinya |
 |---|---|
-| `401 UNAUTHORIZED_NO_AUTH_HEADER` | ditolak **gerbang** → `verify_jwt` **true** |
-| apa pun yang lain | **kodenya sendiri** yang menjawab → `verify_jwt` **false** |
+| **401** | ditolak **gerbang** → `verify_jwt` **true** |
+| apa pun yang lain (403, 400, 200…) | **kodenya sendiri** yang menjawab → `verify_jwt` **false** |
 
-Yang benar: `midtrans-webhook` **false**, semua yang lain **true**.
+Yang benar:
 
-✅ Cara ini lebih kuat daripada membaca kolom: ia membuktikan **perilaku
-sungguhan**, bukan label pengaturan.
+| Fungsi | Harus | Kalau salah |
+|---|---|---|
+| `create-payment` | **401** | siapa pun dapat membuat tagihan tanpa akun |
+| `midtrans-webhook` | **bukan 401** | 🔴 Midtrans tertolak gerbang; uang berpindah, langganan tidak pernah aktif |
+
+⚠️ **403 pada `midtrans-webhook` adalah jawaban yang BENAR**, bukan galat. Itu
+kodenya sendiri yang menolak karena tanda tangannya tidak cocok — dan
+justru itu buktinya permintaan Anda sampai ke dalam fungsinya, bukan berhenti
+di gerbang.
+
+✅ Cara ini lebih kuat daripada membaca kolom pengaturan: ia membuktikan
+**perilaku sungguhan**.
 
 ## 3.5 Webhook di Midtrans Dashboard
 
@@ -1075,7 +1110,7 @@ Sebelum menyatakan produksi siap:
 - [ ] Dua rahasia ada di Vault: `service_role_key`, `purge_storage_url`
 - [ ] Migrasi 47 jalan, dan `net._http_response` menjawab **200**
 - [ ] Antrean R2 terbukti **turun** setelah dikuras
-- [ ] `verify_jwt`: hanya `midtrans-webhook` yang `false`
+- [ ] `verify_jwt` diuji dengan `curl.exe`: `create-payment` menjawab 401, `midtrans-webhook` TIDAK 401
 - [ ] Satu transaksi sungguhan terlacak sampai `token_ledger`
 - [ ] APK dan web dibangun ulang dengan kredensial baru
 - [ ] Akun Owner, Admin, toko, gambar iklan, dan tutorial dibuat ulang
