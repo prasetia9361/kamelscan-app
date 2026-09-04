@@ -8,7 +8,10 @@ juga.
 
 ---
 
-## 📍 Sudah sampai mana — 4 September 2026
+## 📍 Sudah sampai mana — 5 September 2026
+
+🟢 **Tidak ada bagian yang perlu diulang.** Yang tersisa tiga hal, dan
+dua di antaranya menunggu pihak lain.
 
 | Bagian | Keadaan |
 |---|---|
@@ -16,17 +19,34 @@ juga.
 | 1.5 Kredensial + build ulang | ✅ selesai |
 | 1.6 Layanan luar (Google, SMTP, Midtrans) | ✅ selesai |
 | 1.7 Sepuluh Edge Function + tujuh rahasia | ✅ selesai |
-| 2.x Vault, migrasi 47, pemicu R2 | 🟡 belum dikerjakan |
-| 3.0 Business review Midtrans | 🔴 **`In progress` — menahan 3.6** |
+| 2.2 – 2.4 Ekstensi, Vault, migrasi 47 & 48 | ✅ selesai |
+| 2.5 Antrean R2 terbukti terkuras | 🔴 **403 — sedang diperbaiki migrasi 49** |
+| 3.0 Business review Midtrans | 🔴 `In progress` — menunggu Midtrans |
 | 3.1 – 3.5 Kunci, deploy, `verify_jwt`, webhook | ✅ selesai |
 | 3.6 Transaksi sungguhan | 🔴 tertahan 3.0 |
 
-🟢 **3.4 sudah dibuktikan:** `create-payment` menjawab 401,
-`midtrans-webhook` menjawab 403. Keduanya benar.
+### Yang benar-benar tersisa
 
-⚠️ Yang paling mudah dilupakan dari daftar ini: **bagian 2 belum dikerjakan
-sama sekali.** Ia tidak menahan apa pun yang terlihat, tetapi antrean R2 terus
-menumpuk dan berbiaya selama pemicunya belum ada.
+**1. Migrasi 49** — ± 5 menit. Penguras antrean R2 berhenti bergantung pada
+`SUPABASE_SERVICE_ROLE_KEY`, yang nilainya dikendalikan Supabase dan tidak
+dapat dibaca dari mana pun. Langkahnya di kepala
+`supabase/migrations/49_purge_shared_token.sql`.
+
+**2. Terbitkan ulang APK dan web.** Beberapa perbaikan sudah ter-commit tetapi
+belum pernah terbit: ikon aplikasi, promo paket Bisnis, penomoran landing page,
+tombol hapus gambar iklan, dan **hapus video sungguhan** — yang terakhir
+membuat migrasi 48 baru benar-benar bekerja dari aplikasi.
+
+```powershell
+& $cli functions deploy create-payment --project-ref $ref
+.un.ps1 -Build -Profile
+.\deploy_web.ps1
+```
+
+**3. Menunggu Midtrans.** Bukan pekerjaan, hanya waktu.
+
+⚠️ Nomor 1 dan 2 **tidak menunggu Midtrans**. Nomor 3 tidak menunggu apa pun
+dari kita.
 
 ---
 
