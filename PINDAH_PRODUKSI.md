@@ -342,7 +342,8 @@ ini.
 Aplikasi menyimpan sebabnya di `debugMessage`. Di HP:
 
 ```powershell
-& '<adb>' logcat -d | Select-String -Pattern "provider|oauth|idToken|400"
+& "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe" logcat -d |
+  Select-String -Pattern 'provider|oauth|idToken|400'
 ```
 
 | Yang terbaca | Artinya |
@@ -764,12 +765,12 @@ ulang di halaman yang sama.
 Bentuknya:
 
 ```
-https://<REF>.supabase.co/functions/v1/purge-storage
+https://cgzvrhwlyzettnfbiiuk.supabase.co/functions/v1/purge-storage
 ```
 
-`<REF>` adalah Project Reference ID, terlihat di **Project Settings → General**
-atau di alamat Dashboard Anda. Untuk project **baru**, gunakan ref yang **baru**
-— bukan `ofggpithmvgnhsshglwx` yang lama.
+⚠️ `cgzvrhwlyzettnfbiiuk` adalah Project Reference ID project **baru** Anda —
+bukan `ofggpithmvgnhsshglwx` yang lama. Cocokkan dengan yang tertera di
+**Project Settings → General**; kalau berbeda, pakai yang di sana.
 
 ### Langkah c — simpan keduanya
 
@@ -943,9 +944,12 @@ Rahasia Edge Function **tidak** ada di `env.dev.json`.
 **Dashboard → Edge Functions → Secrets**, atau lewat CLI:
 
 ```powershell
-$env:SUPABASE_ACCESS_TOKEN = 'sbp_...'
-& '.\.supabase-cli\node_modules\@supabase\cli-windows-x64\bin\supabase.exe' secrets set MIDTRANS_SERVER_KEY=Mid-server-XXXX --project-ref <REF>
-& '.\.supabase-cli\node_modules\@supabase\cli-windows-x64\bin\supabase.exe' secrets set MIDTRANS_IS_PRODUCTION=true --project-ref <REF>
+$env:SUPABASE_ACCESS_TOKEN = 'sbp_GANTI_DENGAN_TOKEN_ANDA'
+$cli = '.\.supabase-cli\node_modules\@supabase\cli-windows-x64\bin\supabase.exe'
+$ref = 'cgzvrhwlyzettnfbiiuk'
+
+& $cli secrets set MIDTRANS_SERVER_KEY='Mid-server-GANTI' --project-ref $ref
+& $cli secrets set MIDTRANS_IS_PRODUCTION='true' --project-ref $ref
 ```
 
 ⚠️ Tulis tiap baris **terpisah**. Menyatukannya dengan `;` di satu baris
@@ -958,9 +962,13 @@ dibangun ulang.
 
 ## 3.3 Deploy ulang Edge Function
 
+⚠️ **Lanjutkan dari jendela PowerShell yang sama seperti 3.2** — `$cli`
+dan `$ref` masih terisi di sana. Kalau jendelanya sudah ditutup,
+ulangi tiga baris pertama blok 3.2.
+
 ```powershell
-& '.\.supabase-cli\node_modules\@supabase\cli-windows-x64\bin\supabase.exe' functions deploy create-payment --project-ref <REF>
-& '.\.supabase-cli\node_modules\@supabase\cli-windows-x64\bin\supabase.exe' functions deploy midtrans-webhook --no-verify-jwt --project-ref <REF>
+& $cli functions deploy create-payment --project-ref $ref
+& $cli functions deploy midtrans-webhook --no-verify-jwt --project-ref $ref
 ```
 
 🔴 **`--no-verify-jwt` pada `midtrans-webhook` TIDAK BOLEH TERLUPA.**
@@ -978,7 +986,7 @@ aktif. Tidak ada galat di mana pun.
 Cara yang benar — panggil fungsinya **tanpa** header Authorization:
 
 ```bash
-U=https://<REF>.supabase.co/functions/v1
+U=https://cgzvrhwlyzettnfbiiuk.supabase.co/functions/v1
 curl -s -o /dev/null -w "%{http_code}\n" -X POST $U/create-payment \
      -H "Content-Type: application/json" -d '{}'
 ```
@@ -998,7 +1006,7 @@ sungguhan**, bukan label pengaturan.
 **Settings → Configuration → Payment Notification URL:**
 
 ```
-https://<REF>.supabase.co/functions/v1/midtrans-webhook
+https://cgzvrhwlyzettnfbiiuk.supabase.co/functions/v1/midtrans-webhook
 ```
 
 Alamat ini berbeda antara sandbox dan produksi — pastikan Anda mengisinya pada
