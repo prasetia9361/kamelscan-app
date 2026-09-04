@@ -64,8 +64,30 @@ Deno.serve(async (req) => {
   //    membawa JWT yang sah — dan JWT setiap Owner yang sedang login pun sah.
   //    Tanpa baris ini, siapa pun yang punya akun dapat memicu penghapusan
   //    berkas milik seluruh pelanggan.
-  const auth = req.headers.get('Authorization') ?? '';
-  if (!samaAman(auth, `Bearer ${serviceKey}`)) {
+  // 🔴 Penjagaannya rahasia bersama yang KITA tentukan, bukan
+  // `SUPABASE_SERVICE_ROLE_KEY`.
+  //
+  // Bentuk lamanya membandingkan header dengan nilai yang DIKENDALIKAN
+  // SUPABASE dan tidak dapat dilihat dari mana pun. Pada 4 September 2026 itu
+  // memakan berjam-jam: kunci di Vault sah (ref benar, role benar, tanpa spasi,
+  // tidak ganda) dan tetap ditolak 403, karena `SUPABASE_SERVICE_ROLE_KEY`
+  // yang diisi Supabase ternyata string yang BERBEDA dari kunci mana pun yang
+  // tertera di Dashboard maupun catatan.
+  //
+  // Terbukti dengan membandingkan SHA-256 dari `supabase secrets list`:
+  // `SUPABASE_ANON_KEY` pun tidak sama dengan anon key di `env.dev.json`,
+  // padahal aplikasi berjalan dengan kunci itu.
+  //
+  // Rahasia yang kedua sisinya kita isi sendiri tidak dapat berselisih diam-
+  // diam seperti itu.
+  //
+  // ⚠️ Dibandingkan dengan `samaAman` — waktu-tetap. Perbandingan biasa
+  // membocorkan panjang awalan yang benar lewat selisih waktu.
+  const token = Deno.env.get('PURGE_TOKEN') ?? '';
+  if (token === '') {
+    return json({ error: 'PURGE_TOKEN_BELUM_DISET' }, 500);
+  }
+  if (!samaAman(req.headers.get('X-Purge-Token') ?? '', token)) {
     return json({ error: 'FORBIDDEN' }, 403);
   }
 
