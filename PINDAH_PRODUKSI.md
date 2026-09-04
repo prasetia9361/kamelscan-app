@@ -354,7 +354,9 @@ Aplikasi menyimpan sebabnya di `debugMessage`. Di HP:
 
 ---
 
-### b. SMTP — pengirim email
+### b. Email — pengirim, dan alamat kontak
+
+#### Pengirim SMTP
 
 Project baru kembali memakai pengirim bawaan Supabase, yang **dibatasi sekitar
 3-4 email per jam** dan memang tidak diperuntukkan bagi produksi.
@@ -368,6 +370,58 @@ akun Resend/Brevo yang sama seperti project lama.
 ⚠️ Periksa juga **Authentication -> Emails -> Templates**. Kalau di project
 lama templatnya pernah disunting, di project baru ia kembali ke bentuk bawaan
 berbahasa Inggris.
+
+#### 🔴 Mengirim dan menerima adalah dua hal yang berbeda
+
+Ini membingungkan karena keduanya memakai alamat yang bentuknya sama, padahal
+syaratnya sama sekali lain:
+
+| | Yang dibutuhkan | Perlu kotak surat? |
+|---|---|---|
+| **Alamat pengirim** (`from:` di email verifikasi) | domain diverifikasi di Resend lewat catatan DNS | 🟢 **tidak** |
+| **Alamat kontak** (dipajang ke pelanggan) | tempat yang benar-benar dapat menerima | 🔴 **wajib** |
+
+Artinya `team@kamelscan.com` **sudah dapat dipakai mengirim hari ini juga**,
+begitu domainnya terverifikasi di Resend — tanpa membuat kotak surat apa pun.
+
+🔴 **Tetapi memasangnya sebagai kontak tanpa kotak surat berbahaya.**
+Setiap balasan pelanggan akan terpantul, atau hilang diam-diam. Alamat dukungan
+yang tidak menerima apa-apa lebih buruk daripada tidak mencantumkan alamat sama
+sekali — pelanggan mengira sudah mengadu, padahal tidak ada yang membaca.
+
+#### Cara termurahnya: Cloudflare Email Routing (gratis)
+
+Domainnya sudah di Cloudflare, jadi tidak perlu layanan baru.
+
+**Cloudflare Dashboard -> pilih `kamelscan.com` -> Email -> Email Routing.**
+
+1. Aktifkan Email Routing. Cloudflare menawarkan menambahkan catatan MX
+   otomatis — setujui.
+2. **Destination addresses** -> tambah `aiotideaproject@gmail.com`, lalu buka
+   Gmail itu dan **klik tautan konfirmasinya**. Tanpa langkah ini penerusannya
+   diam saja.
+3. **Routing rules** -> Create address: `team@kamelscan.com` -> Send to ->
+   alamat Gmail tadi.
+
+⚠️ **MX menunjuk satu tujuan.** Kalau `kamelscan.com` sudah memakai layanan
+email lain, Email Routing akan menggantikannya. Kalau selama ini belum pernah
+ada email di domain itu, tidak ada yang hilang.
+
+#### Membuktikannya sebelum dipajang
+
+🔴 **Kirim satu email dari luar ke `team@kamelscan.com` dan pastikan ia
+sampai di Gmail Anda.** Jangan melewatkan langkah ini. Alamat kontak yang salah
+tidak menghasilkan galat di mana pun — ia hanya menelan keluhan pelanggan.
+
+Sesudah terbukti sampai, ganti kontaknya lewat **Admin -> Kontak**. Nilainya
+tersimpan di `platform_settings` kunci `contact`, dan **tidak ada kode yang
+perlu diubah**.
+
+Isi bawaannya ditanam migrasi `08_settings.sql`:
+
+```json
+{"whatsapp": "6285113214018", "email": "aiotideaproject@gmail.com", "address": ""}
+```
 
 ---
 
@@ -803,6 +857,7 @@ Sebelum menyatakan produksi siap:
 - [ ] Migrasi 00–46 jalan berurutan, tanpa lubang
 - [ ] Provider **Google aktif**, Client ID Web tercantum — daftar akun lewat Google berhasil
 - [ ] SMTP kustom terpasang — bukan pengirim bawaan yang dibatasi 3–4 email/jam
+- [ ] Alamat kontak **terbukti menerima** — satu email uji sampai ke kotak masuk
 - [ ] Kesepuluh Edge Function ter-deploy, rahasianya diset
 - [ ] Payment Notification URL Midtrans **Sandbox** menunjuk ref baru
 - [ ] Auth Hook aktif — Beranda menampilkan angka, bukan kosong

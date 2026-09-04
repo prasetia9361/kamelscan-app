@@ -110,3 +110,6 @@ supabase/.temp/
 # paket `@supabase/cli-windows-x64` gagal terpasang sebagai optional dependency
 # dan galatnya berbunyi "No matching Supabase CLI binary package found".
 .supabase-cli/
+
+# Materi investor, bukan isi repositori
+Biaya_Infrastruktur_KamelScan.docx
