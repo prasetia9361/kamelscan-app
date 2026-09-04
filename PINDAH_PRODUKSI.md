@@ -1120,6 +1120,15 @@ produksi. Layarnya sama persis, dan uangnya tidak pernah berpindah.
 
 1. Buka **Pembayaran** di aplikasi, pilih paket Standar, sampai layar Midtrans
    terbuka — **lalu berhenti. Jangan bayar dulu.**
+
+   🔴 **Lewat aplikasi WEB, bukan Android.** Pembayaran memang hanya
+   tersedia di web — `PaymentAccess.canPay(isWeb:)` mengembalikan `false`
+   di Android, jadi tombolnya tidak akan ada di sana. Ini disengaja, bukan
+   cacat.
+
+   ⚠️ Pastikan Anda membukanya di jendela yang service worker-nya sudah
+   dibersihkan (lihat 1.5) — kalau tidak, yang Anda bayar bisa jadi
+   tagihan yang dibuat project LAMA.
 2. Buka **Dashboard → Edge Functions → `create-payment` → Logs**, cari baris
    paling atas bertanda **`MIDTRANS_SNAP_CREATED`**.
 
@@ -1138,6 +1147,11 @@ Isinya seperti ini:
 | `key_prefix` | `Mid-server` | `SB-Mid` |
 | `production` | `true` | `false` |
 | `endpoint` | `app.midtrans.com` | `app.sandbox.midtrans.com` |
+
+🟢 **Di web ada pemeriksaan kedua yang gratis:** halaman Snap terbuka di
+tab baru, jadi alamatnya terlihat langsung di bilah alamat. `app.midtrans.com`
+berarti produksi; `app.sandbox.midtrans.com` berarti sandbox. Ini tidak
+mungkin dilihat di Android karena halamannya dibuka peramban luar.
 
 🔴 **Ketiganya harus benar bersamaan.** Kunci produksi dengan
 `MIDTRANS_IS_PRODUCTION=false` menghasilkan penolakan yang membingungkan; kunci
