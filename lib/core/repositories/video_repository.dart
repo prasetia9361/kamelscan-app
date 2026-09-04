@@ -541,17 +541,31 @@ class VideoRepository {
     }
   }
 
-  /// Hapus video (soft delete).
+  /// Hapus video — **sungguh-sungguh**, bukan soft delete.
   ///
-  /// Status `deleted` mengeluarkan baris dari partial unique index
-  /// `uq_resi_per_tenant_type`, sehingga resi yang sama boleh direkam ulang
-  /// (Bab 7.7).
+  /// 🔴 Keputusan Product Owner 4 September 2026, dengan kalimatnya sendiri:
+  /// *"soft delete itu racun yang membunuh tanpa sadar"*.
+  ///
+  /// Bentuk lamanya hanya menyetel `status = 'deleted'`. Berkas di R2 tidak
+  /// pernah disentuh dan tidak pernah masuk `storage_purge_queue` — tiga
+  /// pengisi antrean itu (retensi 41, hapus akun 37, packer 38) semuanya
+  /// melewatkan video yang dihapus Owner. Setiap penghapusan meninggalkan
+  /// berkas yatim yang tetap ditagihkan selamanya.
+  ///
+  /// 🔴 Dan yang lebih buruk daripada biayanya: Owner yang menekan Hapus
+  /// percaya videonya hilang, padahal berkasnya masih utuh dan masih dapat
+  /// dibuka siapa pun yang memegang kredensial bucket.
+  ///
+  /// ⚠️ Lewat RPC, bukan dua panggilan dari sini. Kunci R2 harus diselamatkan
+  /// ke antrean SEBELUM barisnya dihapus, dan keduanya wajib dalam satu
+  /// transaksi — `storage_key` hanya hidup di baris itu, jadi urutan yang
+  /// terbalik membuang satu-satunya petunjuk ke berkasnya. Lihat migrasi 48.
   Future<Result<void>> deleteVideo(String id) async {
     try {
-      await _client
-          .from(AppConstants.tblPackageVideos)
-          .update({'status': VideoStatus.deleted.wire})
-          .eq('id', id);
+      await _client.rpc<void>(
+        'delete_video_hard',
+        params: {'p_video_id': id},
+      );
       return okVoid;
     } on Object catch (e, s) {
       return Result.err(SupabaseService.mapError(e, s));

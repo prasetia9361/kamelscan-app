@@ -1009,6 +1009,13 @@ menurunkannya menurunkan seluruh kolom biaya di sana.
 
 ## ✅ Lunas 4 September 2026
 
+- **🔴 Soft delete video.** `deleteVideo` hanya menyetel `status = 'deleted'`;
+  berkas R2-nya tidak pernah masuk `storage_purge_queue`, jadi setiap
+  penghapusan meninggalkan berkas yatim yang ditagihkan selamanya — dan
+  Owner yang menekan Hapus percaya videonya hilang padahal masih utuh.
+  Migrasi 48 menggantinya dengan penghapusan sungguhan.
+
+
 - **Utang lama #2 — dua kegagalan Midtrans yang pesannya sama.**
   `MIDTRANS_UNREACHABLE` dan `MIDTRANS_REJECTED` kini punya kalimat sendiri,
   dan `create-payment` menuliskan penolakan Midtrans lengkap dengan
