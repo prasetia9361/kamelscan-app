@@ -31,6 +31,13 @@ class _AdminPricingPageState extends ConsumerState<AdminPricingPage> {
   /// Dua kolom mulai selebar ini; di bawahnya menumpuk.
   static const double duaKolom = 900;
 
+  /// Sejak paket ketiga ada, layar laptop muat menampung ketiganya
+  /// berdampingan. Tanpa ambang ini kartu Bisnis berdiri sendirian di baris
+  /// kedua, di bawah lipatan — dan Product Owner melaporkannya sebagai
+  /// "masih 2 tier" pada 1 September 2026, karena memang itu yang terlihat
+  /// tanpa menggulir.
+  static const double tigaKolom = 1300;
+
   final _kolom = <String, TextEditingController>{};
   bool _sedang = false;
   bool _terisi = false;
@@ -54,7 +61,7 @@ class _AdminPricingPageState extends ConsumerState<AdminPricingPage> {
   void _isiSekali(AdminPricingData data) {
     if (_terisi) return;
     _terisi = true;
-    for (final tier in [data.catalog.standar, data.catalog.pro]) {
+    for (final tier in data.catalog.semua) {
       final p = tier.plan.wire;
       _c('$p.price', '${tier.price.toInt()}');
       _c('$p.max_video_seconds', '${tier.maxVideoSeconds}');
@@ -93,8 +100,7 @@ class _AdminPricingPageState extends ConsumerState<AdminPricingPage> {
     // "seluruh pendapatan adalah keuntungan" (migrasi 30 keputusan 3).
     final biaya = biayaTeks.isEmpty ? null : num.tryParse(biayaTeks);
 
-    final standarBaru = _bacaTier(data.catalog.standar);
-    final proBaru = _bacaTier(data.catalog.pro);
+    final tiersBaru = data.catalog.semua.map(_bacaTier).toList();
 
     final yakin = await showDialog<bool>(
       context: context,
@@ -132,7 +138,7 @@ class _AdminPricingPageState extends ConsumerState<AdminPricingPage> {
     setState(() => _sedang = true);
     final gagal = await ref
         .read(adminPricingViewModelProvider.notifier)
-        .save(standar: standarBaru, pro: proBaru, infraCost: biaya);
+        .save(tiers: tiersBaru, infraCost: biaya);
     if (!mounted) return;
     setState(() => _sedang = false);
 
@@ -161,34 +167,70 @@ class _AdminPricingPageState extends ConsumerState<AdminPricingPage> {
 
           return LayoutBuilder(
             builder: (context, batas) {
+              // Dibangun dari katalog, bukan disebut satu per satu — paket
+              // baru cukup menambah nilai enum, tanpa menyentuh berkas ini.
               final kartu = [
-                _KartuTier(
-                  tier: data.catalog.standar,
-                  kolom: _c,
-                  label: t.tierStandar,
-                ),
-                _KartuTier(tier: data.catalog.pro, kolom: _c, label: t.tierPro),
+                for (final tier in data.catalog.semua)
+                  _KartuTier(
+                    tier: tier,
+                    kolom: _c,
+                    label: labelTier(t, tier.plan),
+                  ),
               ];
 
               return ListView(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
                 children: [
-                  if (batas.maxWidth >= duaKolom)
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // `Expanded` di kedua sisi — kartu berisi tombol
-                        // bertema yang menuntut lebar tak terhingga.
-                        Expanded(child: kartu[0]),
-                        const SizedBox(width: 16),
-                        Expanded(child: kartu[1]),
-                      ],
-                    )
-                  else ...[
-                    kartu[0],
-                    const SizedBox(height: 16),
-                    kartu[1],
-                  ],
+                  // 🔴 JANGAN menyebut kartu[0] dan kartu[1] satu per satu.
+                  // Sampai 1 September 2026 baris inilah yang melakukannya,
+                  // tepat di bawah komentar yang menjanjikan sebaliknya —
+                  // sehingga paket Bisnis yang sudah ada di katalog TIDAK
+                  // PERNAH digambar, di lebar mana pun. Dilaporkan Product
+                  // Owner setelah melihat Admin > Harga & Paket masih dua
+                  // kartu padahal halaman pembayaran pelanggan sudah tiga.
+                  //
+                  // Tidak ada satu pun galat: daftarnya memang berisi tiga,
+                  // hanya yang ketiga tidak pernah diminta.
+                  ...(() {
+                    final perBaris = batas.maxWidth >= tigaKolom
+                        ? 3
+                        : batas.maxWidth >= duaKolom
+                        ? 2
+                        : 1;
+
+                    final baris = <Widget>[];
+                    for (var i = 0; i < kartu.length; i += perBaris) {
+                      if (i > 0) baris.add(const SizedBox(height: 16));
+
+                      if (perBaris == 1) {
+                        baris.add(kartu[i]);
+                        continue;
+                      }
+
+                      baris.add(
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            for (var k = 0; k < perBaris; k++) ...[
+                              if (k > 0) const SizedBox(width: 16),
+                              // `Expanded` di setiap sisi — kartu berisi tombol
+                              // bertema yang menuntut lebar tak terhingga, jadi
+                              // batasnya WAJIB datang dari sini.
+                              //
+                              // Baris terakhir yang tidak penuh diisi ruang
+                              // kosong, supaya kartunya selebar kartu di baris
+                              // atasnya dan tidak melar sendirian.
+                              if (i + k < kartu.length)
+                                Expanded(child: kartu[i + k])
+                              else
+                                const Expanded(child: SizedBox.shrink()),
+                            ],
+                          ],
+                        ),
+                      );
+                    }
+                    return baris;
+                  })(),
 
                   const SizedBox(height: 16),
                   _KartuBiaya(controller: _c('infra_cost', '')),

@@ -259,6 +259,56 @@ class VideoRepository {
     }
   }
 
+  /// Seluruh baris yang cocok dengan [filter], untuk ekspor CSV (Bab 10).
+  ///
+  /// 🔴 Yang diekspor adalah **hasil saringan, bukan halaman yang terlihat**.
+  /// Mengekspor 25 baris yang kebetulan sedang tampil adalah bentuk yang paling
+  /// mudah dibuat dan paling mudah menipu: berkasnya terbuka, isinya masuk
+  /// akal, dan diam-diam kehilangan ribuan baris lain. Yang membukanya tidak
+  /// punya cara mengetahuinya.
+  ///
+  /// ⚠️ Dibatasi [maks] baris. Batas ini bukan kehati-hatian berlebihan —
+  /// tanpa batas, satu penekanan tombol dapat menarik ratusan ribu baris ke
+  /// dalam memori tab peramban sekaligus, dan tab yang mati membawa serta
+  /// seluruh pekerjaan yang belum tersimpan. Pemanggil WAJIB memberi tahu
+  /// penggunanya bila hasilnya terpotong; [HistoryPageResult.total] menyebut
+  /// jumlah sebenarnya.
+  Future<Result<HistoryPageResult>> fetchHistoryForExport({
+    VideoFilter filter = const VideoFilter(),
+    HistorySort sort = HistorySort.date,
+    bool ascending = false,
+    int maks = AppConstants.csvExportMaxRows,
+  }) async {
+    try {
+      final query = _applyFilter(
+        _client.from(AppConstants.tblPackageVideos).select(
+              '*, shops(shop_name, market_name), users(full_name)',
+            ),
+        filter,
+      );
+
+      final response = await query
+          .order(sort.column, ascending: ascending)
+          // Pemecah seri yang sama dengan `fetchHistoryPage` — lihat alasannya
+          // di sana. Di sini akibatnya berbeda tetapi sama buruknya: baris
+          // ganda dan baris hilang di dalam satu berkas yang dianggap arsip.
+          .order('id', ascending: true)
+          .range(0, maks - 1)
+          .count(CountOption.exact);
+
+      return Result.ok(
+        HistoryPageResult(
+          items: response.data
+              .map((r) => HistoryItem.fromJson(r))
+              .toList(growable: false),
+          total: response.count,
+        ),
+      );
+    } on Object catch (e, s) {
+      return Result.err(SupabaseService.mapError(e, s));
+    }
+  }
+
   /// Satu video beserta konteksnya, untuk halaman detail (Bab 9.4).
   Future<Result<HistoryItem>> fetchHistoryItem(String id) async {
     try {
@@ -491,17 +541,31 @@ class VideoRepository {
     }
   }
 
-  /// Hapus video (soft delete).
+  /// Hapus video — **sungguh-sungguh**, bukan soft delete.
   ///
-  /// Status `deleted` mengeluarkan baris dari partial unique index
-  /// `uq_resi_per_tenant_type`, sehingga resi yang sama boleh direkam ulang
-  /// (Bab 7.7).
+  /// 🔴 Keputusan Product Owner 4 September 2026, dengan kalimatnya sendiri:
+  /// *"soft delete itu racun yang membunuh tanpa sadar"*.
+  ///
+  /// Bentuk lamanya hanya menyetel `status = 'deleted'`. Berkas di R2 tidak
+  /// pernah disentuh dan tidak pernah masuk `storage_purge_queue` — tiga
+  /// pengisi antrean itu (retensi 41, hapus akun 37, packer 38) semuanya
+  /// melewatkan video yang dihapus Owner. Setiap penghapusan meninggalkan
+  /// berkas yatim yang tetap ditagihkan selamanya.
+  ///
+  /// 🔴 Dan yang lebih buruk daripada biayanya: Owner yang menekan Hapus
+  /// percaya videonya hilang, padahal berkasnya masih utuh dan masih dapat
+  /// dibuka siapa pun yang memegang kredensial bucket.
+  ///
+  /// ⚠️ Lewat RPC, bukan dua panggilan dari sini. Kunci R2 harus diselamatkan
+  /// ke antrean SEBELUM barisnya dihapus, dan keduanya wajib dalam satu
+  /// transaksi — `storage_key` hanya hidup di baris itu, jadi urutan yang
+  /// terbalik membuang satu-satunya petunjuk ke berkasnya. Lihat migrasi 48.
   Future<Result<void>> deleteVideo(String id) async {
     try {
-      await _client
-          .from(AppConstants.tblPackageVideos)
-          .update({'status': VideoStatus.deleted.wire})
-          .eq('id', id);
+      await _client.rpc<void>(
+        'delete_video_hard',
+        params: {'p_video_id': id},
+      );
       return okVoid;
     } on Object catch (e, s) {
       return Result.err(SupabaseService.mapError(e, s));

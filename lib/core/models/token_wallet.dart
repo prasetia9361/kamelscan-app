@@ -54,6 +54,12 @@ abstract class TokenLedgerEntry with _$TokenLedgerEntry {
     required int id,
     required String tenantId,
     required int delta,
+
+    // 🔴 Lewat `fromWire`, BUKAN pemetaan bawaan generator. `$enumDecode`
+    // melempar untuk nilai di luar daftar, dan daftar itu selalu tertinggal
+    // satu langkah di belakang database: migrasi 39 menambahkan
+    // `token_expired` tanpa satu pun galat sampai baris pertamanya lahir.
+    @JsonKey(fromJson: LedgerReason.fromWire)
     required LedgerReason reason,
     required int balanceAfter,
     String? videoId,

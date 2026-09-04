@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kamelscan/core/models/app_settings.dart';
 import 'package:kamelscan/core/models/enums.dart';
+import 'package:kamelscan/core/models/queue_summary.dart';
 import 'package:kamelscan/core/models/upload_task.dart';
 import 'package:kamelscan/core/services/local_db_service.dart';
 import 'package:kamelscan/core/services/video_processor.dart';
@@ -289,6 +290,10 @@ class _FakeDb implements LocalDbService {
   Future<Result<void>> remove(String videoId) async => okVoid;
   @override
   Stream<int> watchPendingCount() => Stream.value(0);
+
+  @override
+  Stream<QueueSummary> watchQueueSummary() =>
+      Stream<QueueSummary>.value(const QueueSummary());
 }
 
 class _OkProcessor implements VideoProcessor {

@@ -114,13 +114,45 @@ Deno.serve(async (req) => {
   // database akan menolaknya sendiri. Dihitung lebih dulu agar Owner menerima
   // penjelasan yang dapat ia pahami beserta jumlahnya, bukan kegagalan
   // beruntun dari lapisan auth.
+  // 🔴 `status <> 'deleted'` — dihitung seperti yang DILIHAT Owner.
+  //
+  // Menghapus video di aplikasi adalah penghapusan lunak: barisnya tetap ada,
+  // hanya statusnya berubah, dan setiap layar menyaringnya. Hitungan lama
+  // memasukkan baris-baris itu, sehingga Owner yang sudah membersihkan video
+  // seorang packer tetap ditolak dengan jumlah yang tidak dapat ia temukan di
+  // layar mana pun — dan tidak dapat ia hapus lagi, karena menurut aplikasinya
+  // memang sudah tidak ada.
   const { count } = await admin
     .from('package_videos')
     .select('id', { count: 'exact', head: true })
-    .eq('user_id', targetId);
+    .eq('user_id', targetId)
+    .neq('status', 'deleted');
 
   if ((count ?? 0) > 0) {
     return json({ error: 'PACKER_HAS_VIDEOS', video_count: count }, 409);
+  }
+
+  // ---- 3b. Musnahkan video yang sudah dihapus Owner ----
+  //
+  // ⚠️ Mengubah hitungan di atas saja JUSTRU MEMPERBURUK keadaan. Baris yang
+  // berstatus `deleted` masih berdiri, dan `package_videos.user_id` adalah
+  // `on delete restrict` — `deleteUser()` di bawah akan gagal dengan 23503,
+  // dan penolakan yang jelas beserta jumlahnya berubah menjadi
+  // `DELETE_FAILED` tanpa penjelasan.
+  //
+  // Kunci R2-nya diselamatkan ke `storage_purge_queue` di dalam RPC-nya,
+  // sebelum barisnya hilang (migrasi 38). Tanpa itu berkasnya menjadi sampah
+  // yang tidak dapat ditemukan siapa pun lagi, dan tetap ditagihkan.
+  const { data: dimusnahkan, error: purgeErr } = await admin.rpc(
+    'purge_packer_soft_deleted_videos',
+    { p_user_id: targetId },
+  );
+
+  if (purgeErr) {
+    console.error(
+      `KAMELSCAN_PACKER gagal memusnahkan video · ${targetId} · ${purgeErr.message}`,
+    );
+    return json({ error: 'DELETE_FAILED', detail: purgeErr.message }, 400);
   }
 
   // ---- 4. Hapus akunnya ----
@@ -139,7 +171,7 @@ Deno.serve(async (req) => {
     action: 'packer.delete',
     entity: 'users',
     entity_id: targetId,
-    metadata: {},
+    metadata: { videos_purged: dimusnahkan ?? 0 },
   });
 
   return json({ deleted: true });

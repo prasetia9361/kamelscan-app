@@ -26,6 +26,7 @@ class AppPreferences extends _$AppPreferences {
       languageCode: prefs.getString(AppConstants.prefLanguage) ?? 'id',
       voiceOverEnabled:
           prefs.getBool(AppConstants.prefVoiceOverEnabled) ?? true,
+      showRecordFab: prefs.getBool(AppConstants.prefShowRecordFab) ?? true,
     );
 
     // Setelah login, nilai server menang — perangkat baru harus mengikuti
@@ -42,6 +43,7 @@ class AppPreferences extends _$AppPreferences {
       themeMode: remote.themeMode,
       languageCode: remote.language,
       voiceOverEnabled: remote.voiceOverEnabled,
+      showRecordFab: remote.showRecordFab,
     );
     await _persistLocal(prefs, merged);
     return merged;
@@ -65,6 +67,18 @@ class AppPreferences extends _$AppPreferences {
     await _update(current.copyWith(voiceOverEnabled: enabled));
   }
 
+  /// Tampilkan tombol Rekam mengambang di kerangka mobile (Bab 9.7,
+  /// diminta Product Owner 31 Agustus 2026 bersama revisi tampilan).
+  ///
+  /// Saat dimatikan, perekaman dimulai dari kartu di Beranda — dan jarak bawah
+  /// daftar ikut mengecil, karena ruang 88 dp itu memang disisakan khusus untuk
+  /// tombolnya.
+  Future<void> setShowRecordFab(bool enabled) async {
+    final current = state.value;
+    if (current == null) return;
+    await _update(current.copyWith(showRecordFab: enabled));
+  }
+
   Future<void> _update(AppPreferencesState next) async {
     state = AsyncData(next);
 
@@ -82,6 +96,7 @@ class AppPreferences extends _$AppPreferences {
             theme: UserSettings.themeValueOf(next.themeMode),
             language: next.languageCode,
             voiceOverEnabled: next.voiceOverEnabled,
+            showRecordFab: next.showRecordFab,
           ),
         );
   }
@@ -99,6 +114,7 @@ class AppPreferences extends _$AppPreferences {
       AppConstants.prefVoiceOverEnabled,
       value.voiceOverEnabled,
     );
+    await prefs.setBool(AppConstants.prefShowRecordFab, value.showRecordFab);
   }
 
   static const Set<String> _supportedLanguages = {'id', 'en'};
@@ -115,21 +131,25 @@ class AppPreferencesState {
     required this.themeMode,
     required this.languageCode,
     required this.voiceOverEnabled,
+    required this.showRecordFab,
   });
 
   final ThemeMode themeMode;
   final String languageCode;
   final bool voiceOverEnabled;
+  final bool showRecordFab;
 
   AppPreferencesState copyWith({
     ThemeMode? themeMode,
     String? languageCode,
     bool? voiceOverEnabled,
+    bool? showRecordFab,
   }) =>
       AppPreferencesState(
         themeMode: themeMode ?? this.themeMode,
         languageCode: languageCode ?? this.languageCode,
         voiceOverEnabled: voiceOverEnabled ?? this.voiceOverEnabled,
+        showRecordFab: showRecordFab ?? this.showRecordFab,
       );
 }
 
@@ -143,3 +163,12 @@ ThemeMode themeMode(Ref ref) =>
 @riverpod
 String languageCode(Ref ref) =>
     ref.watch(appPreferencesProvider).value?.languageCode ?? 'id';
+
+/// Bab 9.7 — tombol Rekam mengambang.
+///
+/// Default `true` selama preferensi masih dimuat: kerangka dibangun sebelum
+/// `SharedPreferences` selesai dibaca, dan tombol yang berkedip muncul-hilang
+/// tiap kali aplikasi dibuka lebih buruk daripada tombol yang selalu ada.
+@riverpod
+bool showRecordFab(Ref ref) =>
+    ref.watch(appPreferencesProvider).value?.showRecordFab ?? true;

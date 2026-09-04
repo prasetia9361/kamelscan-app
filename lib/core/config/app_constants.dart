@@ -105,8 +105,27 @@ class AppConstants {
   /// Dua puluh baris menyisakan setengah layar kosong di bawah tabel.
   static const int webHistoryPageSize = 25;
 
+  /// Batas baris satu berkas ekspor CSV (Bab 10).
+  ///
+  /// Angkanya dipilih supaya berkasnya masih terbuka di Excel dan masih muat
+  /// di memori tab: 20.000 baris riwayat kira-kira 2 MB. Di atas itu yang
+  /// dibutuhkan bukan tombol Ekspor melainkan akses database.
+  static const int csvExportMaxRows = 20000;
+
   /// Ambang indikator token (Bab 7.3).
   static const double tokenWarningRatio = 0.20;
+
+  /// Batas atas ramalan "cukup N hari lagi" di kartu token.
+  ///
+  /// 🔴 Di atas ini angkanya TIDAK ditulis. Sejak model akumulatif (migrasi 40)
+  /// saldo dapat menumpuk sangat besar, dan pada laju pemakaian yang kecil
+  /// rumusnya menghasilkan angka seperti **58.384 hari** — 160 tahun. Itu yang
+  /// benar-benar tampil ke Product Owner 1 September 2026.
+  ///
+  /// Kartu Kapasitas sudah menolak meramal sejauh itu dengan alasan yang sama
+  /// persis: ramalan yang tidak dapat dipercaya bukan informasi, ia hanya
+  /// mengajari orang mengabaikan kartunya.
+  static const int tokenForecastMaxDays = 365;
   static const double tokenCriticalRatio = 0.05;
 
   /// Hari peringatan sebelum langganan berakhir (Bab 7.6).
@@ -116,6 +135,7 @@ class AppConstants {
   static const String prefThemeMode = 'pref_theme_mode';
   static const String prefLanguage = 'pref_language';
   static const String prefVoiceOverEnabled = 'pref_voice_over_enabled';
+  static const String prefShowRecordFab = 'pref_show_record_fab';
   static const String prefLastShopId = 'pref_last_shop_id';
   static const String prefTriggerMode = 'pref_trigger_mode';
 
@@ -172,6 +192,14 @@ class AppConstants {
   /// Bukti transfer manual (Bab 12.2). **Bucket privat** — isinya tangkapan
   /// layar mutasi rekening, dibaca hanya lewat URL bertanda tangan.
   static const String bucketPaymentProofs = 'payment-proofs';
+
+  /// Gambar iklan landing page dan kartu paket (Bab 11.5, migrasi 46).
+  ///
+  /// 🔴 **Bucket publik, dan hanya admin yang boleh menulis.** Isinya tampil
+  /// di halaman depan kepada calon pelanggan yang belum punya akun — satu
+  /// gambar yang salah di sana merusak kepercayaan sebelum ada satu kalimat
+  /// pun yang sempat dibaca.
+  static const String bucketPublicAssets = 'public-assets';
 
   // ---------- Nama Edge Function ----------
   static const String fnGetUploadUrl = 'get-upload-url';

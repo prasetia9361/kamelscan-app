@@ -4,9 +4,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/models/enums.dart';
 import '../../core/providers/session_provider.dart';
+import '../../core/providers/theme_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/failure_messages.dart';
 import '../route_names.dart';
+import 'kamel_nav_bar.dart';
 import 'mobile_app_bar.dart';
 
 /// Rangka mobile: AppBar + BottomNav + child (Bab 3.2).
@@ -50,31 +52,35 @@ class MobileShell extends ConsumerWidget {
 
     // Urutan mengikuti Bab 9.1: Home · Toko · Riwayat · Setting · Akun.
     // Beranda paling kiri karena paling sering dibuka.
-    final destinations = <NavigationDestination>[
-      NavigationDestination(
-        icon: const Icon(Icons.home_outlined),
-        selectedIcon: const Icon(Icons.home_rounded),
+    //
+    // Ikonnya dipilih agar tiap tab bersiluet berbeda — alasan lengkapnya ada
+    // di dartdoc `KamelNavBar`. `video_library` menggantikan `history` karena
+    // isi tab itu daftar video, bukan riwayat aktivitas.
+    final destinations = <KamelNavItem>[
+      KamelNavItem(
+        icon: Icons.cottage_outlined,
+        activeIcon: Icons.cottage_rounded,
         label: t.navHome,
       ),
       if (isOwner)
-        NavigationDestination(
-          icon: const Icon(Icons.storefront_outlined),
-          selectedIcon: const Icon(Icons.storefront_rounded),
+        KamelNavItem(
+          icon: Icons.storefront_outlined,
+          activeIcon: Icons.storefront_rounded,
           label: t.navShops,
         ),
-      NavigationDestination(
-        icon: const Icon(Icons.history_outlined),
-        selectedIcon: const Icon(Icons.history_rounded),
+      KamelNavItem(
+        icon: Icons.video_library_outlined,
+        activeIcon: Icons.video_library_rounded,
         label: t.navHistory,
       ),
-      NavigationDestination(
-        icon: const Icon(Icons.settings_outlined),
-        selectedIcon: const Icon(Icons.settings_rounded),
+      KamelNavItem(
+        icon: Icons.tune_outlined,
+        activeIcon: Icons.tune_rounded,
         label: t.navSettings,
       ),
-      NavigationDestination(
-        icon: const Icon(Icons.person_outline_rounded),
-        selectedIcon: const Icon(Icons.person_rounded),
+      KamelNavItem(
+        icon: Icons.account_circle_outlined,
+        activeIcon: Icons.account_circle_rounded,
         label: t.navAccount,
       ),
     ];
@@ -83,6 +89,7 @@ class MobileShell extends ConsumerWidget {
     final currentTab = branchOfTab.indexOf(navigationShell.currentIndex);
 
     final lock = session?.recordingLock;
+    final showFab = ref.watch(showRecordFabProvider);
 
     // 🔴 Jejak diagnosis — Beranda kosong pada packer, 20 Agustus 2026.
     //
@@ -111,17 +118,32 @@ class MobileShell extends ConsumerWidget {
         onProfileTap: () => navigationShell.goBranch(3),
       ),
       body: navigationShell,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: currentTab < 0 ? 0 : currentTab,
-        destinations: destinations,
-        onDestinationSelected: (index) => navigationShell.goBranch(
+      // `KamelNavBar` sudah memakai `SafeArea(top: false)` di dalamnya supaya
+      // latarnya turun sampai tepi bawah — jangan dibungkus `SafeArea` lagi
+      // dari sini, dan jangan sisakan bidang warna lain di bawahnya.
+      bottomNavigationBar: KamelNavBar(
+        items: destinations,
+        currentIndex: currentTab < 0 ? 0 : currentTab,
+        onSelect: (index) => navigationShell.goBranch(
           branchOfTab[index],
           initialLocation: branchOfTab[index] == navigationShell.currentIndex,
         ),
       ),
-      floatingActionButton: role == UserRole.admin
+      // Bab 9.7 — sakelar "Tombol Rekam mengambang" (Pengaturan → Perekaman).
+      // Saat dimatikan, perekaman dimulai dari kartu di Beranda, dan jarak
+      // bawah daftar ikut mengecil di `home_page`, `history_page`, dan
+      // `account_page` — ruang 88 dp itu memang disisakan khusus untuk tombol
+      // ini.
+      floatingActionButton: (role == UserRole.admin || !showFab)
           ? null
           : FloatingActionButton.extended(
+              // Bawaan `FloatingActionButton` memakai `primaryContainer`, dan
+              // di mode gelap itu biru tua yang nyaris hilang di atas latar
+              // gelap. Tombol ini justru yang paling sering ditekan sepanjang
+              // hari, jadi ia memakai `primary` penuh — satu-satunya bidang
+              // warna primer utuh di Beranda.
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              foregroundColor: Theme.of(context).colorScheme.onPrimary,
               // Bab 7.3 — saat token habis, tombol tetap terlihat tetapi
               // mengarah ke halaman Pembayaran, bukan hilang tanpa penjelasan.
               //
@@ -178,8 +200,11 @@ Future<void> _askPackageType(BuildContext context) async {
             onTap: () => Navigator.pop(sheetContext, VideoType.packing),
           ),
           ListTile(
+            // `move_to_inbox` menggantikan `assignment_return`: yang lama
+            // berupa papan klip yang siluetnya nyaris sama dengan kardus
+            // `inventory_2` di atasnya pada ukuran ikon daftar.
             leading:
-                Icon(Icons.assignment_return_outlined, color: colors.returnColor),
+                Icon(Icons.move_to_inbox_outlined, color: colors.returnColor),
             title: Text(t.homeMenuRecordReturn),
             onTap: () => Navigator.pop(sheetContext, VideoType.returned),
           ),

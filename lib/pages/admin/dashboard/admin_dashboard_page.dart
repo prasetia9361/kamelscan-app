@@ -140,6 +140,28 @@ class AdminDashboardPage extends ConsumerWidget {
               subtitle: t.adminContactMenuSubtitle,
               onTap: () => context.go(Routes.adminContact),
             ),
+            const SizedBox(height: 12),
+
+            // Bab 9.9 — utang paling lama di proyek ini, dijadwalkan Product
+            // Owner 3 September 2026. Tabelnya ada sejak migrasi 10; yang
+            // selama ini kurang hanyalah layarnya.
+            _MenuAdmin(
+              icon: Icons.ondemand_video_outlined,
+              title: t.adminTutorialsTitle,
+              subtitle: t.adminTutorialsMenuSubtitle,
+              onTap: () => context.go(Routes.adminTutorials),
+            ),
+            const SizedBox(height: 12),
+
+            // Bab 11.5 — utang nomor 3 daftar kesiapan produksi. Bucket-nya
+            // baru lahir di migrasi 46; sampai itu gambar iklan hanya dapat
+            // diganti lewat Supabase Dashboard.
+            _MenuAdmin(
+              icon: Icons.image_outlined,
+              title: t.adminBannersTitle,
+              subtitle: t.adminBannersMenuSubtitle,
+              onTap: () => context.go(Routes.adminBanners),
+            ),
 
             const SizedBox(height: 28),
             // Bab 9.6 butir 6 — Keluar berwarna merah dan selalu meminta

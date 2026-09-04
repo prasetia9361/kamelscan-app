@@ -193,6 +193,29 @@ VideoProcessingQueue videoProcessingQueue(Ref ref) {
 // Pemicu
 // ---------------------------------------------------------------------------
 
+/// Apakah perangkat punya jaringan sekarang — untuk titik status pada avatar.
+///
+/// 🔴 Sumbernya `ConnectivityService` yang **sama** dengan yang dipakai antrian
+/// unggah. Membuat pengecekan jaringan kedua berarti dua jawaban yang bisa
+/// berbeda untuk satu pertanyaan, dan titik hijau yang membantah spanduk
+/// antrean di layar yang sama lebih buruk daripada tidak ada titik sama sekali.
+///
+/// ⚠️ Maknanya **bukan** "sedang aktif" seperti di aplikasi obrolan. Yang
+/// relevan bagi packer hanya satu hal: apakah videonya bisa terkirim. Karena
+/// itu keadaan tanpa jaringan diberi warna `warning`, bukan `danger` — tanpa
+/// jaringan perekaman **tetap jalan** dan videonya masuk antrean lokal
+/// (Bab 8.7). Merah akan membuat packer berhenti merekam padahal tidak perlu.
+///
+/// `onConnectivityChanged` hanya memancar saat **berubah**, jadi keadaan
+/// sekarang dibacakan lebih dulu — tanpa itu titiknya kosong sampai jaringan
+/// kebetulan berganti.
+@riverpod
+Stream<bool> networkOnline(Ref ref) async* {
+  final connectivity = ref.watch(connectivityServiceProvider);
+  yield await connectivity.isConnected;
+  yield* connectivity.onConnectivityChanged;
+}
+
 /// Menyalakan pipeline saat aplikasi dibuka dan tiap kali jaringan kembali.
 ///
 /// ⚠️ `connectivity_plus` hanya melaporkan **ada antarmuka jaringan**, bukan

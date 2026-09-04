@@ -141,8 +141,36 @@ class _Form extends StatelessWidget {
                 children: [
                   for (final nama in MarketNames.all)
                     ChoiceChip(
-                      avatar: MarketplaceBadge(marketName: nama, size: 22),
-                      label: Text(nama),
+                      // 🔴 Logonya berdiri di dalam `label`, BUKAN di slot
+                      // `avatar`. Diminta Product Owner 3 September 2026:
+                      // pada slot avatar logonya terlalu kecil untuk dikenali.
+                      //
+                      // ⚠️ Menaikkan angka `size` saja TIDAK menambah besar
+                      // apa pun — diukur di Redmi Note 9: chip Material
+                      // memampatkan avatarnya ke ukuran internalnya sendiri,
+                      // sehingga 22 dp dan 28 dp tergambar sama saja. Slot
+                      // avatar juga dipakai chip untuk menaruh tanda centang,
+                      // jadi begitu marketplace-nya terpilih logonya justru
+                      // HILANG diganti centang — persis pada satu-satunya chip
+                      // yang paling perlu dikenali.
+                      //
+                      // Di dalam `label` logonya bebas dari kedua batasan itu,
+                      // dan centangnya tetap muncul di sebelahnya sebagai
+                      // penanda terpilih yang kedua (§0 palet: warna tidak
+                      // pernah menjadi satu-satunya pembeda makna).
+                      label: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          MarketplaceBadge(marketName: nama, size: 30),
+                          const SizedBox(width: 8),
+                          Text(nama),
+                        ],
+                      ),
+                      labelPadding: const EdgeInsets.symmetric(horizontal: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
                       selected: data.marketName == nama,
                       onSelected: (_) => onMarket(nama),
                     ),

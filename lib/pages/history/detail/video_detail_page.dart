@@ -13,6 +13,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/app_state_views.dart';
 import '../../../core/widgets/failure_messages.dart';
+import '../../../core/widgets/resi_stamp.dart';
 import '../widgets/video_status_chip.dart';
 import 'video_detail_view_model.dart';
 import 'widgets/video_player_box.dart';
@@ -574,7 +575,6 @@ class _RingkasanTegak extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.l10n;
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
     final video = item.video;
     final packing = video.type == VideoType.packing;
 
@@ -582,12 +582,29 @@ class _RingkasanTegak extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        // 🔴 Monospace berukuran besar (`resiDisplay`, palet §3.3). Inilah
-        // angka yang dibacakan lewat telepon ke pusat resolusi marketplace,
-        // dan `SelectableText` supaya dapat disalin alih-alih diketik ulang.
-        SelectableText(
-          video.resiCode,
-          style: AppTextStyles.resiDisplay.copyWith(color: scheme.onSurface),
+        // 🔴 Monospace berukuran besar (palet §3.3). Inilah angka yang
+        // dibacakan lewat telepon ke pusat resolusi marketplace.
+        //
+        // Sejak 31 Agustus 2026 dibungkus `ResiStamp` — label kicker di atas,
+        // garis camel 2 dp di bawah — atas keputusan Product Owner mengikuti
+        // revisi tampilan.
+        //
+        // ⚠️ Yang hilang bersamanya: `SelectableText`. Dulu nomornya dapat
+        // diseleksi langsung; sekarang disalin lewat tombol Salin. Tujuannya
+        // sama — tidak ada yang perlu mengetik ulang nomor resi — tetapi di
+        // web menyeleksi teks adalah yang wajar diharapkan orang. Kalau ada
+        // keluhan, itu sebabnya.
+        ResiStamp(
+          resi: video.resiCode,
+          label: t.fieldResi,
+          copyLabel: t.commonCopy,
+          onCopy: () async {
+            await Clipboard.setData(ClipboardData(text: video.resiCode));
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(t.commonCopied)),
+            );
+          },
         ),
         const SizedBox(height: 10),
         Wrap(

@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_constants.dart';
+import '../domain/capacity_status.dart';
 import '../models/admin_tenant_row.dart';
 import '../models/enums.dart';
 import '../models/pending_payment.dart';
@@ -22,6 +23,22 @@ class AdminRepository {
   const AdminRepository(this._client);
 
   final SupabaseClient _client;
+
+  /// Kapasitas platform (Bab 11.1) — RPC `get_capacity_stats()`,
+  /// migrasi `42_capacity_stats.sql`.
+  ///
+  /// 🔴 Dipisahkan dari [fetchPlatformStats] dengan sengaja. `pg_database_size`
+  /// memindai seluruh direktori database, dan menempelkannya ke ringkasan yang
+  /// dimuat setiap kali Dasbor Platform dibuka berarti membayar pemindaian itu
+  /// untuk angka yang hanya berubah beberapa kilobyte per jam.
+  Future<Result<CapacityStats>> fetchCapacityStats() async {
+    try {
+      final row = await _client.rpc<Map<String, dynamic>>('get_capacity_stats');
+      return Result.ok(CapacityStats.fromJson(row));
+    } on Object catch (e, s) {
+      return Result.err(SupabaseService.mapError(e, s));
+    }
+  }
 
   /// Angka ringkasan seluruh platform (Bab 11.1) — RPC `get_platform_stats()`,
   /// migrasi `30_platform_stats.sql`.

@@ -56,6 +56,33 @@ void main() {
     });
   });
 
+  group('plaqueHeight & plaqueOffset — jarak atas/bawah plakat', () {
+    // 🔴 Ditambahkan 3 September 2026 bersama `padTop`/`padBottom`. Sebelum
+    // ini kepala plakat digambar tepat pada tepi bidang gelapnya di sisi
+    // video — sementara pratinjau di layar rekam memberinya jarak. Product
+    // Owner melihat keduanya berdampingan dan melaporkan tidak samanya.
+    test('tinggi blok memasukkan padTop DAN padBottom', () {
+      // 1 baris (hanya resi): padTop(8) + kickerLine(15) + resiLine(34)
+      // + padBottom(6) = 63.
+      expect(WatermarkCommand.plaqueHeight(1), 63);
+      // 4 baris: 63 + metaLine(18) × 3 = 117.
+      expect(WatermarkCommand.plaqueHeight(4), 117);
+    });
+
+    test('kepala (indeks −1) dimulai pada padTop, bukan pada 0', () {
+      expect(WatermarkCommand.plaqueOffset(-1), WatermarkCommand.padTop);
+      expect(WatermarkCommand.padTop, greaterThan(0),
+          reason: 'padTop=0 berarti cacat lamanya kembali');
+    });
+
+    test('baris resi (indeks 0) berdiri sesudah kepala', () {
+      expect(
+        WatermarkCommand.plaqueOffset(0),
+        WatermarkCommand.plaqueOffset(-1) + 15, // _kickerLine, lewat offset
+      );
+    });
+  });
+
   group('buildFilterChain (Bab 8.5)', () {
     List<String> lines() => [
           'RESI: SPXID000123456',
@@ -75,18 +102,161 @@ void main() {
       expect(chain(WatermarkPosition.bottomRight), startsWith('scale=-2:480,'));
     });
 
-    test('satu drawtext untuk tiap baris', () {
+    test('satu drawtext tiap baris, PLUS kepala plakat', () {
+      // 4 baris isi + 1 kepala `KAMELSCAN · BUKTI VIDEO`.
       expect(
         'drawtext='.allMatches(chain(WatermarkPosition.bottomLeft)).length,
-        4,
+        5,
       );
     });
 
-    test('kotak gelap di belakang teks, bukan sekadar garis tepi', () {
+    test('kepala plakat ikut tergambar', () {
       expect(
-        chain(WatermarkPosition.bottomRight),
-        contains('box=1:boxcolor=black@0.5'),
+        chain(WatermarkPosition.bottomLeft),
+        contains('KAMELSCAN'),
       );
+    });
+
+    // =======================================================================
+    // 🔴 Warna kepala dan kepekatan — satu sumber, bukan ditulis dua kali
+    // =======================================================================
+    //
+    // Diminta Product Owner 3 September 2026 sesudah melihat video sungguhan
+    // pertamanya: kepala plakat nyaris tak terbaca dan bidang gelapnya terasa
+    // terlalu pekat. Diukur ke kode, bukan ditebak: sampai saat itu pratinjau
+    // di layar rekam dan sisi video menulis warnanya sendiri-sendiri —
+    // pratinjau emas terang, video coklat gelap sewarna garis aksen.
+    group('kepala & kepekatan — satu sumber untuk video dan pratinjau', () {
+      test('kepala memakai kickerArgb, BUKAN warna aksen', () {
+        final c = chain(WatermarkPosition.bottomLeft);
+        final kicker = WatermarkCommand.hexOf(WatermarkCommand.kickerArgb);
+        expect(c, contains('fontcolor=$kicker@0.95'));
+
+        // 🔴 Sebelum 3 September 2026 nilainya sama dengan warna aksen —
+        // coklat gelap di atas bidang tembus pandang, praktis tidak terbaca.
+        expect(WatermarkCommand.kickerArgb, isNot(WatermarkCommand.accentArgb));
+      });
+
+      test('plaqueBoxOpacity lebih transparan dari kepekatan lama (0,75)',
+          () {
+        expect(WatermarkCommand.plaqueBoxOpacity, lessThan(0.75));
+
+        // ⚠️ Bukan sekadar "lebih transparan" tanpa batas — Bab 8.5 menulis
+        // bidang gelap ini ada karena teks putih di atas kardus terang tidak
+        // terbaca. Turun terlalu jauh mengembalikan masalah yang sama.
+        expect(WatermarkCommand.plaqueBoxOpacity, greaterThanOrEqualTo(0.4));
+      });
+
+      test('bawaan buildFilterChain TIDAK ikut berubah — pemanggil wajib '
+          'menyebutnya', () {
+        // buildFilterChain sendiri masih berbawaan 0.5 (dipakai tes-tes lain
+        // di berkas ini yang tidak menyebut boxOpacity). Yang berubah adalah
+        // apa yang DIKIRIM `video_processor_mobile.dart` dan
+        // `recording_camera_view_model.dart` — keduanya sekarang mengirim
+        // `WatermarkCommand.plaqueBoxOpacity` secara eksplisit, bukan
+        // mengandalkan bawaan ini.
+        expect(
+          chain(WatermarkPosition.bottomLeft),
+          contains('color=black@0.5'),
+        );
+      });
+    });
+
+    test('satu bidang gelap untuk seluruh plakat, bukan kotak per baris', () {
+      final c = chain(WatermarkPosition.bottomRight);
+      // Bidang gelap + garis aksen camel = dua drawbox.
+      expect('drawbox='.allMatches(c).length, 2);
+      expect(c, contains('color=black@0.5'));
+      // 🔴 Kotak per baris sudah tidak dipakai: bidang blok sudah gelap, dan
+      // menumpuknya lagi membuat teks duduk di atas gelap berlapis.
+      expect(c, isNot(contains('box=1:boxcolor')));
+    });
+
+    test('garis aksen camel ada di tepi plakat', () {
+      expect(
+        chain(WatermarkPosition.bottomLeft),
+        contains('color=0x9A5B00@0.95'),
+      );
+    });
+
+    // =======================================================================
+    // 🔴 drawbox memakai iw/ih, drawtext memakai w/h
+    // =======================================================================
+    //
+    // Cacat yang dijawab ketiga tes di bawah menghentikan SELURUH perekaman,
+    // dan tidak satu pun dari 687 tes menangkapnya — karena semuanya memeriksa
+    // string yang disusun, bukan apakah FFmpeg menerimanya.
+    //
+    // Di `drawbox`, `w`/`h` dalam ekspresi berarti ukuran KOTAK yang sedang
+    // digambar; ukuran videonya `iw`/`ih`. Di `drawtext` justru sebaliknya.
+    // Dua filter bersebelahan memakai arti berlawanan untuk huruf yang sama.
+    //
+    // Semula tertulis `y=h-16-103`, yang di drawbox berarti
+    // `103-16-103` = −16, dan `w=w-32` bahkan menunjuk dirinya sendiri.
+    // FFmpeg menolaknya dengan kode 1, video berhenti selamanya di antrean
+    // lokal, dan satu-satunya keterangan yang tersimpan berbunyi
+    // "FFmpeg keluar dengan kode 1".
+    //
+    // Ditemukan Product Owner 3 September 2026, dan sudah gagal sejak plakat
+    // ini dibuat — sama di worktree `revisi-desain-aplikasimobile`.
+    group('🔴 satuan ukuran drawbox vs drawtext', () {
+      /// Potongan `drawbox=` saja.
+      ///
+      /// ⚠️ Diambil dengan pola, BUKAN `split(',')`. Teks watermark memuat
+      /// koma — koordinat GPS `-7.250445, 112.768845` salah satunya — sehingga
+      /// memecah rantai filter pada setiap koma akan mencacah satu `drawtext`
+      /// menjadi beberapa potongan palsu. Parameter `drawbox` sendiri tidak
+      /// pernah memuat koma, jadi pola ini aman.
+      List<String> kotak(WatermarkPosition p) => RegExp(r'drawbox=[^,]*')
+          .allMatches(chain(p))
+          .map((m) => m.group(0)!)
+          .toList();
+
+      test('drawbox TIDAK PERNAH memakai w/h polos sebagai ukuran video', () {
+        for (final p in WatermarkPosition.values) {
+          final daftar = kotak(p);
+          expect(daftar, hasLength(2), reason: 'harus dua drawbox');
+
+          for (final f in daftar) {
+            expect(
+              f,
+              isNot(matches(RegExp(r'[:=]w-'))),
+              reason: '$f memakai `w` sebagai lebar video — di drawbox itu '
+                  'lebar kotaknya sendiri, jadi `w-32` menunjuk dirinya '
+                  'sendiri. Harus `iw`.',
+            );
+            expect(
+              f,
+              isNot(matches(RegExp(r'y=h-'))),
+              reason: '$f memakai `h` sebagai tinggi video — di drawbox itu '
+                  'tinggi kotaknya sendiri, jadi hasilnya negatif. Harus `ih`.',
+            );
+          }
+        }
+      });
+
+      test('drawbox memakai iw/ih saat plakat ditambatkan ke bawah', () {
+        for (final p in [
+          WatermarkPosition.bottomLeft,
+          WatermarkPosition.bottomRight,
+        ]) {
+          final daftar = kotak(p);
+          for (final f in daftar) {
+            expect(f, contains('y=ih-'), reason: f);
+          }
+          expect(daftar.first, contains('w=iw-'), reason: daftar.first);
+        }
+      });
+
+      test('drawtext tetap memakai h — di sana artinya memang tinggi video',
+          () {
+        final c = chain(WatermarkPosition.bottomRight);
+
+        // Dihitung, bukan dipecah: `y=ih-` hanya boleh muncul pada kedua
+        // drawbox, dan tidak sekali pun pada drawtext.
+        expect('y=ih-'.allMatches(c).length, 2);
+        expect(c, contains(':y=h-16-'));
+      });
     });
 
     test('fontfile selalu disertakan — drawtext gagal tanpanya', () {
@@ -97,27 +267,71 @@ void main() {
       );
     });
 
-    test('posisi kiri memakai x tetap, kanan memakai w-tw', () {
-      expect(chain(WatermarkPosition.bottomLeft), contains(':x=16:'));
-      expect(chain(WatermarkPosition.bottomRight), contains(':x=w-tw-16:'));
+    test('🔴 seluruh baris mulai di x yang SAMA — plakat rata kiri', () {
+      // Bentuk lama memakai `w-tw-16` pada sudut kanan, sehingga tiap baris
+      // mulai di tempat berbeda menurut panjangnya sendiri. Yang paling
+      // terganggu justru nomor resi: posisi awalnya berpindah tiap kali
+      // panjang resinya berbeda, padahal itu angka yang dibaca orang.
+      for (final pos in WatermarkPosition.values) {
+        final c = chain(pos);
+        expect('x=28:'.allMatches(c).length, 5, reason: '$pos');
+        expect(c, isNot(contains('w-tw')), reason: '$pos');
+      }
     });
 
-    test('posisi atas memakai y menaik, bawah memakai h-th', () {
+    test('plakat selebar bidang video, bukan setengahnya', () {
+      // Pratinjau di layar rekam menggambarnya selebar layar. Kalau di sini
+      // setengah lebar, packer melihat satu bentuk dan mendapat bentuk lain
+      // di videonya — kesalahan yang dilarang dartdoc pratinjau itu sendiri.
+      //
+      // 🔴 `iw`, bukan `w`. Tes ini semula menuntut `w=w-32:` dan karena itu
+      // ikut MENGUNCI cacat yang menghentikan seluruh perekaman: di drawbox
+      // `w` adalah lebar kotaknya sendiri, sehingga `w=w-32` menunjuk dirinya
+      // sendiri dan FFmpeg keluar dengan kode 1. Ia benar saat ditulis dan
+      // menjadi salah tanpa pernah gagal. Uraiannya di grup di bawah.
+      expect(chain(WatermarkPosition.bottomRight), contains('w=iw-32:'));
+    });
+
+    test('blok ditambatkan ke sudut yang diminta', () {
+      // 4 baris → tinggi blok padTop(8) + 15 + 34 + (18 × 3) + padBottom(6)
+      // = 117.
+      //
+      // ⚠️ Diperiksa pada KEDUA satuan sekaligus, dan itu disengaja: `ih-16-117`
+      // milik drawbox, `h-16-117` milik drawtext. Sebelum 3 September 2026
+      // baris ini hanya menuntut `y=h-16-...` — yang tetap lulus lewat
+      // drawtext walaupun drawbox-nya rusak, sehingga ia tidak menjaga apa pun
+      // pada filter yang justru gagal.
+      final c = chain(WatermarkPosition.bottomLeft);
+
+      // drawbox — seluruh blok, memakai satuan video `ih`.
+      expect(c, contains('y=ih-16-117'));
+
+      // drawtext kepala — turun `padTop` (8) dari puncak blok, jadi
+      // 117 − 8 = 109. Sengaja BUKAN 117: kalau sama, artinya `padTop`
+      // hilang lagi dan huruf kembali menempel di tepi bidang gelapnya.
+      expect(c, contains('y=h-16-109'));
+      expect(c, isNot(contains('y=h-16-117')));
+
       expect(chain(WatermarkPosition.topLeft), contains(':y=16:'));
-      expect(chain(WatermarkPosition.bottomLeft), contains(':y=h-th-16:'));
     });
 
     test('baris berjarak tetap, tidak saling menimpa', () {
       final c = chain(WatermarkPosition.topLeft);
-      for (final y in ['y=16', 'y=40', 'y=64', 'y=88']) {
+      // margin(16) + padTop(8) = 24 untuk kepala; resi 24 + kickerLine(15)
+      // = 39; lalu tiga keterangan tiap metaLine(18) px sesudah resiLine(34).
+      //
+      // ⚠️ Angkanya bergeser 8 px pada 3 September 2026 karena `padTop`
+      // ditambahkan — sebelumnya kepala menempel di tepi bidang gelapnya.
+      for (final y in ['y=24', 'y=39', 'y=73', 'y=91', 'y=109']) {
         expect(c, contains(':$y:'), reason: 'baris $y hilang');
       }
     });
 
-    test('nomor resi memakai ukuran huruf lebih besar dari baris lain', () {
+    test('nomor resi memakai ukuran huruf jauh lebih besar', () {
       final c = chain(WatermarkPosition.bottomRight);
-      expect(c, contains('fontsize=18'));
-      expect(c, contains('fontsize=16'));
+      expect(c, contains('fontsize=26'), reason: 'resi');
+      expect(c, contains('fontsize=13'), reason: 'keterangan');
+      expect(c, contains('fontsize=11'), reason: 'kepala plakat');
     });
 
     test('titik dua pada isi baris ikut ter-escape di dalam rantai', () {
@@ -209,18 +423,22 @@ void main() {
           showGps: showGps,
         );
 
-    test('nomor resi selalu pertama — ia digambar paling dekat tepi layar', () {
+    test('nomor resi selalu pertama — ia digambar paling besar', () {
       // Bukan selera tata letak: indeks 0 adalah baris yang dicari petugas
       // resolusi marketplace, dan `buildFilterChain` memberinya huruf terbesar.
-      expect(lines().first, 'RESI: 10952ERTY');
+      //
+      // Awalan `RESI:` dibuang 1 September 2026 — kepala plakat sudah
+      // menyatakan blok ini bukti video, dan awalan itu hanya mendorong angka
+      // terpentingnya ke kanan.
+      expect(lines().first, '10952ERTY');
     });
 
-    test('urutannya resi, waktu, toko, lalu GPS', () {
+    test('urutannya resi, waktu, GPS, lalu toko', () {
       expect(lines(coordinates: '-6.972683, 109.711146'), [
-        'RESI: 10952ERTY',
+        '10952ERTY',
         WatermarkCommand.formatStamp(waktu),
+        '-6.972683, 109.711146',
         'Shopee · Toko Uji',
-        'GPS: -6.972683, 109.711146',
       ]);
     });
 

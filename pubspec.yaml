@@ -117,6 +117,19 @@ dependencies:
   url_launcher: ^6.3.2
   webview_flutter: ^4.14.1
 
+  # ---------- Ekspor CSV (web saja) ----------
+  # DEVIASI: tidak ada di Bab 4.2. Sudah ada di pubspec.lock sebagai dependensi
+  # transitif dengan versi yang sama, jadi ini tidak menarik paket baru — hanya
+  # menyatakannya terang-terangan karena `lib/core/services/file_download_web.dart`
+  # mengimpornya langsung, dan mengimpor dependensi transitif adalah pelanggaran
+  # lint `depend_on_referenced_packages`.
+  #
+  # Dipakai HANYA untuk memicu unduhan berkas di peramban (Blob + <a download>).
+  # Tidak ada cara lain: `url_launcher` dengan `data:` URI diblokir Chrome untuk
+  # navigasi tingkat atas, dan `dart:html` sudah usang serta tidak tersedia pada
+  # kompilasi WASM.
+  web: ^1.1.1
+
   # ---------- Utilitas ----------
   uuid: ^4.6.0
   share_plus: ^13.3.0               # DEVIASI: doc ^9.0.0
@@ -128,6 +141,10 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   build_runner: ^2.15.1
+  # Dipakai app_icon_test.dart untuk membandingkan sidik ikon dengan
+  # berkas bawaan Flutter. Sudah ada sebagai dependensi transitif; 
+  # disebut di sini supaya tesnya tidak bergantung pada kebetulan.
+  crypto: ^3.0.6
   # DEVIASI: doc ^2.5.7. Stabil terakhir (3.2.5) belum mendukung analyzer 12
   # yang diwajibkan build_runner 2.15 pada Dart 3.12, sehingga pra-rilis dipakai.
   freezed: ^3.2.6-dev.1
@@ -146,6 +163,11 @@ flutter:
   assets:
     - assets/images/
     - assets/icons/
+    # Logo marketplace 32x32 berlatar transparan. Dipakai `MarketplaceBadge`.
+    # ⚠️ Nama di luar keenam berkas ini TIDAK punya logo dan jatuh ke huruf
+    # awal — itu jalur normal, bukan galat: marketplace disimpan sebagai teks
+    # bebas (Bab 5.2) supaya yang baru tidak menuntut migrasi.
+    - assets/marketplace/
 
   # Dibundel sebagai aset, BUKAN google_fonts runtime.
   # palet_warna_dan_tipografi.md §3.1: di gudang bersinyal buruk, huruf yang

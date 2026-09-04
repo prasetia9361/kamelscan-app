@@ -2,14 +2,31 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/config/tier_config.dart';
 import '../../../core/models/enums.dart';
 import '../../../core/models/promo.dart';
+import '../../../core/providers/session_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/app_state_views.dart';
 import '../../../core/widgets/failure_messages.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import 'admin_settings_view_model.dart';
+
+/// Nama paket yang dapat dibaca manusia.
+///
+/// 🔴 Ditulis SEKALI di sini dan memakai `switch` atas [TierPlan], bukan
+/// rangkaian `== TierPlan.pro ? ... : ...` yang tersebar. Bentuk terakhir itu
+/// selalu berakhir sama: paket ketiga jatuh ke cabang `else` dan tampil dengan
+/// nama paket lain. Di halaman ini ia sempat membuat promo Bisnis tertulis
+/// "Standar" — dan `switch` atas enum membuat kompilator menolak diam saat
+/// paket keempat suatu hari ditambahkan.
+String namaPaket(AppL10n t, TierPlan plan) => switch (plan) {
+  TierPlan.standar => t.tierStandar,
+  TierPlan.pro => t.tierPro,
+  TierPlan.bisnis => t.tierBisnis,
+};
 
 /// Pengaturan promo (Bab 11.4).
 ///
@@ -260,11 +277,7 @@ class _KartuPromoState extends ConsumerState<_KartuPromo> {
               Text(
                 promo.appliesTo == null
                     ? t.adminPromosAllPlans
-                    : t.adminPromosOnePlan(
-                        promo.appliesTo == TierPlan.pro
-                            ? t.tierPro
-                            : t.tierStandar,
-                      ),
+                    : t.adminPromosOnePlan(namaPaket(t, promo.appliesTo!)),
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: scheme.onSurfaceVariant,
                 ),
@@ -278,16 +291,25 @@ class _KartuPromoState extends ConsumerState<_KartuPromo> {
 }
 
 /// Formulir satu kode promo.
-class _DialogPromo extends StatefulWidget {
+class _DialogPromo extends ConsumerStatefulWidget {
   const _DialogPromo({this.awal});
 
   final Promo? awal;
 
   @override
-  State<_DialogPromo> createState() => _DialogPromoState();
+  ConsumerState<_DialogPromo> createState() => _DialogPromoState();
 }
 
-class _DialogPromoState extends State<_DialogPromo> {
+class _DialogPromoState extends ConsumerState<_DialogPromo> {
+  /// Harga yang sedang berlaku, untuk contoh perhitungan.
+  ///
+  /// ⚠️ Jatuh ke `TierCatalog.fallback` bila sesi belum termuat. Nilai
+  /// cadangan itu sama dengan seed `platform_settings`, jadi contohnya tetap
+  /// masuk akal — tetapi Admin yang sudah mengubah harga akan melihat harga
+  /// lama sekejap sampai sesinya siap.
+  TierCatalog get _katalog =>
+      ref.watch(sessionProvider).value?.tierCatalog ?? TierCatalog.fallback;
+
   late final TextEditingController _kode = TextEditingController(
     text: widget.awal?.code ?? '',
   );
@@ -348,7 +370,7 @@ class _DialogPromoState extends State<_DialogPromo> {
     );
     final potong = calon.discountFor(harga);
     return t.adminPromosPreviewLine(
-      plan == TierPlan.pro ? t.tierPro : t.tierStandar,
+      namaPaket(t, plan),
       Formatters.currency(potong),
       Formatters.currency(harga - potong),
     );
@@ -433,16 +455,20 @@ class _DialogPromoState extends State<_DialogPromo> {
                   labelText: t.adminPromosAppliesTo,
                   isDense: true,
                 ),
+                // 🔴 Dibangun dari `TierPlan.values`, BUKAN disebut satu
+                // per satu. Bentuk lamanya hanya memuat Standar dan Pro,
+                // sehingga promo untuk paket Bisnis TIDAK DAPAT DIBUAT sama
+                // sekali — dan tidak ada galat apa pun yang menandainya.
                 items: [
                   DropdownMenuItem(
                     value: null,
                     child: Text(t.adminPromosAllPlans),
                   ),
-                  DropdownMenuItem(
-                    value: TierPlan.standar,
-                    child: Text(t.tierStandar),
-                  ),
-                  DropdownMenuItem(value: TierPlan.pro, child: Text(t.tierPro)),
+                  for (final plan in TierPlan.values)
+                    DropdownMenuItem(
+                      value: plan,
+                      child: Text(namaPaket(t, plan)),
+                    ),
                 ],
                 onChanged: (v) => setState(() => _paket = v),
               ),
@@ -500,16 +526,19 @@ class _DialogPromoState extends State<_DialogPromo> {
                   style: theme.textTheme.labelLarge,
                 ),
                 const SizedBox(height: 4),
-                if (_paket != TierPlan.pro)
-                  Text(
-                    _contoh(context, TierPlan.standar, 99000),
-                    style: theme.textTheme.bodySmall,
-                  ),
-                if (_paket != TierPlan.standar)
-                  Text(
-                    _contoh(context, TierPlan.pro, 249000),
-                    style: theme.textTheme.bodySmall,
-                  ),
+                // 🔴 Harga dibaca dari katalog, BUKAN ditulis di sini.
+                //
+                // Bentuk lamanya menanam 99.000 dan 249.000 — angka yang sudah
+                // TIDAK BERLAKU sejak migrasi 39 menetapkan 149.000, 299.000,
+                // dan 1.490.000. Contoh perhitungan yang memakai harga salah
+                // lebih buruk daripada tidak ada contoh sama sekali: ia
+                // meyakinkan Admin bahwa potongannya aman padahal belum tentu.
+                for (final tier in _katalog.semua)
+                  if (_paket == null || _paket == tier.plan)
+                    Text(
+                      _contoh(context, tier.plan, tier.price),
+                      style: theme.textTheme.bodySmall,
+                    ),
               ],
             ],
           ),

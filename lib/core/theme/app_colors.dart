@@ -60,8 +60,14 @@ class AppColors extends ThemeExtension<AppColors> {
     warningContainer: Color(0xFFFBEBD2),
     danger: Color(0xFFC62828),
     dangerContainer: Color(0xFFFBE3E3),
-    shimmerBase: Color(0xFFE7ECF3),
-    shimmerHighlight: Color(0xFFF2F5F9),
+    // ⚠️ Diselaraskan ke netral hangat 31 Agustus 2026, mengikuti latar
+    // halaman baru `#F6F4F1` (revisi tampilan Langkah 1). Nilai lamanya
+    // #E7ECF3 / #F2F5F9 adalah turunan abu-biru; di atas latar hangat skeleton
+    // akan berkedip kebiruan tiap kali Beranda atau Riwayat dimuat ulang.
+    // Desainer melewatkan konsekuensi ini — sorotan sengaja dibuat sama
+    // dengan latar halaman supaya puncak shimmer menyatu, bukan menonjol.
+    shimmerBase: Color(0xFFEAE6DF),
+    shimmerHighlight: Color(0xFFF6F4F1),
   );
 
   static const dark = AppColors(
@@ -151,6 +157,21 @@ class AppColors extends ThemeExtension<AppColors> {
     if (ratio <= 0.05) return danger;
     if (ratio <= 0.20) return warning;
     return success;
+  }
+
+  /// Latar petak saldo token — pasangan container dari [tokenIndicator].
+  ///
+  /// 🔴 Dipakai sebagai latar penuh, BUKAN `tokenIndicator(ratio)` yang
+  /// diberi alpha. Petak ber-alpha 12% di atas latar gelap `#0F141A` praktis
+  /// tidak terlihat — Product Owner melaporkannya 1 September 2026: petak
+  /// pantauan hilang dan hanya angkanya yang mengambang.
+  ///
+  /// Pasangan container/on-container sudah dihitung kontrasnya di kedua tema
+  /// (§1.3 & §2 palet), sedangkan warna ber-alpha tidak dijamin apa pun.
+  Color tokenIndicatorContainer(double ratio) {
+    if (ratio <= 0.05) return dangerContainer;
+    if (ratio <= 0.20) return warningContainer;
+    return successContainer;
   }
 }
 

@@ -7,6 +7,7 @@ import '../models/app_user.dart';
 import '../models/enums.dart';
 import '../models/tenant.dart';
 import '../models/token_wallet.dart';
+import '../services/supabase_service.dart';
 import '../utils/app_failure.dart';
 import '../utils/result.dart';
 import 'auth_provider.dart';
@@ -38,8 +39,16 @@ class SessionContext {
 
   /// Aturan tier yang berlaku. Selama uji coba, fitur setara Standar
   /// (Bab 7.5).
+  /// 🔴 Masa uji coba meminjam aturan paket [TrialConfig.tier], KECUALI batas
+  /// packer — yang itu miliknya sendiri.
+  ///
+  /// Sampai 31 Agustus 2026 ia meminjam seluruhnya. Begitu paket Standar
+  /// disetel tak terbatas, masa uji coba ikut tak terbatas tanpa satu pun
+  /// galat, dan pendaftar baru dapat membuat seratus akun packer gratis.
   TierConfig get tier => tenant.isTrial
-      ? tierCatalog.of(tierCatalog.trial.tier)
+      ? tierCatalog
+            .of(tierCatalog.trial.tier)
+            .copyWith(maxPackers: tierCatalog.trial.maxPackers)
       : tierCatalog.of(plan);
 
   bool get isTrial => tenant.isTrial;
@@ -148,6 +157,33 @@ class Session extends _$Session {
     }
 
     final user = hasilProfil.unwrap();
+
+    // 🔴 Bab 6.7 — packer yang dinonaktifkan Owner TIDAK BOLEH punya sesi.
+    //
+    // Dilaporkan 31 Agustus 2026: menonaktifkan packer hanya menyetel
+    // `users.is_active = false`, dan tidak ada satu baris pun yang pernah
+    // membacanya di jalur masuk. Bekas pegawai yang aksesnya "sudah dicabut"
+    // tetap dapat masuk dan bekerja seperti biasa.
+    //
+    // Gejalanya sama persis dengan cacat `delete-packer` 20 Agustus: Owner
+    // menekan tombol, layarnya berubah, dan yang dijanjikan tombol itu tidak
+    // pernah terjadi. `errorAccountDisabled` sudah ada di ARB sejak awal dan
+    // tidak pernah sekali pun ditampilkan.
+    //
+    // ⚠️ Alasannya DITITIPKAN sebelum keluar paksa. Tanpa itu packer mendarat
+    // di layar Masuk tanpa sepatah kata, menyimpulkan passwordnya rusak, dan
+    // mencobanya berkali-kali — lalu menelepon Owner untuk keadaan yang justru
+    // Owner sendiri yang membuatnya. `authLinkFailure` memang lahir untuk
+    // tautan email, tetapi yang dibawanya adalah "kegagalan yang tidak datang
+    // dari tombol mana pun", dan ini persis itu.
+    if (!user.isActive) {
+      debugPrint('KAMELSCAN_SESI akun nonaktif · keluar paksa ke login');
+      SupabaseService.authLinkFailure.value =
+          AppFailure.validation('errorAccountDisabled');
+      await ref.read(authRepositoryProvider).signOut();
+      return null;
+    }
+
     final tenant =
         (await ref.read(userRepositoryProvider).fetchTenant(user.tenantId))
             .unwrap();
@@ -209,6 +245,27 @@ bool needsProfileCompletion(Ref ref) =>
 @riverpod
 UserRole? currentRole(Ref ref) =>
     ref.watch(sessionProvider).value?.role;
+
+/// Bab 9.6 — akun sedang menunggu dimusnahkan.
+///
+/// 🔴 Ada HANYA supaya `GoRouterRefreshNotifier` punya sesuatu yang sempit
+/// untuk disimak. `RouteGuards.redirect` membaca
+/// `sessionProvider.value.tenant.isDeletionPending`, dan nilai yang dibaca
+/// penjaga tetapi tidak disimak notifier menghasilkan gejala yang sudah
+/// memakan waktu berkali-kali di proyek ini: **layar yang seharusnya
+/// berpindah, diam di tempat, tanpa satu pun galat.**
+///
+/// Persis itu yang dilaporkan Product Owner 1 September 2026 — *"akun sudah
+/// dihapus tapi tidak ada respon sama sekali"*. Permintaannya berhasil,
+/// `deletion_requested_at` benar-benar terisi, dan routernya tidak pernah
+/// diberi tahu untuk menilai ulang.
+///
+/// ⚠️ Selalu `false` selagi sesi masih dimuat, mengikuti alasan yang sama
+/// dengan [needsProfileCompletion]: jangan melempar orang ke layar kunci
+/// sekelebat sebelum tenant-nya sempat terbaca.
+@riverpod
+bool deletionPending(Ref ref) =>
+    ref.watch(sessionProvider).value?.tenant.isDeletionPending ?? false;
 
 /// Saldo token langsung dari server, agar indikator ikut berubah saat packer
 /// lain menyelesaikan unggahan (Bab 7.3).

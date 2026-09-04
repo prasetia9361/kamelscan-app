@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/models/enums.dart';
 import '../../core/providers/session_provider.dart';
+import '../../core/providers/theme_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/failure_messages.dart';
@@ -68,6 +69,25 @@ class AccountPage extends ConsumerWidget {
                 const SizedBox(height: 8),
 
                 _SupportTile(),
+
+                // Bab 9.6 — Hapus Akun.
+                //
+                // 🔴 WAJIB ADA DAN WAJIB DAPAT DITEMUKAN. App Store Review
+                // Guideline 5.1.1(v) menuntut penghapusan akun dari dalam
+                // aplikasi; menyembunyikannya di balik menu bertingkat adalah
+                // alasan penolakan tersendiri, bukan hanya ketiadaannya.
+                //
+                // Hanya Owner: packer tidak memiliki tenant, dan yang akan
+                // dihapus adalah seluruh usaha milik orang lain.
+                if (isOwner) ...[
+                  const SizedBox(height: 8),
+                  _MenuTile(
+                    icon: Icons.delete_forever_outlined,
+                    title: t.accountDelete,
+                    color: Theme.of(context).extension<AppColors>()!.danger,
+                    onTap: () => context.push(Routes.deleteAccount),
+                  ),
+                ],
               ],
             ),
           ),
@@ -78,9 +98,14 @@ class AccountPage extends ConsumerWidget {
           // sudut kanan bawah kerangka mobile menumpang di atas isi halaman,
           // dan pada jarak 24 dp ia menutupi ujung kanan tombol Keluar.
           // Terlihat di Redmi Note 9, 17 Agustus 2026.
-          const Padding(
-            padding: EdgeInsets.fromLTRB(24, 8, 24, 88),
-            child: LogoutButton(),
+          //
+          // Sejak sakelar Bab 9.7 ada, jarak itu kembali ke 24 dp saat
+          // tombolnya memang disembunyikan — cacat di atas tidak mungkin
+          // terjadi kalau tombolnya tidak digambar sama sekali.
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+                24, 8, 24, ref.watch(showRecordFabProvider) ? 88 : 24),
+            child: const LogoutButton(),
           ),
         ],
       ),
@@ -308,6 +333,7 @@ class _MenuTile extends StatelessWidget {
     required this.title,
     required this.onTap,
     this.subtitle,
+    this.color,
   });
 
   final IconData icon;
@@ -315,14 +341,17 @@ class _MenuTile extends StatelessWidget {
   final String? subtitle;
   final VoidCallback onTap;
 
+  /// Warna ikon dan judul. Dipakai satu-satunya menu yang merusak sesuatu.
+  final Color? color;
+
   @override
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       clipBehavior: Clip.antiAlias,
       child: ListTile(
-        leading: Icon(icon),
-        title: Text(title),
+        leading: Icon(icon, color: color),
+        title: Text(title, style: TextStyle(color: color)),
         subtitle: subtitle == null ? null : Text(subtitle!),
         trailing: const Icon(Icons.chevron_right_rounded),
         onTap: onTap,

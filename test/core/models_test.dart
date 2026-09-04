@@ -123,6 +123,53 @@ void main() {
       expect(trialWallet.used, 38);
     });
   });
+
+  // 🔴 Kelompok ini lahir dari cacat 1 September 2026. Migrasi 39 menambahkan
+  // `token_expired` ke enum `ledger_reason`, dan `LedgerReason` di Dart —
+  // satu-satunya enum di berkas `enums.dart` yang tidak punya nilai jatuhan —
+  // akan MELEMPAR begitu baris pertamanya lahir.
+  //
+  // Tidak ada satu pun tes yang gagal saat itu, karena tesnya hanya memakai
+  // alasan yang sudah dikenal. Ketiga tes di bawah menutup celah itu.
+  group('TokenLedgerEntry — alasan yang datang dari database', () {
+    Map<String, dynamic> baris(String reason) => {
+          'id': 1,
+          'tenant_id': 't-1',
+          'delta': -2000,
+          'reason': reason,
+          'balance_after': 0,
+          'video_id': null,
+          'note': 'Langganan berakhir',
+          'created_at': '2026-09-01T01:45:00.000Z',
+        };
+
+    test('alasan lama tetap terbaca apa adanya', () {
+      expect(
+        TokenLedgerEntry.fromJson(baris('video_upload')).reason,
+        LedgerReason.videoUpload,
+      );
+      expect(
+        TokenLedgerEntry.fromJson(baris('admin_adjust')).reason,
+        LedgerReason.adminAdjust,
+      );
+    });
+
+    test('token_expired dari migrasi 39/40 terbaca, bukan melempar', () {
+      final e = TokenLedgerEntry.fromJson(baris('token_expired'));
+      expect(e.reason, LedgerReason.tokenExpired);
+      expect(e.isDebit, isTrue);
+    });
+
+    test('alasan yang belum dikenal jatuh ke unknown, bukan melempar', () {
+      // Nilai enum ke-8 yang suatu hari ditambahkan migrasi berikutnya.
+      // Jatuhannya sengaja BUKAN alasan yang sudah ada: buku besar token
+      // dipakai menyelesaikan sengketa, dan salah label lebih berbahaya
+      // daripada label yang jujur mengaku tidak tahu.
+      final e = TokenLedgerEntry.fromJson(baris('alasan_masa_depan'));
+      expect(e.reason, LedgerReason.unknown);
+      expect(e.balanceAfter, 0);
+    });
+  });
 }
 
 Map<String, dynamic> _sampleVideoJson({

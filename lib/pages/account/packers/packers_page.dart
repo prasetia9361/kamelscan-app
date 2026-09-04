@@ -48,7 +48,23 @@ class _Body extends ConsumerWidget {
     if (session == null) return const SizedBox.shrink();
 
     final tier = session.tier;
-    final bolehTambah = tier.canAddPacker(items.length);
+
+    // 🔴 Hanya packer AKTIF yang dihitung — sama persis dengan aturan server.
+    //
+    // Dilaporkan 31 Agustus 2026: Owner dengan 3 packer aktif dan 2 nonaktif
+    // dari batas 5 melihat "5/5" dan tombol Tambah yang mati, padahal
+    // `create-packer` dan trigger `PACKER_LIMIT_REACHED` keduanya menyaring
+    // `is_active` dan akan menerima dua packer lagi tanpa keberatan.
+    //
+    // ⚠️ Ia tidak pernah menerima satu pun galat, karena permintaannya tidak
+    // pernah sampai ke server. Layarnya menolak lebih dulu, atas aturan yang
+    // hanya ada di layar itu — bentuk cacat yang paling sulit dilaporkan,
+    // sebab tidak ada apa pun untuk dilaporkan selain tombol yang diam.
+    //
+    // Menonaktifkan packer memang sengaja tidak menghapusnya: riwayat videonya
+    // harus tetap dapat ditelusuri. Tetapi ia berhenti memakai kursi.
+    final terpakai = items.where((e) => e.user.isActive).length;
+    final bolehTambah = tier.canAddPacker(terpakai);
 
     return RefreshIndicator(
       onRefresh: vm.refresh,
@@ -56,7 +72,7 @@ class _Body extends ConsumerWidget {
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: [
           _KuotaCard(
-            terpakai: items.length,
+            terpakai: terpakai,
             maksimal: tier.maxPackers,
             bolehTambah: bolehTambah,
           ),

@@ -3,26 +3,39 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
 
-import '../../core/domain/quota_status.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/home_stats.dart';
+import '../../core/models/queue_summary.dart';
 import '../../core/providers/pipeline_providers.dart';
 import '../../core/providers/session_provider.dart';
+import '../../core/providers/theme_provider.dart';
 import '../../core/providers/upload_queue_provider.dart';
 import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/app_text_styles_display.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/app_state_views.dart';
 import '../../core/widgets/failure_messages.dart';
+import '../../core/widgets/k_section_header.dart';
 import '../../core/widgets/quota_widgets.dart';
+import '../../core/workers/upload_queue_runner.dart';
+import '../../l10n/generated/app_localizations.dart';
 import '../../navigation/route_names.dart';
+import '../../navigation/shells/mobile_app_bar.dart';
 import 'home_view_model.dart';
+import 'widgets/monitoring_band.dart';
+import 'widgets/record_action_row.dart';
 
-/// Beranda — kartu monitoring + menu utama (Bab 9.2).
+/// Beranda — pantauan + menu utama (Bab 9.2).
 ///
 /// Halaman ini adalah satu-satunya tempat Owner dapat melihat saldo token dan
 /// jumlah video tanpa membuka database, jadi ia dikerjakan lebih dulu di antara
 /// seluruh Bab 9.
+///
+/// Tampilannya direvisi 31 Agustus 2026 (`PANDUAN_TAMPILAN.md` Langkah 3–5):
+/// tiga kartu pantauan bergaris tepi menjadi dua petak ber-tint + satu petak
+/// token, dan kisi menu 2×2 menjadi dua kartu perekaman berdampingan dengan
+/// Pembayaran & Tutorial turun jadi baris tipis. Tidak ada fitur, rute, atau
+/// ViewModel yang berubah.
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
 
@@ -62,6 +75,15 @@ class HomePage extends ConsumerWidget {
   }
 }
 
+/// Jarak bawah daftar saat tombol Rekam mengambang terlihat.
+///
+/// Tombolnya menumpang di atas isi halaman dan akan menutupi baris terakhir.
+/// Alasan yang sama sudah tercatat di `AccountPage` dan `HistoryPage`.
+const double kHomePadWithFab = 88;
+
+/// Jarak bawah saat tombol itu disembunyikan (Bab 9.7).
+const double kHomePadNoFab = 24;
+
 class _HomeBody extends ConsumerWidget {
   const _HomeBody({required this.stats});
 
@@ -70,19 +92,61 @@ class _HomeBody extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = context.l10n;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final colors = theme.extension<AppColors>()!;
     final session = ref.watch(sessionProvider).value;
     final isTrial = session?.isTrial ?? false;
     final quota = stats.quota(isTrial: isTrial);
     final isOwner = session?.isOwner ?? false;
+    final canRecord = session?.canRecord ?? false;
+    final showFab = ref.watch(showRecordFabProvider);
+
+    // Bab 7.5 — uji coba dibatasi JUMLAH VIDEO, bukan waktu, jadi saat uji coba
+    // tidak ada tanggal perpanjangan yang jujur untuk ditampilkan.
+    final periodEnd = session?.subscription.periodEnd;
+    final percent = '${(quota.ratio * 100).round()}';
+    final tokenMeta = quota.quota <= 0
+        ? null
+        : (periodEnd == null
+            ? t.homeTokenMeta(percent)
+            : t.homeTokenMetaWithDate(percent, Formatters.dayMonth(periodEnd)));
 
     return ListView(
-      // Jarak bawah 88 dp: tombol Rekam mengambang di sudut kanan bawah
-      // menumpang di atas isi halaman dan akan menutupi baris terakhir.
-      // Alasan yang sama sudah tercatat di `AccountPage`.
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
+      padding: EdgeInsets.fromLTRB(
+        16,
+        16,
+        16,
+        showFab ? kHomePadWithFab : kHomePadNoFab,
+      ),
       children: [
-        // Bab 7.3 & 7.6 — kedua spanduk ini memang rumahnya di Beranda.
-        // Keduanya menyembunyikan dirinya sendiri saat belum perlu, jadi tidak
+        // Sapaan pindah ke sini dari bilah atas (revisi tampilan). Di bilah
+        // atas ia terulang di setiap tab dan mendorong isi yang dicari turun
+        // hampir seperlima layar; di sini ia hanya muncul sekali, di tempat
+        // yang memang tentang orangnya.
+        if (session != null) ...[
+          Text(
+            greetingText(context),
+            style: theme.textTheme.bodyMedium
+                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            session.user.fullName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 8),
+          RoleBadge(
+            role: session.user.role,
+            businessName: session.tenant.businessName,
+          ),
+          const SizedBox(height: 16),
+        ],
+
+        // Bab 7.3 & 7.6 — keempat spanduk ini memang rumahnya di Beranda.
+        // Semuanya menyembunyikan dirinya sendiri saat belum perlu, jadi tidak
         // ada syarat yang perlu diperiksa di sini.
         QuotaBanner(
           quota: quota,
@@ -97,236 +161,204 @@ class _HomeBody extends ConsumerWidget {
         if (stats.hasFailedUploads) _FailedBanner(count: stats.failedUpload),
 
         // Keterangan periode berdiri sekali di sini, bukan diulang di tiap
-        // kartu. Ia menerangkan ketiga angka sekaligus, dan pada lebar
-        // sepertiga layar pengulangannya memakan ruang yang dibutuhkan
-        // angkanya sendiri.
+        // petak. Ia menerangkan ketiga angka sekaligus.
         //
         // 🔴 Tetap wajib ada: tanpa ini angkanya benar tetapi pembacanya
         // menduga "bulan ini" — dan dugaan itu salah, karena periode dihitung
         // sejak dompet token dimulai (keputusan Product Owner 18 Agustus 2026).
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
-          children: [
-            _SectionTitle(t.homeMonitoringTitle),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                t.homePeriodSince(Formatters.date(stats.periodStart)),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-              ),
-            ),
-          ],
+        KSectionHeader(
+          t.homeMonitoringTitle,
+          trailing: Text(
+            t.homePeriodSince(Formatters.date(stats.periodStart)),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppDisplayStyles.metaMono
+                .copyWith(color: theme.colorScheme.onSurfaceVariant),
+          ),
         ),
-        const SizedBox(height: 8),
-        _MonitoringRow(stats: stats, quota: quota, isOwner: isOwner),
+        const SizedBox(height: 10),
+
+        // Ketiga angka tetap terlihat sekaligus tanpa gulir mendatar — syarat
+        // Bab 9.2 dan keputusan Product Owner 18 Agustus 2026.
+        // 🔴 Petak Pantauan memakai warna yang SAMA PERSIS dengan kartu Rekam
+        // sejenisnya di bawah — keputusan Product Owner 3 September 2026,
+        // sesudah melihat Beranda di mode terang dan gelap berdampingan.
+        //
+        // Sebelumnya petak Pantauan memakai pasangan *container* (pucat)
+        // sedangkan kartu Rekam Packing memakai `primary` (penuh). Akibatnya
+        // satu halaman memakai dua biru berbeda untuk satu hal yang sama, dan
+        // hubungan "petak ini dan kartu itu bicara tentang packing yang sama"
+        // hilang — padahal petaknya memang menuju riwayat jenis itu.
+        //
+        // ⚠️ Karena itu sumbernya sengaja disebut lewat `scheme.primary` /
+        // `colors.returnContainer` yang sama dengan `record_action_row.dart`,
+        // bukan disalin nilainya. Menyalin angka warna berarti keduanya akan
+        // menyimpang diam-diam pada perubahan palet berikutnya.
+        MonitoringBand(
+          packingLabel: t.homeKickerPacking,
+          packingCount: stats.packingCount,
+          packingColor: scheme.onPrimary,
+          packingBackground: scheme.primary,
+          returnLabel: t.homeKickerReturn,
+          returnCount: stats.returnCount,
+          returnColor: colors.onReturnContainer,
+          returnBackground: colors.returnContainer,
+          tokenLabel: quota.isTrial ? t.trialQuotaLabel : t.tokenBalanceLabel,
+          tokenValue: quota.balance,
+          // Warna & ambangnya tetap datang dari aturan Bab 7.3 yang sudah
+          // teruji, bukan ditentukan ulang di sini.
+          tokenColor: colors.tokenIndicator(quota.ratio),
+          tokenBackground: colors.tokenIndicatorContainer(quota.ratio),
+          tokenTotal: quota.quota > 0 ? quota.quota : null,
+          tokenRatio: quota.quota > 0 ? quota.ratio : null,
+          tokenMeta: tokenMeta,
+          onTapPacking: () => context
+              .push(Routes.historyOf(typeWire: VideoType.packing.wire)),
+          onTapReturn: () => context
+              .push(Routes.historyOf(typeWire: VideoType.returned.wire)),
+          onTapToken: isOwner ? () => context.push(Routes.payment) : null,
+          numberFormatter: Formatters.number,
+        ),
 
         if (stats.isEmpty) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Text(
             t.homeEmptyHint,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+            style: theme.textTheme.bodyMedium
+                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           ),
         ],
 
-        const SizedBox(height: 24),
-        _SectionTitle(t.homeMenuTitle),
-        const SizedBox(height: 8),
-        _MenuGrid(canRecord: session?.canRecord ?? false, isOwner: isOwner),
+        const SizedBox(height: 18),
+        KSectionHeader(t.homeMenuTitle),
+        const SizedBox(height: 10),
+        _RecordMenu(canRecord: canRecord, isOwner: isOwner),
       ],
     );
   }
 }
 
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) =>
-      Text(text, style: Theme.of(context).textTheme.titleMedium);
-}
-
 // ---------------------------------------------------------------------------
-// Bagian 1 — Monitoring
+// Bagian 2 — Menu utama
 // ---------------------------------------------------------------------------
 
-/// Tiga kartu **muat sekaligus** dalam satu layar (Bab 9.2).
-///
-/// 🔴 Semula tergulir mendatar dengan lebar tetap 200 dp, persis seperti bunyi
-/// Bab 9.2. Product Owner mengujinya di Redmi Note 9 pada 18 Agustus 2026 dan
-/// menolaknya: kartu ketiga — **saldo token** — berada di luar layar, sehingga
-/// angka yang paling sering dicari justru satu-satunya yang harus dicari.
-///
-/// Bab 9.2 menyebut "dapat digulir horizontal" sebagai bentuk, bukan tujuan.
-/// Tujuannya adalah ketiga angka terlihat; menggulir hanya jalan keluar bila
-/// tidak muat. Pada lebar 360 dp ke atas ketiganya muat, jadi tidak digulir.
-class _MonitoringRow extends StatelessWidget {
-  const _MonitoringRow({
-    required this.stats,
-    required this.quota,
-    required this.isOwner,
-  });
+class _RecordMenu extends StatelessWidget {
+  const _RecordMenu({required this.canRecord, required this.isOwner});
 
-  final HomeStats stats;
-  final QuotaStatus quota;
+  final bool canRecord;
   final bool isOwner;
 
   @override
   Widget build(BuildContext context) {
     final t = context.l10n;
-    final colors = Theme.of(context).extension<AppColors>()!;
-
-    return SizedBox(
-      height: 138,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            child: _StatCard(
-              label: t.homeCardPacking,
-              value: stats.packingCount,
-              color: colors.packing,
-              icon: Icons.inventory_2_outlined,
-              onTap: () => context
-                  .push(Routes.historyOf(typeWire: VideoType.packing.wire)),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: _StatCard(
-              label: t.homeCardReturn,
-              value: stats.returnCount,
-              color: colors.returnColor,
-              icon: Icons.assignment_return_outlined,
-              onTap: () => context
-                  .push(Routes.historyOf(typeWire: VideoType.returned.wire)),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: _StatCard(
-              label: quota.isTrial ? t.trialQuotaLabel : t.tokenBalanceLabel,
-              value: quota.balance,
-              // Warna & ambangnya tetap datang dari aturan Bab 7.3 yang sudah
-              // teruji, bukan ditentukan ulang di sini.
-              color: colors.tokenIndicator(quota.ratio),
-              icon: Icons.confirmation_number_outlined,
-              total: quota.quota > 0 ? quota.quota : null,
-              progress: quota.quota > 0 ? quota.ratio : null,
-              onTap: isOwner ? () => context.push(Routes.payment) : null,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Satu kartu pantauan. Lebarnya ditentukan induknya — sepertiga layar.
-///
-/// Ketiganya memakai bentuk yang **sama persis**, termasuk kartu token. Dua
-/// bentuk berbeda yang berdiri bersebelahan membuat mata membandingkan
-/// kotaknya, bukan angkanya.
-class _StatCard extends StatelessWidget {
-  const _StatCard({
-    required this.label,
-    required this.value,
-    required this.color,
-    required this.icon,
-    required this.onTap,
-    this.total,
-    this.progress,
-  });
-
-  final String label;
-  final int value;
-  final Color color;
-  final IconData icon;
-  final VoidCallback? onTap;
-
-  /// Penyebut untuk kartu token: `73` **/ 100**. null pada kartu video.
-  final int? total;
-
-  /// Palang sisa kuota 0..1. null pada kartu video.
-  final double? progress;
-
-  @override
-  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final colors = theme.extension<AppColors>()!;
 
-    return Card(
-      margin: EdgeInsets.zero,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    // Bab 9.2 — saat saldo habis, kedua kartu perekaman tampil abu-abu dengan
+    // label kecil "Token habis" dan menekannya membuka Pembayaran. Untuk packer
+    // jalan itu buntu (Pembayaran hanya Owner), jadi ia diberi kalimat yang
+    // dapat ditindaklanjuti alih-alih pintu yang tertutup.
+    void whenLocked() {
+      if (isOwner) {
+        context.push(Routes.payment);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(t.homeTokenExhaustedPacker)),
+        );
+      }
+    }
+
+    // Jenis paket dibawa ke layar setup lewat query, dan diteruskan dari sana
+    // sampai ke baris `package_videos`. Sebelum 18 Agustus 2026 seluruh alur
+    // rekam memaku `packing`, sehingga menu ini akan menyimpan video return
+    // dengan tipe yang salah — dan indeks `uq_resi_per_tenant_type` membuat
+    // akibatnya baru terasa jauh kemudian.
+    void record(VideoType type) =>
+        context.push(Routes.recordSetupOf(typeWire: type.wire));
+
+    return Column(
+      children: [
+        // 🔴 `IntrinsicHeight` wajib di sini — alasan lengkapnya ada di
+        // `MonitoringBand`. Singkatnya: Row ini anak `ListView`, jadi tingginya
+        // tidak terbatas, dan `stretch` yang tingginya tidak terbatas meminta
+        // anaknya setinggi tak hingga. Akibatnya bukan kartu yang jelek,
+        // melainkan SELURUH sisa halaman berhenti tergambar.
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Icon(icon, size: 20, color: color),
-              const SizedBox(height: 6),
               Expanded(
-                child: Text(
-                  label,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelSmall
-                      ?.copyWith(color: scheme.onSurfaceVariant),
+                child: RecordActionCard(
+                  label: t.homeMenuRecordPacking,
+                  subtitle: t.homeMenuRecordPackingSub,
+                  icon: Icons.inventory_2_rounded,
+                  startLabel: t.homeActionStart,
+                  background: scheme.primary,
+                  foreground: scheme.onPrimary,
+                  locked: !canRecord,
+                  lockedLabel: t.tokenExhaustedMenuLabel,
+                  onTap:
+                      canRecord ? () => record(VideoType.packing) : whenLocked,
                 ),
               ),
-              // Sepertiga layar itu sempit, dan tenant sibuk bisa menembus
-              // empat digit. FittedBox mengecilkan angkanya alih-alih
-              // memotongnya — angka bukti yang terpotong lebih buruk daripada
-              // angka yang kecil.
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: [
-                    Text(
-                      Formatters.number(value),
-                      style: AppTextStyles.statNumber
-                          .copyWith(color: color, fontSize: 30, height: 34 / 30),
-                    ),
-                    if (total != null) ...[
-                      const SizedBox(width: 4),
-                      Text(
-                        '/ ${Formatters.number(total!)}',
-                        style: theme.textTheme.labelMedium
-                            ?.copyWith(color: scheme.onSurfaceVariant),
-                      ),
-                    ],
-                  ],
+              const SizedBox(width: 10),
+              Expanded(
+                // Kedua kartu berisi penuh warna jenisnya supaya terbaca
+                // setara. Teks di atas ungu memakai pasangan `returnContainer`
+                // / `onReturnContainer` yang sudah ada — bukan token baru.
+                child: RecordActionCard(
+                  label: t.homeMenuRecordReturn,
+                  // 🔴 Subjudul per kartu, bukan dari jenis yang terpilih —
+                  // kedua kartu berdiri bersamaan di Beranda.
+                  subtitle: t.homeMenuRecordReturnSub,
+                  icon: Icons.move_to_inbox_rounded,
+                  startLabel: t.homeActionStart,
+                  background: colors.returnContainer,
+                  foreground: colors.onReturnContainer,
+                  locked: !canRecord,
+                  lockedLabel: t.tokenExhaustedMenuLabel,
+                  onTap:
+                      canRecord ? () => record(VideoType.returned) : whenLocked,
                 ),
               ),
-              if (progress != null) ...[
-                const SizedBox(height: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    minHeight: 5,
-                    backgroundColor: scheme.surfaceContainerHighest,
-                    valueColor: AlwaysStoppedAnimation(color),
-                  ),
-                ),
-              ],
             ],
           ),
         ),
-      ),
+        const SizedBox(height: 10),
+        // Untuk packer barisnya otomatis satu kolom penuh — Pembayaran hanya
+        // untuk Owner, dan kartu setengah lebar yang berdiri sendirian
+        // terlihat seperti ada yang hilang.
+        Row(
+          children: [
+            if (isOwner) ...[
+              Expanded(
+                child: RecordSecondaryTile(
+                  label: t.navPayment,
+                  subtitle: t.homeMenuPaymentSub,
+                  icon: Icons.wallet_rounded,
+                  accent: colors.success,
+                  onTap: () => context.push(Routes.payment),
+                ),
+              ),
+              const SizedBox(width: 10),
+            ],
+            Expanded(
+              child: RecordSecondaryTile(
+                label: t.navTutorial,
+                subtitle: t.homeMenuTutorialSub,
+                icon: Icons.play_circle_outline_rounded,
+                accent: scheme.primary,
+                // 🔴 [Routes.homeTutorial], bukan `Routes.tutorial`. Beranda
+                // hanya dibangun di HP, dan di sana Tutorial hidup di bawah
+                // `/home`. Sebelum 25 Agustus 2026 baris ini memakai
+                // `/tutorial` dan mendarat di layar "halaman tidak ditemukan".
+                onTap: () => context.push(Routes.homeTutorial),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -335,29 +367,121 @@ class _StatCard extends StatelessWidget {
 // Spanduk antrian
 // ---------------------------------------------------------------------------
 
-/// *"4 video menunggu diunggah"* beserta tombol **Unggah sekarang**.
+/// *"4 video dalam antrean — menunggu Wi-Fi"* beserta tombol **Unggah
+/// sekarang**.
 ///
 /// ⚠️ Angkanya diambil dari antrian **lokal**, bukan dari `pending_upload`
 /// milik server. Bab 8.7 / L.5: baris `package_videos` baru dibuat saat
 /// mengunggah, jadi video yang direkam di gudang tanpa sinyal belum punya baris
 /// di server sama sekali — padahal justru itu yang perlu diberitahukan.
-class _QueueBanner extends ConsumerWidget {
+/// Spanduk antrean unggah (Bab 8.7).
+///
+/// 🔴 Ditulis ulang 3 September 2026 setelah dua laporan Product Owner yang
+/// ternyata berakar pada hal yang sama: **layar ini mengarang sebab.**
+///
+/// Kalimatnya dulu ditulis mati — *"{n} video dalam antrean — menunggu
+/// Wi-Fi"* — dan diucapkan tanpa peduli apa yang sebenarnya menahan. Saat
+/// sebuah video gagal diberi watermark, layar tetap menyalahkan jaringan;
+/// Product Owner lalu menyalakan "Unggah lewat data seluler", pengaturan yang
+/// sama sekali tidak berhubungan, dan tentu saja tidak terjadi apa-apa.
+///
+/// Tombolnya pun tidak menjawab apa pun: `run()` dipanggil, berhenti diam-diam
+/// di salah satu dari lima jalur, dan layarnya tidak berubah sedikit pun.
+class _QueueBanner extends ConsumerStatefulWidget {
   const _QueueBanner();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final count = ref.watch(pendingUploadCountProvider).value ?? 0;
-    if (count == 0) return const SizedBox.shrink();
+  ConsumerState<_QueueBanner> createState() => _QueueBannerState();
+}
+
+class _QueueBannerState extends ConsumerState<_QueueBanner> {
+  bool _sedang = false;
+
+  /// 🔴 Metode State, bukan closure di dalam `build` — `context` milik `build`
+  /// dianggap analyzer tidak berhubungan dengan `mounted` milik State, dan ia
+  /// benar: keduanya memang dapat berbeda umur.
+  Future<void> _unggahSekarang() async {
+    if (_sedang) return;
+    final t = context.l10n;
+    final messenger = ScaffoldMessenger.of(context);
+
+    setState(() => _sedang = true);
+    final hasil = await ref.read(uploadQueueRunnerProvider).run();
+    if (!mounted) return;
+    setState(() => _sedang = false);
+
+    // ⚠️ SELALU memberi kabar, termasuk saat tidak terjadi apa-apa. Ketukan
+    // yang tidak menghasilkan apa pun adalah cara tercepat membuat orang
+    // mengira aplikasinya rusak (Bab 9.10) — dan itulah yang dilaporkan.
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(_kabar(t, hasil))));
+  }
+
+  static String _kabar(AppL10n t, UploadRunOutcome hasil) => switch (hasil) {
+        UploadRunOutcome.terunggah => t.queueRunUploaded,
+        UploadRunOutcome.sedangBerjalan => t.queueRunBusy,
+        UploadRunOutcome.tanpaJaringan => t.queueRunNoNetwork,
+        UploadRunOutcome.menungguWifi => t.queueRunWaitingWifi,
+        UploadRunOutcome.kosong => t.queueRunEmpty,
+        UploadRunOutcome.tidakAdaYangSiap => t.queueRunNothingReady,
+        UploadRunOutcome.semuaGagal => t.queueRunAllFailed,
+        // Web tidak punya antrian lokal, jadi spanduk ini tidak pernah tampil
+        // di sana — tetapi cabangnya tetap wajib ada.
+        UploadRunOutcome.tidakDidukung => t.queueRunEmpty,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final ringkas =
+        ref.watch(queueSummaryProvider).value ?? const QueueSummary();
+    if (ringkas.kosong) return const SizedBox.shrink();
 
     final t = context.l10n;
     final colors = Theme.of(context).extension<AppColors>()!;
+    final adaJaringan = ref.watch(networkOnlineProvider).value ?? true;
+
+    // 🔴 Urutannya bukan selera: yang disebut adalah keadaan yang paling
+    // menuntut perbuatan pengguna. Video yang menyerah tidak akan pernah
+    // terkirim sendiri, jadi ia mengalahkan yang sekadar menunggu.
+    final (String pesan, IconData ikon, Color warna) = switch (ringkas) {
+      final r when r.gagal > 0 => (
+          t.homeQueueFailedPermanent(r.gagal),
+          Icons.error_outline,
+          colors.danger,
+        ),
+      final r when r.siap > 0 && !adaJaringan => (
+          t.homeQueueWaitingNetwork(r.siap),
+          Icons.cloud_off_outlined,
+          colors.warning,
+        ),
+      final r when r.siap > 0 => (
+          t.homeQueueReady(r.siap),
+          Icons.cloud_upload_outlined,
+          colors.warning,
+        ),
+      final r when r.sedangDiproses > 0 => (
+          t.homeQueueProcessing(r.sedangDiproses),
+          Icons.hourglass_top_outlined,
+          colors.warning,
+        ),
+      final r => (
+          t.homeQueueRetryLater(r.tertunda),
+          Icons.schedule_outlined,
+          colors.warning,
+        ),
+    };
 
     return _InfoBanner(
-      message: t.homeQueueWaiting(count),
-      icon: Icons.cloud_upload_outlined,
-      color: colors.warning,
+      message: pesan,
+      icon: ikon,
+      color: warna,
       actionLabel: t.homeQueueUploadNow,
-      onAction: () => ref.read(uploadQueueRunnerProvider).run(),
+      // ⚠️ Tombolnya TIDAK dimatikan saat tidak ada yang siap. Bab 9.10
+      // melarang tombol abu-abu tanpa penjelasan; menekannya sekarang
+      // menghasilkan kalimat yang menyebutkan apa yang sedang terjadi, dan itu
+      // jauh lebih menolong daripada tombol yang diam.
+      onAction: _sedang ? null : _unggahSekarang,
     );
   }
 }
@@ -395,18 +519,19 @@ class _InfoBanner extends StatelessWidget {
   final IconData icon;
   final Color color;
   final String actionLabel;
-  final VoidCallback onAction;
+
+  /// Null berarti sedang berjalan — bukan "tidak ada gunanya ditekan".
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.4)),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
         children: [
@@ -426,165 +551,23 @@ class _InfoBanner extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Bagian 2 — Menu utama
-// ---------------------------------------------------------------------------
-
-class _MenuGrid extends ConsumerWidget {
-  const _MenuGrid({required this.canRecord, required this.isOwner});
-
-  final bool canRecord;
-  final bool isOwner;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final t = context.l10n;
-    final colors = Theme.of(context).extension<AppColors>()!;
-
-    // Bab 9.2 — saat saldo habis, kedua menu perekaman tampil abu-abu dengan
-    // label kecil "Token habis" dan menekannya membuka Pembayaran. Untuk packer
-    // jalan itu buntu (Pembayaran hanya Owner), jadi ia diberi kalimat yang
-    // dapat ditindaklanjuti alih-alih pintu yang tertutup.
-    void whenLocked() {
-      if (isOwner) {
-        context.push(Routes.payment);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(t.homeTokenExhaustedPacker)),
-        );
-      }
-    }
-
-    // Jenis paket dibawa ke layar setup lewat query, dan diteruskan dari sana
-    // sampai ke baris `package_videos`. Sebelum 18 Agustus 2026 seluruh alur
-    // rekam memaku `packing`, sehingga menu ini akan menyimpan video return
-    // dengan tipe yang salah — dan indeks `uq_resi_per_tenant_type` membuat
-    // akibatnya baru terasa jauh kemudian.
-    void record(VideoType type) =>
-        context.push(Routes.recordSetupOf(typeWire: type.wire));
-
-    final tiles = <Widget>[
-      _MenuTile(
-        label: t.homeMenuRecordPacking,
-        icon: Icons.inventory_2_outlined,
-        color: colors.packing,
-        locked: !canRecord,
-        lockedLabel: t.tokenExhaustedMenuLabel,
-        onTap: canRecord ? () => record(VideoType.packing) : whenLocked,
-      ),
-      _MenuTile(
-        label: t.homeMenuRecordReturn,
-        icon: Icons.assignment_return_outlined,
-        color: colors.returnColor,
-        locked: !canRecord,
-        lockedLabel: t.tokenExhaustedMenuLabel,
-        onTap: canRecord ? () => record(VideoType.returned) : whenLocked,
-      ),
-      if (isOwner)
-        _MenuTile(
-          label: t.navPayment,
-          icon: Icons.credit_card_rounded,
-          color: colors.success,
-          onTap: () => context.push(Routes.payment),
-        ),
-      _MenuTile(
-        label: t.navTutorial,
-        icon: Icons.school_outlined,
-        color: Theme.of(context).colorScheme.primary,
-        // 🔴 [Routes.homeTutorial], bukan `Routes.tutorial`. Beranda hanya
-        // dibangun di HP, dan di sana Tutorial hidup di bawah `/home`.
-        // Sebelum 25 Agustus 2026 baris ini memakai `/tutorial` dan mendarat
-        // di layar "halaman tidak ditemukan".
-        onTap: () => context.push(Routes.homeTutorial),
-      ),
-    ];
-
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 12,
-      crossAxisSpacing: 12,
-      childAspectRatio: 1.35,
-      children: tiles,
-    );
-  }
-}
-
-class _MenuTile extends StatelessWidget {
-  const _MenuTile({
-    required this.label,
-    required this.icon,
-    required this.color,
-    required this.onTap,
-    this.locked = false,
-    this.lockedLabel,
-  });
-
-  final String label;
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
-  final bool locked;
-  final String? lockedLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    // Abu-abu, tetapi **tetap dapat ditekan** — Bab 7.3: tombol mati tanpa
-    // penjelasan adalah cara tercepat membuat pengguna mengira aplikasinya
-    // rusak.
-    final tint = locked ? scheme.outline : color;
-
-    return Card(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Icon(icon, size: 30, color: tint),
-              Text(
-                label,
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: locked ? scheme.onSurfaceVariant : scheme.onSurface,
-                    ),
-              ),
-              if (locked && lockedLabel != null)
-                Text(
-                  lockedLabel!,
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelSmall
-                      ?.copyWith(color: scheme.error),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Kondisi memuat
 // ---------------------------------------------------------------------------
 
-class _HomeSkeleton extends StatelessWidget {
+class _HomeSkeleton extends ConsumerWidget {
   const _HomeSkeleton();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colors = Theme.of(context).extension<AppColors>()!;
+    final showFab = ref.watch(showRecordFabProvider);
 
-    Widget block(double h, {double? w}) => Container(
+    Widget block(double h, {double? w, double radius = 18}) => Container(
           height: h,
           width: w,
           decoration: BoxDecoration(
             color: colors.shimmerBase,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(radius),
           ),
         );
 
@@ -592,41 +575,43 @@ class _HomeSkeleton extends StatelessWidget {
       baseColor: colors.shimmerBase,
       highlightColor: colors.shimmerHighlight,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
+        padding: EdgeInsets.fromLTRB(
+          16,
+          16,
+          16,
+          showFab ? kHomePadWithFab : kHomePadNoFab,
+        ),
         children: [
-          block(20, w: 120),
-          const SizedBox(height: 12),
-          // Bentuknya menyamai isi yang akan menggantikannya — tiga kartu
-          // sepertiga layar. Skeleton yang berbeda bentuk membuat halaman
-          // melompat saat datanya tiba.
-          SizedBox(
-            height: 138,
-            child: Row(
-              children: [
-                Expanded(child: block(138)),
-                const SizedBox(width: 10),
-                Expanded(child: block(138)),
-                const SizedBox(width: 10),
-                Expanded(child: block(138)),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-          block(20, w: 140),
-          const SizedBox(height: 12),
+          block(14, w: 120, radius: 999),
+          const SizedBox(height: 10),
+          // Bentuknya menyamai isi yang akan menggantikannya — dua petak
+          // berdampingan lalu satu petak token penuh lebar. Skeleton yang
+          // berbeda bentuk membuat halaman melompat saat datanya tiba.
           Row(
             children: [
-              Expanded(child: block(110)),
-              const SizedBox(width: 12),
-              Expanded(child: block(110)),
+              Expanded(child: block(90)),
+              const SizedBox(width: 10),
+              Expanded(child: block(90)),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
+          block(99),
+          const SizedBox(height: 18),
+          block(14, w: 140, radius: 999),
+          const SizedBox(height: 10),
           Row(
             children: [
-              Expanded(child: block(110)),
-              const SizedBox(width: 12),
-              Expanded(child: block(110)),
+              Expanded(child: block(120)),
+              const SizedBox(width: 10),
+              Expanded(child: block(120)),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(child: block(56, radius: 16)),
+              const SizedBox(width: 10),
+              Expanded(child: block(56, radius: 16)),
             ],
           ),
         ],

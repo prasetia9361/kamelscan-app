@@ -33,6 +33,17 @@ abstract class AdminTenantRow with _$AdminTenantRow {
     /// sekaligus dan PostgREST menolak yang rancu seperti itu.
     String? ownerEmail,
 
+    /// Nomor HP pemilik (Bab 11.2, migrasi 45).
+    ///
+    /// 🔴 Dibaca lewat `t.owner_id` yang SAMA dengan [ownerEmail] di dalam
+    /// `admin_list_tenants()`. Bila suatu saat sumbernya diubah, keduanya
+    /// harus diubah bersamaan — dua sumber berbeda pada satu baris kontak
+    /// adalah cara tercepat menelepon orang yang salah.
+    ///
+    /// **Boleh kosong**, dan sering: `users.phone` tidak wajib diisi (migrasi
+    /// 03), dan pendaftar lewat Google tidak pernah ditanya nomornya.
+    String? ownerPhone,
+
     /// Tenant ini milik akun **admin**, bukan pelanggan.
     ///
     /// 🔴 Setiap akun yang mendaftar memperoleh satu tenant sendiri, termasuk
@@ -108,17 +119,29 @@ abstract class AdminTenantRow with _$AdminTenantRow {
 
   /// Kapan token tambahan yang diberikan Admin akan hangus.
   ///
+  /// 🔴 Sumbernya `tenants.period_end`, BUKAN `token_wallets.period_end`.
+  /// Sampai 31 Agustus 2026 token hangus pada reset bulanan, dan tanggal reset
+  /// itulah yang benar dibaca. Migrasi 40 **mencabut** cron
+  /// `reset-monthly-tokens` seluruhnya (Bab 7.2): tidak ada lagi reset, jadi
+  /// tidak ada lagi tanggal reset. Sekarang token hanya hangus saat
+  /// langganannya berakhir — `expire-tenants` (01:30) menandai tenantnya
+  /// `expired`, lalu `expire-tenant-tokens` (01:45) menghanguskan saldonya.
+  ///
+  /// ⚠️ Membaca `token_wallets.period_end` di sini tidak melempar dan tidak
+  /// mengosongkan layar; ia hanya menampilkan tanggal untuk peristiwa yang
+  /// tidak akan pernah terjadi lagi. Itulah kenapa cacatnya sempat lolos.
+  ///
   /// `null` berarti **tidak akan hangus dengan sendirinya**, dan itu terjadi
   /// pada dua keadaan yang berbeda:
   ///
-  /// - Pelanggan uji coba. `token_wallets.period_end` NULL, sehingga cron
-  ///   tidak pernah menyentuhnya (Bab 7.5).
-  /// - Pelanggan yang ditangguhkan atau periodenya berakhir. Cron hanya
-  ///   menyentuh yang berstatus `active`, jadi bonusnya menunggu sampai ia
-  ///   diaktifkan lagi — lalu hangus pada reset pertama sesudah itu.
+  /// - Pelanggan uji coba. `expire-tenants` hanya membalik yang berstatus
+  ///   `active`, jadi uji coba tidak pernah menjadi `expired` dengan
+  ///   sendirinya (Bab 7.5).
+  /// - Pelanggan yang ditangguhkan. Ia juga tidak disentuh `expire-tenants`,
+  ///   jadi bonusnya menunggu sampai ia aktif lagi dan periode itu berakhir.
   ///
   /// Kedua keadaan itu perlu dikatakan berbeda di layar, jadi jangan
   /// menggabungkannya menjadi satu kalimat.
-  DateTime? get tokenResetsAt =>
-      status == TenantStatus.active ? tokenPeriodEnd : null;
+  DateTime? get tokenExpiresAt =>
+      status == TenantStatus.active ? periodEnd : null;
 }

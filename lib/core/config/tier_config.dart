@@ -1,4 +1,26 @@
+import '../../l10n/generated/app_localizations.dart';
 import '../models/enums.dart';
+
+/// Nama paket untuk ditampilkan.
+///
+/// Ditaruh di sebelah katalognya supaya paket baru hanya menuntut satu tempat
+/// disunting. `switch` tanpa `default` disengaja: menambah nilai [TierPlan]
+/// tanpa menyediakan namanya akan gagal saat kompilasi, bukan muncul sebagai
+/// kartu tanpa judul di halaman harga Admin.
+/// Durasi maksimal rekam, dalam satuan yang wajar dibaca.
+///
+/// "180 detik per video" benar tetapi tidak ada yang menulis begitu; paket
+/// Bisnis dijual sebagai "3 menit". Detik dipakai selama masih di bawah satu
+/// menit atau tidak bulat.
+String labelDurasi(AppL10n t, int detik) => detik >= 60 && detik % 60 == 0
+    ? t.durationMinutes(detik ~/ 60)
+    : t.durationSeconds(detik);
+
+String labelTier(AppL10n t, TierPlan plan) => switch (plan) {
+  TierPlan.standar => t.tierStandar,
+  TierPlan.pro => t.tierPro,
+  TierPlan.bisnis => t.tierBisnis,
+};
 
 /// SATU-SATUNYA tempat aturan tier hidup di sisi klien (Bab 7.1).
 ///
@@ -86,44 +108,69 @@ class TierConfig {
 }
 
 /// Kumpulan tier yang sedang berlaku, hasil parse `platform_settings.pricing`.
+///
+/// 🔴 Berbentuk **peta**, bukan dua field bernama `standar` dan `pro`.
+/// Sampai 30 Agustus 2026 ia menyimpan keduanya sebagai field terpisah, dan
+/// menambah paket ketiga berarti menyentuh setiap tempat yang menyebut nama
+/// paket satu per satu — halaman harga Admin, halaman pembayaran, katalog
+/// cadangan. Bentuk peta membuat paket keempat suatu hari nanti hanya menuntut
+/// satu nilai enum baru.
 class TierCatalog {
-  const TierCatalog({
-    required this.standar,
-    required this.pro,
-    required this.trial,
-  });
+  const TierCatalog({required this.tiers, required this.trial});
 
-  final TierConfig standar;
-  final TierConfig pro;
+  final Map<TierPlan, TierConfig> tiers;
   final TrialConfig trial;
 
-  TierConfig of(TierPlan plan) => plan == TierPlan.pro ? pro : standar;
+  /// Aturan paket [plan]. Jatuh ke nilai cadangan bila `pricing` di server
+  /// belum memuat paket itu — pelanggan tidak boleh melihat layar kosong hanya
+  /// karena Admin belum mengisi satu baris pengaturan.
+  TierConfig of(TierPlan plan) => tiers[plan] ?? fallbackFor(plan);
+
+  /// Seluruh paket berbayar, urut dari termurah. Dipakai halaman pembayaran
+  /// dan halaman harga Admin supaya keduanya tidak perlu menyebut nama paket.
+  List<TierConfig> get semua =>
+      TierPlan.values.map(of).toList(growable: false);
 
   /// Nilai cadangan — sama dengan seed `platform_settings` di Bab 5.2.
   static const TierConfig _standarFallback = TierConfig(
     plan: TierPlan.standar,
     maxVideoSeconds: 30,
     retentionDays: 30,
-    maxPackers: 5,
-    monthlyTokens: 1000,
-    price: 99000,
+    maxPackers: -1,
+    monthlyTokens: 2000,
+    price: 149000,
   );
 
   static const TierConfig _proFallback = TierConfig(
     plan: TierPlan.pro,
     maxVideoSeconds: 60,
-    retentionDays: 60,
+    retentionDays: 30,
     maxPackers: -1,
     monthlyTokens: 5000,
-    price: 249000,
+    price: 299000,
   );
 
-  static TierConfig fallbackFor(TierPlan plan) =>
-      plan == TierPlan.pro ? _proFallback : _standarFallback;
+  static const TierConfig _bisnisFallback = TierConfig(
+    plan: TierPlan.bisnis,
+    maxVideoSeconds: 180,
+    retentionDays: 30,
+    maxPackers: -1,
+    monthlyTokens: 30000,
+    price: 1490000,
+  );
+
+  static TierConfig fallbackFor(TierPlan plan) => switch (plan) {
+    TierPlan.standar => _standarFallback,
+    TierPlan.pro => _proFallback,
+    TierPlan.bisnis => _bisnisFallback,
+  };
 
   static const TierCatalog fallback = TierCatalog(
-    standar: _standarFallback,
-    pro: _proFallback,
+    tiers: {
+      TierPlan.standar: _standarFallback,
+      TierPlan.pro: _proFallback,
+      TierPlan.bisnis: _bisnisFallback,
+    },
     trial: TrialConfig.fallback,
   );
 
@@ -132,14 +179,13 @@ class TierCatalog {
     Map<String, dynamic>? trial,
   }) {
     return TierCatalog(
-      standar: TierConfig.fromJson(
-        TierPlan.standar,
-        (pricing['standar'] as Map?)?.cast<String, dynamic>() ?? const {},
-      ),
-      pro: TierConfig.fromJson(
-        TierPlan.pro,
-        (pricing['pro'] as Map?)?.cast<String, dynamic>() ?? const {},
-      ),
+      tiers: {
+        for (final plan in TierPlan.values)
+          plan: TierConfig.fromJson(
+            plan,
+            (pricing[plan.wire] as Map?)?.cast<String, dynamic>() ?? const {},
+          ),
+      },
       trial: trial == null ? TrialConfig.fallback : TrialConfig.fromJson(trial),
     );
   }
@@ -151,21 +197,34 @@ class TrialConfig {
     required this.tokens,
     required this.tier,
     required this.enabled,
+    required this.maxPackers,
   });
 
   final int tokens;
   final TierPlan tier;
   final bool enabled;
 
+  /// 🔴 Batas packer MILIK masa uji coba sendiri, bukan pinjaman dari tier
+  /// [tier].
+  ///
+  /// Sampai 31 Agustus 2026 field ini tidak ada, dan masa uji coba memakai
+  /// seluruh konfigurasi paket Standar. Begitu Standar disetel tak terbatas
+  /// (keputusan hari itu), masa uji coba ikut menjadi tak terbatas — tanpa
+  /// satu pun galat, dan seorang pendaftar baru dapat membuat seratus akun
+  /// packer tanpa membayar sepeser pun.
+  final int maxPackers;
+
   static const TrialConfig fallback = TrialConfig(
     tokens: 100,
     tier: TierPlan.standar,
     enabled: true,
+    maxPackers: 5,
   );
 
   factory TrialConfig.fromJson(Map<String, dynamic> json) => TrialConfig(
     tokens: (json['tokens'] as num?)?.toInt() ?? fallback.tokens,
     tier: TierPlan.fromWire(json['tier'] as String?),
     enabled: json['enabled'] as bool? ?? fallback.enabled,
+    maxPackers: (json['max_packers'] as num?)?.toInt() ?? fallback.maxPackers,
   );
 }

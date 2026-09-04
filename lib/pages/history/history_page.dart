@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/models/enums.dart';
 import '../../core/models/history_item.dart';
+import '../../core/providers/theme_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/formatters.dart';
@@ -209,14 +210,14 @@ class _SearchField extends StatelessWidget {
   }
 }
 
-class _HistoryList extends StatelessWidget {
+class _HistoryList extends ConsumerWidget {
   const _HistoryList({required this.data, required this.scroll});
 
   final HistoryData data;
   final ScrollController scroll;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final t = context.l10n;
 
     if (data.isEmpty) {
@@ -242,8 +243,10 @@ class _HistoryList extends StatelessWidget {
     return ListView.separated(
       controller: scroll,
       // Jarak bawah 88 dp — tombol Rekam mengambang menumpang di atas isi
-      // halaman dan akan menutupi baris terakhir.
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 88),
+      // halaman dan akan menutupi baris terakhir. Saat sakelarnya dimatikan
+      // (Bab 9.7) ruang itu tidak dibutuhkan lagi.
+      padding: EdgeInsets.fromLTRB(
+          16, 4, 16, ref.watch(showRecordFabProvider) ? 88 : 24),
       itemCount: data.items.length + 1,
       separatorBuilder: (_, _) => const SizedBox(height: 10),
       itemBuilder: (context, index) {

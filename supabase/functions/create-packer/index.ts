@@ -99,13 +99,33 @@ Deno.serve(async (req) => {
   if (fullName.length < 3) return json({ error: 'INVALID_NAME' }, 400);
 
   // ---- 3. Batas packer sesuai tier (Bab 7.4) ----
-  const { data: pricing } = await admin
+  //
+  // 🔴 Masa uji coba punya batasnya SENDIRI, di kunci `trial`, bukan pinjaman
+  //    dari paket `tier_plan`-nya. Sampai 1 September 2026 baris ini hanya
+  //    membaca kunci `pricing`, dan migrasi 39 menyetel ketiga paket berbayar
+  //    menjadi `max_packers: -1` (tak terbatas, keputusan Product Owner).
+  //
+  //    Akibatnya: tenant uji coba ber-`tier_plan = 'standar'` membaca -1, blok
+  //    di bawah dilewati seluruhnya, dan seorang pendaftar baru dapat membuat
+  //    packer tanpa batas tanpa membayar sepeser pun. Migrasi 39 sudah menulis
+  //    `max_packers: 5` ke kunci `trial` dan memperingatkan cacat ini di
+  //    kepalanya — tetapi tidak ada satu pun penegak yang membacanya.
+  //
+  // ⚠️ `TrialConfig` di Dart sudah benar sejak awal (`session_provider.dart`
+  //    menimpa batas tier dengan milik trial). Itu justru yang membuat cacatnya
+  //    sulit terlihat: layarnya menampilkan batas yang benar, dan hanya
+  //    servernya yang mengizinkan lebih.
+  const { data: settings } = await admin
     .from('platform_settings')
-    .select('value')
-    .eq('key', 'pricing')
-    .single();
+    .select('key, value')
+    .in('key', ['pricing', 'trial']);
 
-  const maxPackers: number = pricing?.value?.[tenant.tier_plan]?.max_packers ?? 5;
+  const pricing = settings?.find((s) => s.key === 'pricing')?.value;
+  const trial = settings?.find((s) => s.key === 'trial')?.value;
+
+  const maxPackers: number = tenant.status === 'trial'
+    ? (trial?.max_packers ?? 5)
+    : (pricing?.[tenant.tier_plan]?.max_packers ?? 5);
   if (maxPackers !== -1) {
     const { count } = await admin
       .from('users')

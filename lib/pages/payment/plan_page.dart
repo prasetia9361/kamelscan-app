@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/config/env.dart';
 import '../../core/config/tier_config.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/subscription.dart';
@@ -16,13 +17,48 @@ import 'plan_view_model.dart';
 import 'widgets/promo_field.dart';
 
 /// Halaman Pembayaran — pilih paket (Bab 9.8, Owner saja).
-class PlanPage extends ConsumerWidget {
-  const PlanPage({super.key});
+class PlanPage extends ConsumerStatefulWidget {
+  const PlanPage({super.key, this.planAwal});
+
+  /// Paket yang sudah dipilih pelanggan **sebelum** ia sampai di halaman ini,
+  /// dibaca dari `?plan=` (Bab 12.5).
+  ///
+  /// 🔴 Dipakai jalur HP → web. Di HP paketnya boleh dilihat tetapi tidak boleh
+  /// dibayar, jadi tombolnya membuka dasbor web. Sampai 3 September 2026
+  /// alamatnya dibuka **tanpa membawa pilihannya**, sehingga web memulai dari
+  /// pilihan bawaannya sendiri.
+  ///
+  /// Akibatnya bukan sekadar merepotkan: pelanggan menekan **Bisnis** di HP,
+  /// peramban terbuka dengan **Standar** terpilih, dan tidak ada satu pun
+  /// kalimat yang menjelaskan pilihannya berubah. Yang paling mungkin terjadi
+  /// berikutnya adalah ia membayar paket yang tidak ia maksud.
+  ///
+  /// Dilaporkan Product Owner setelah menguji di Android.
+  final TierPlan? planAwal;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PlanPage> createState() => _PlanPageState();
+}
+
+class _PlanPageState extends ConsumerState<PlanPage> {
+  /// Hanya sekali. Sesudah itu pilihannya milik pelanggan — menerapkannya
+  /// ulang tiap build akan membatalkan setiap ketukan pada kartu lain.
+  bool _awalDiterapkan = false;
+
+  @override
+  Widget build(BuildContext context) {
     final async = ref.watch(planViewModelProvider);
     final vm = ref.read(planViewModelProvider.notifier);
+
+    final awal = widget.planAwal;
+    if (!_awalDiterapkan && awal != null && async.hasValue) {
+      _awalDiterapkan = true;
+      // Ditunda ke sesudah frame: `select()` mengubah state provider, dan
+      // mengubahnya di tengah build melempar.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) ref.read(planViewModelProvider.notifier).select(awal);
+      });
+    }
 
     return SafeArea(
       child: switch (async) {
@@ -70,22 +106,47 @@ class _Body extends ConsumerWidget {
           Text(t.paymentChoosePlan, style: theme.textTheme.titleMedium),
           const SizedBox(height: 12),
 
-          // Dua kartu berdampingan, bukan bertumpuk. Membandingkan dua paket
-          // menuntut keduanya terlihat sekaligus; kartu bertumpuk memaksa
-          // pembacanya mengingat isi kartu pertama sambil menggulir.
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  child: _PlanCard(data: data, plan: TierPlan.standar),
+          // Berdampingan bila muat, bertumpuk bila tidak.
+          //
+          // 🔴 Sejak paket ketiga ada, tiga kartu berdampingan TIDAK MUAT di
+          // lebar HP. Memaksakannya menghasilkan RenderFlex overflow — bentuk
+          // yang sudah dua kali pecah di proyek ini (M.12 dan M.17), dan yang
+          // tidak pernah terlihat pada emulator lebar.
+          //
+          // Membandingkan paket memang lebih enak bila semuanya terlihat
+          // sekaligus, tetapi kartu yang terpotong tidak dapat dibandingkan
+          // sama sekali.
+          LayoutBuilder(
+            builder: (context, batas) {
+              final kartu = [
+                for (final plan in TierPlan.values)
+                  _PlanCard(data: data, plan: plan),
+              ];
+
+              if (batas.maxWidth < 620) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (var i = 0; i < kartu.length; i++) ...[
+                      if (i > 0) const SizedBox(height: 12),
+                      kartu[i],
+                    ],
+                  ],
+                );
+              }
+
+              return IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (var i = 0; i < kartu.length; i++) ...[
+                      if (i > 0) const SizedBox(width: 12),
+                      Expanded(child: kartu[i]),
+                    ],
+                  ],
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _PlanCard(data: data, plan: TierPlan.pro),
-                ),
-              ],
-            ),
+              );
+            },
           ),
 
           const SizedBox(height: 20),
@@ -96,6 +157,22 @@ class _Body extends ConsumerWidget {
 
           const SizedBox(height: 20),
           _PayButton(data: data),
+
+          // 🔴 Jalan masuk ke Riwayat pembayaran (Bab 7.2).
+          //
+          // Ditaruh DI SINI dan bukan di menu tersendiri karena halaman inilah
+          // yang membawa orang bertanya "kenapa saldo saya segini". Layar yang
+          // tidak punya jalan masuk sama saja belum ada — panel Admin sempat
+          // kehilangan keduanya, dan cacat itu lolos ratusan tes karena tidak
+          // ada yang rusak (P.2, jebakan nomor 13).
+          const SizedBox(height: 12),
+          Center(
+            child: TextButton.icon(
+              onPressed: () => context.push(Routes.paymentHistory),
+              icon: const Icon(Icons.receipt_long_outlined, size: 18),
+              label: Text(t.paymentHistoryMenu),
+            ),
+          ),
         ],
       ),
     );
@@ -399,9 +476,19 @@ class _PlanCard extends ConsumerWidget {
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: aktif
-            ? null
-            : () => ref.read(planViewModelProvider.notifier).select(plan),
+        // 🔴 Paket yang sedang aktif TETAP dapat dipilih, dan itu bukan
+        // kelalaian. Sampai 31 Agustus 2026 modelnya naik/turun paket,
+        // sehingga membeli paket yang sedang berjalan memang tidak berarti
+        // apa-apa dan tombolnya sengaja dimatikan.
+        //
+        // Migrasi 40 menggantinya dengan model akumulatif: beli lagi menambah
+        // token DAN menambah sisa hari. Membeli paket yang sama justru menjadi
+        // jalur isi-ulang yang paling sering dipakai — dan mematikannya
+        // mengunci pelanggan yang sudah puas dengan paketnya.
+        //
+        // Dilaporkan Product Owner 1 September 2026: "owner tidak bisa beli
+        // pada tier yang sama".
+        onTap: () => ref.read(planViewModelProvider.notifier).select(plan),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
           child: Column(
@@ -411,7 +498,11 @@ class _PlanCard extends ConsumerWidget {
               const SizedBox(height: 12),
 
               Text(
-                plan == TierPlan.pro ? t.planPro : t.planStandar,
+                switch (plan) {
+                  TierPlan.standar => t.planStandar,
+                  TierPlan.pro => t.planPro,
+                  TierPlan.bisnis => t.planBisnis,
+                },
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.5,
@@ -443,12 +534,12 @@ class _PlanCard extends ConsumerWidget {
               const Spacer(),
               SizedBox(
                 width: double.infinity,
-                child: aktif
-                    ? OutlinedButton(
-                        onPressed: null,
-                        child: Text(t.paymentActivePlan),
-                      )
-                    : dipilih
+                // ⚠️ Paket aktif tidak lagi memakai tombol MATI. Ia tetap
+                // dikenali — garis tepinya hijau dan tombolnya menyebut
+                // "Paket aktif" — tetapi tetap dapat ditekan, karena membeli
+                // ulang paket yang sama adalah perpanjangan yang sah sejak
+                // model akumulatif berlaku (migrasi 40).
+                child: dipilih
                     ? FilledButton(
                         onPressed: null,
                         child: Text(t.paymentSelected),
@@ -457,7 +548,11 @@ class _PlanCard extends ConsumerWidget {
                         onPressed: () => ref
                             .read(planViewModelProvider.notifier)
                             .select(plan),
-                        child: Text(t.paymentChoosePackage),
+                        child: Text(
+                          aktif
+                              ? t.paymentActivePlanBuyAgain
+                              : t.paymentChoosePackage,
+                        ),
                       ),
               ),
             ],
@@ -470,7 +565,9 @@ class _PlanCard extends ConsumerWidget {
   List<Widget> _fitur(BuildContext context, TierConfig tier) {
     final t = context.l10n;
     return [
-      _Feature(text: t.planFeatureSeconds(tier.maxVideoSeconds)),
+      _Feature(
+        text: t.planFeatureDuration(labelDurasi(t, tier.maxVideoSeconds)),
+      ),
       _Feature(text: t.planFeatureRetention(tier.retentionDays)),
       _Feature(text: t.planFeatureTokens(tier.monthlyTokens)),
       _Feature(
@@ -496,9 +593,11 @@ class _PlanIllustration extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.extension<AppColors>()!;
-    final warna = plan == TierPlan.pro
-        ? colors.packing
-        : theme.colorScheme.primary;
+    final warna = switch (plan) {
+      TierPlan.standar => theme.colorScheme.primary,
+      TierPlan.pro => colors.packing,
+      TierPlan.bisnis => colors.danger,
+    };
 
     final cadangan = Container(
       height: 64,
@@ -507,9 +606,11 @@ class _PlanIllustration extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Icon(
-        plan == TierPlan.pro
-            ? Icons.workspace_premium_rounded
-            : Icons.inventory_2_rounded,
+        switch (plan) {
+          TierPlan.standar => Icons.inventory_2_rounded,
+          TierPlan.pro => Icons.workspace_premium_rounded,
+          TierPlan.bisnis => Icons.rocket_launch_rounded,
+        },
         size: 32,
         color: warna,
       ),
@@ -688,14 +789,53 @@ class _PayButtonState extends ConsumerState<_PayButton> {
               const SizedBox(height: 6),
               Text(t.paymentOnWebBody, style: theme.textTheme.bodySmall),
               const SizedBox(height: 8),
-              // Alamatnya ditulis lengkap dan dapat disalin. Pelanggan sedang
-              // memegang HP; menyuruhnya "buka dasbor web" tanpa alamat berarti
-              // menyuruhnya menebak.
+
+              // 🔴 Tombol yang membuka peramban, bukan sekadar alamat yang
+              // dapat disalin.
+              //
+              // Pelanggan sedang memegang HP. Menyuruhnya mengetik
+              // "kamelscan.com/app" di peramban berarti menambah satu langkah
+              // yang mudah salah ketik, tepat pada langkah tempat ia hendak
+              // membayar — dan setiap langkah tambahan di jalur uang adalah
+              // pelanggan yang berhenti di tengah jalan.
+              //
+              // ⚠️ `externalApplication` disengaja, BUKAN WebView. Bab 12.5:
+              // alur bayar yang berjalan di dalam aplikasi adalah bentuk yang
+              // paling sering ditolak App Store. Alamatnya tetap ditulis utuh
+              // di tombolnya supaya pelanggan tahu ke mana ia akan dibawa.
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.tonalIcon(
+                  onPressed: () async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    final pesan = t.paymentOpenFailed;
+                    // 🔴 Pilihannya IKUT DIBAWA. Tanpa `?plan=`, peramban
+                    // membuka halaman ini dengan pilihan bawaannya sendiri —
+                    // dan pelanggan yang menekan Bisnis di HP menemukan
+                    // Standar terpilih di web, tanpa penjelasan apa pun.
+                    final dibuka = await launchUrl(
+                      Uri.parse(
+                        '${Env.webAppBaseUrl}${Routes.payment}'
+                        '?plan=${widget.data.selected.wire}',
+                      ),
+                      mode: LaunchMode.externalApplication,
+                    );
+                    if (!dibuka) {
+                      messenger.showSnackBar(SnackBar(content: Text(pesan)));
+                    }
+                  },
+                  icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                  label: Text(t.paymentOpenWebButton),
+                ),
+              ),
+              const SizedBox(height: 6),
+              // Alamatnya tetap dapat disalin, untuk yang ingin membukanya di
+              // perangkat lain.
               SelectableText(
                 'kamelscan.com/app',
-                style: theme.textTheme.bodyMedium?.copyWith(
+                style: theme.textTheme.bodySmall?.copyWith(
                   fontFamily: 'monospace',
-                  color: colors.packing,
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -816,7 +956,69 @@ class _PayButtonState extends ConsumerState<_PayButton> {
   /// Halaman `finish` hanya menampilkan keadaan; yang melunaskan tagihan
   /// adalah webhook server-to-server (Bab 12.3 aturan 1), karena callback di
   /// sisi aplikasi mudah dipalsukan.
+  /// Peringatan wajib saat pembelian MENURUNKAN paket (Bab 12.4).
+  ///
+  /// 🔴 `tier_plan` mengikuti pembelian terakhir, dua arah. Membeli paket yang
+  /// lebih rendah sementara paket yang lebih tinggi masih berjalan akan
+  /// memotong durasi maksimal rekam **seketika begitu pembayaran lunas** —
+  /// dari 3 menit ke 30 detik, misalnya.
+  ///
+  /// Tanpa peringatan ini, packer yang biasa merekam dua menit tiba-tiba
+  /// terpotong di tengah pekerjaan, dan tidak ada seorang pun di toko itu yang
+  /// tahu apa yang berubah. Owner-nya sendiri tidak: yang ia tekan adalah
+  /// tombol beli, bukan tombol ubah paket.
+  ///
+  /// ⚠️ Tokennya sendiri tidak berkurang — ia tetap ditambahkan seperti
+  /// pembelian mana pun. Dikatakan di dialognya supaya kekhawatiran yang salah
+  /// tidak menghentikan pembelian yang memang disengaja.
+  Future<bool> _lanjutMeskiTurunPaket() async {
+    final data = widget.data;
+
+    // Selama uji coba belum ada paket yang benar-benar dibeli, jadi tidak ada
+    // yang dapat turun.
+    if (data.isTrial || !data.selected.lebihRendahDari(data.currentPlan)) {
+      return true;
+    }
+
+    final t = context.l10n;
+    final lama = labelDurasi(t, data.catalog.of(data.currentPlan).maxVideoSeconds);
+    final baru = labelDurasi(t, data.catalog.of(data.selected).maxVideoSeconds);
+
+    final jawab = await showDialog<bool>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: Text(t.paymentDowngradeTitle),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(t.paymentDowngradeBody(lama, baru)),
+            const SizedBox(height: 12),
+            Text(
+              t.paymentDowngradeSafe,
+              style: Theme.of(d).textTheme.bodySmall,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(d, false),
+            child: Text(t.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(d, true),
+            child: Text(t.paymentDowngradeConfirm),
+          ),
+        ],
+      ),
+    );
+
+    return jawab ?? false;
+  }
+
   Future<void> _bayarMidtrans() async {
+    if (!await _lanjutMeskiTurunPaket()) return;
+    if (!mounted) return;
     setState(() => _sedangKirim = true);
 
     final t = context.l10n;
@@ -882,6 +1084,10 @@ class _PayButtonState extends ConsumerState<_PayButton> {
   }
 
   Future<void> _bayar() async {
+    // Jalur transfer manual menempuh peringatan yang sama. Aturannya milik
+    // pembeliannya, bukan milik metode pembayarannya.
+    if (!await _lanjutMeskiTurunPaket()) return;
+    if (!mounted) return;
     setState(() => _sedangKirim = true);
 
     final messenger = ScaffoldMessenger.of(context);

@@ -108,6 +108,33 @@ class RouteGuards {
       return _homeFor(peran);
     }
 
+    // Bab 9.6 — akun yang sedang menunggu dimusnahkan terkunci SELURUHNYA.
+    //
+    // 🔴 Diperiksa sebelum penjagaan mana pun di bawah, dan itu disengaja.
+    //    Layar konfirmasinya menjanjikan "akun langsung tidak dapat digunakan";
+    //    penjagaan yang diletakkan lebih bawah akan membiarkan pemiliknya
+    //    singgah dulu ke Ganti Password atau Lengkapi Profil — dua layar yang
+    //    menulis ke database milik akun yang sudah pamit.
+    final tenant = _ref.read(sessionProvider).value?.tenant;
+    if (tenant != null && tenant.isDeletionPending) {
+      if (location != Routes.deletionPending) {
+        debugPrint('KAMELSCAN_GUARD → hapus-akun tertunda · dari=$location');
+        return Routes.deletionPending;
+      }
+      return null;
+    }
+
+    // Sudah dibatalkan, tetapi layar kuncinya masih terbuka.
+    //
+    // Jejaknya sengaja permanen. Cabang ini pernah benar sepenuhnya dan tetap
+    // tidak pernah dijalankan, karena routernya tidak diberi tahu untuk
+    // menilai ulang — dan tanpa satu baris cetakan pun, keadaan "tidak pernah
+    // dipanggil" tidak dapat dibedakan dari "dipanggil lalu memutuskan diam".
+    if (location == Routes.deletionPending) {
+      debugPrint('KAMELSCAN_GUARD → hapus-akun dibatalkan · pulang ke beranda');
+      return _homeFor(_ref.read(currentRoleProvider));
+    }
+
     // Bab 6.7 — packer yang masih memakai password sementara tidak boleh
     // masuk ke layar mana pun sebelum menggantinya. Password itu sudah dilihat
     // Owner, jadi selama belum diganti akunnya bukan miliknya sendiri.
@@ -216,6 +243,33 @@ class GoRouterRefreshNotifier extends ChangeNotifier {
     // Bab 6.8 — tautan reset tiba saat aplikasi sedang terbuka. Sesinya
     // berubah tanpa mengubah status login maupun peran.
     _ref.listen(passwordResetPendingProvider, (_, _) => notifyListeners());
+
+    // Bab 9.6 — permintaan hapus akun diterima, atau dibatalkan. Yang hilang
+    // sampai 1 September 2026, dan gejalanya persis seperti yang sudah
+    // diperingatkan di kepala berkas ini: Owner menekan Hapus Akun,
+    // permintaannya BERHASIL, `deletion_requested_at` terisi — dan layarnya
+    // diam di tempat, tanpa satu pun galat.
+    _ref.listen(deletionPendingProvider, (_, _) => notifyListeners());
+
+    // 🔴 SESINYA SENDIRI, bukan hanya turunannya yang sempit.
+    //
+    //    Aturannya berbunyi: apa pun yang DIBACA `redirect` wajib disimak di
+    //    sini. Dan `redirect` membaca `sessionProvider` secara langsung —
+    //    `_ref.read(sessionProvider).value?.tenant` — bukan lewat salah satu
+    //    provider sempit di atas. Menyimak turunannya saja berarti menutup
+    //    satu field dari sesi, sementara penjaganya membaca seluruh objeknya.
+    //
+    //    Terbukti kurang pada 2 September 2026: permintaan hapus akun
+    //    memindahkan layar dengan benar, tetapi PEMBATALANNYA tidak. Pesan
+    //    "penghapusan dibatalkan" muncul, `deletion_requested_at` benar-benar
+    //    kosong di produksi — dan layar kuncinya tetap terpasang sampai Owner
+    //    keluar lalu masuk lagi.
+    //
+    // ⚠️ Simakan ini memang lebih lebar daripada yang lain, dan itu disengaja.
+    //    `notifyListeners` yang berlebihan hanya membuat `redirect` dihitung
+    //    ulang — murah, dan hasilnya sama. Yang mahal adalah kebalikannya:
+    //    layar yang seharusnya berpindah, diam di tempat, tanpa satu pun galat.
+    _ref.listen(sessionProvider, (_, _) => notifyListeners());
   }
 
   final Ref _ref;

@@ -1,6 +1,7 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../repositories/account_deletion_repository.dart';
 import '../repositories/admin_repository.dart';
 import '../repositories/admin_settings_repository.dart';
 import '../repositories/auth_repository.dart';
@@ -10,6 +11,7 @@ import '../repositories/settings_repository.dart';
 import '../repositories/shop_repository.dart';
 import '../repositories/subscription_repository.dart';
 import '../repositories/token_repository.dart';
+import '../repositories/tutorial_repository.dart';
 import '../repositories/user_repository.dart';
 import '../repositories/video_repository.dart';
 import '../services/auth_service.dart';
@@ -140,6 +142,10 @@ SubscriptionRepository subscriptionRepository(Ref ref) =>
     SubscriptionRepository(ref.watch(supabaseClientProvider));
 
 @Riverpod(keepAlive: true)
+AccountDeletionRepository accountDeletionRepository(Ref ref) =>
+    AccountDeletionRepository(ref.watch(supabaseClientProvider));
+
+@Riverpod(keepAlive: true)
 AdminRepository adminRepository(Ref ref) =>
     AdminRepository(ref.watch(supabaseClientProvider));
 
@@ -151,3 +157,11 @@ AdminRepository adminRepository(Ref ref) =>
 @Riverpod(keepAlive: true)
 AdminSettingsRepository adminSettingsRepository(Ref ref) =>
     AdminSettingsRepository(ref.watch(supabaseClientProvider));
+
+/// Daftar tutorial yang dilihat Owner dan packer (Bab 9.9).
+///
+/// Sisi bacanya saja. CRUD milik Admin hidup di [adminSettingsRepository],
+/// mengikuti pemisahan yang sudah dipakai promo.
+@Riverpod(keepAlive: true)
+TutorialRepository tutorialRepository(Ref ref) =>
+    TutorialRepository(ref.watch(supabaseClientProvider));

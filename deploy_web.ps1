@@ -127,6 +127,40 @@ if ($Landing) {
     }
     Copy-Item (Join-Path $Landing '*') $out -Recurse -Force
     Write-Host "Landing page disalin dari $Landing" -ForegroundColor Green
+
+    # 🔴 Kredensial disuntikkan SESUDAH disalin, ke salinannya — bukan ke
+    # berkas sumber. `landing/` masuk git, `env.dev.json` tidak.
+    #
+    # Sejak 4 September 2026 landing page mengambil spanduknya dari
+    # `platform_settings.banner_landing` (Bab 10.2). Kunci anon memang kunci
+    # publik — ia sudah ada di dalam `main.dart.js` yang dapat diunduh siapa
+    # saja — tetapi tetap tidak dituliskan ke repositori. Aturan yang sama
+    # sudah dipakai halaman bukti publik `/v/` di bawah.
+    $appJs = Join-Path $out 'app.js'
+    if (Test-Path $appJs) {
+        if ([string]::IsNullOrWhiteSpace($cfg.SUPABASE_URL) -or
+            [string]::IsNullOrWhiteSpace($cfg.SUPABASE_ANON_KEY)) {
+            Write-Host "BERHENTI: SUPABASE_URL atau SUPABASE_ANON_KEY kosong di $envFile." -ForegroundColor Red
+            exit 1
+        }
+
+        $js = Get-Content $appJs -Raw -Encoding UTF8
+        $js = $js.Replace('__SUPABASE_URL__', $cfg.SUPABASE_URL)
+        $js = $js.Replace('__SUPABASE_ANON_KEY__', $cfg.SUPABASE_ANON_KEY)
+
+        # ⚠️ Penanda yang lolos TIDAK merusak halaman — `spanduk()` berhenti
+        # diam dan ilustrasinya tetap berdiri. Justru karena itu ia wajib
+        # dijaga di sini: kegagalannya tidak akan terlihat siapa pun, dan
+        # spanduk yang diunggah Admin diam-diam tidak pernah tampil.
+        if ($js -match '__SUPABASE') {
+            Write-Host "BERHENTI: penanda kredensial masih tersisa di landing/app.js." -ForegroundColor Red
+            exit 1
+        }
+
+        [System.IO.File]::WriteAllText(
+            $appJs, $js, (New-Object System.Text.UTF8Encoding($false)))
+        Write-Host "Kredensial spanduk landing disuntikkan" -ForegroundColor Green
+    }
 } else {
     Write-Host "Landing page dilewati - akar situs akan menjawab 404." -ForegroundColor Yellow
 }
@@ -203,8 +237,24 @@ if (Test-Path $sumberV) {
 #
 # ⚠️ KONSEKUENSI: setiap rute baru di `route_names.dart` WAJIB ditambahkan ke
 #    daftar ini. Yang terlupa akan bekerja saat diklik dari dalam aplikasi,
-#    tetapi menjawab 404 begitu halamannya disegarkan atau alamatnya dikirim
-#    ke orang lain - gejala yang mudah disalahartikan sebagai cacat aplikasi.
+#    tetapi rusak begitu halamannya disegarkan atau alamatnya dikirim ke orang
+#    lain.
+#
+# 🔴 GEJALANYA BUKAN 404. Baris ini sempat menulis 404 selama berbulan-bulan,
+#    dan itu menyesatkan. Diukur di produksi 1 September 2026 pada rute
+#    /deletion-pending yang memang terlupa:
+#
+#      /app/complete-profile -> 200, 13327 byte, flutter_bootstrap.js x1
+#      /app/deletion-pending -> 200, 35969 byte, flutter_bootstrap.js x0
+#
+#    Alamatnya menjawab 200 sambil menyajikan halaman LANDING, tampil tanpa
+#    gaya karena CSS-nya dicari relatif terhadap folder yang tidak ada. Itu
+#    lebih jahat daripada 404: 404 kelihatan jelas rusak, sedangkan ini
+#    terbaca seperti aplikasinya yang rusak.
+#
+#    Memeriksanya dengan kode status TIDAK cukup. Yang benar:
+#      curl -s https://kamelscan.com/app/<rute> | grep -c "flutter_bootstrap.js"
+#    Harus 1. Nol berarti yang tersaji halaman landing.
 $rules = @()
 
 # Halaman bukti publik: aman memakai bintang karena di bawah /v/ memang tidak
@@ -217,6 +267,10 @@ if (Test-Path (Join-Path $out 'v/index.html')) {
 foreach ($r in @(
     'login', 'register', 'verify-email', 'forgot-password',
     'change-password', 'complete-profile', 'reset-password',
+    # Bab 9.6 - rute TINGKAT ATAS, bukan di bawah /account, jadi pola
+    # 'account/*' TIDAK menutupinya. Ia justru halaman yang paling mungkin
+    # disegarkan orang: layar tunggu 7 hari sebelum akunnya dimusnahkan.
+    'deletion-pending',
     'dashboard', 'tutorial',
     'home', 'home/*',
     'history', 'history/*',

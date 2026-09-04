@@ -7,11 +7,14 @@ import 'package:go_router/go_router.dart';
 import '../../../core/domain/recording_machine.dart';
 import '../../../core/models/enums.dart';
 import '../../../core/models/shop.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/theme/app_text_styles_display.dart';
 import '../../../core/widgets/app_state_views.dart';
 import '../../../core/widgets/failure_messages.dart';
 import '../../../main.dart' show reportCameraCapabilities;
 import '../../../navigation/route_names.dart';
+import '../../history/widgets/marketplace_badge.dart';
 import 'recording_setup_view_model.dart';
 
 /// Layar setup perekaman (Bab 8.2).
@@ -118,6 +121,12 @@ class _SetupBody extends ConsumerWidget {
               // untuk satu hal: packer yang menekan "Rekam Paket Return" lalu
               // menemukan chip Packing masih dapat dipilih akan wajar mengira
               // menu tadi belum berlaku.
+              // Chip penanda jenis — **tidak dapat ditekan**, dan itu
+              // disengaja. Ia mengulang apa yang sudah dikatakan judul AppBar
+              // supaya jenisnya terlihat tanpa menengadah ke bilah atas, tetapi
+              // tetap bukan pilihan kedua (lihat catatan di bawah).
+              _TypeMarker(type: VideoType.fromWire(typeWire)),
+              const SizedBox(height: 18),
               _Section(
                 number: 1,
                 title: t.recordPickCamera,
@@ -127,7 +136,7 @@ class _SetupBody extends ConsumerWidget {
                   onSelect: vm.selectCamera,
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 18),
               _Section(
                 number: 2,
                 title: t.recordPickTrigger,
@@ -136,7 +145,7 @@ class _SetupBody extends ConsumerWidget {
                   onSelect: vm.selectTriggerMode,
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 18),
               _Section(
                 number: 3,
                 title: t.recordPickShop,
@@ -297,22 +306,114 @@ class _TriggerTile extends StatelessWidget {
       TriggerMode.manual => (Icons.keyboard_alt_outlined, t.triggerManual, t.triggerManualHint),
     };
 
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      color: selected ? scheme.primaryContainer : null,
+      decoration: BoxDecoration(
+        color: selected ? scheme.primaryContainer : scheme.surface,
+        borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+        // Terpilih dibedakan bentuk **dan** warna (§0 palet): garis tepi primer
+        // ditambah tanda centang, bukan hanya latar yang berubah.
+        border: Border.all(
+          color: selected ? scheme.primary : scheme.outlineVariant,
+          width: selected ? 1.6 : 1,
+        ),
+      ),
       child: ListTile(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+        ),
         leading: Icon(icon,
             color: selected ? scheme.onPrimaryContainer : scheme.onSurfaceVariant),
         title: Text(title),
         subtitle: Text(subtitle),
-        trailing: selected ? const Icon(Icons.check_circle) : null,
+        trailing: selected
+            ? Icon(Icons.check_circle, color: scheme.primary)
+            : null,
         onTap: onTap,
       ),
     );
   }
 }
 
-class _ShopPicker extends StatelessWidget {
+/// Penanda jenis paket — **bukan pemilih**.
+///
+/// 🔴 TIDAK ADA pemilih jenis di layar ini (keputusan Product Owner
+/// 18 Agustus 2026). Chip ini sengaja tanpa `onTap`: ia menyatakan jenis yang
+/// sudah ditentukan menu Beranda, bukan menawarkan mengubahnya. Packer yang
+/// menekan "Rekam Return" lalu menemukan chip yang dapat ditekan akan wajar
+/// mengira pilihannya belum berlaku.
+class _TypeMarker extends StatelessWidget {
+  const _TypeMarker({required this.type});
+
+  final VideoType type;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.l10n;
+    final colors = Theme.of(context).extension<AppColors>()!;
+    final packing = type == VideoType.packing;
+
+    final (bg, fg, icon, label) = packing
+        ? (
+            colors.packingContainer,
+            colors.onPackingContainer,
+            Icons.inventory_2_outlined,
+            t.videoTypePacking,
+          )
+        : (
+            colors.returnContainer,
+            colors.onReturnContainer,
+            Icons.move_to_inbox_outlined,
+            t.videoTypeReturn,
+          );
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(AppSizes.radiusFull),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // §0 palet — warna tidak pernah jadi satu-satunya pembeda makna;
+            // chip ini selalu memuat ikon dan tulisannya.
+            Icon(icon, size: 14, color: fg),
+            const SizedBox(width: 6),
+            Text(
+              label.toUpperCase(),
+              style: AppDisplayStyles.kicker
+                  .copyWith(fontSize: 9.5, letterSpacing: 1.4, color: fg),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Pilih toko — **satu baris yang digulir mendatar**.
+///
+/// 🔴 Keputusan Product Owner 3 September 2026, menggantikan grid 3 kolom.
+///
+/// Alasannya bukan gaya: layar ini punya tiga bagian di atas tombol Mulai.
+/// Grid 3 kolom memang lebih hemat daripada daftar vertikal, tetapi ia tetap
+/// **tumbuh ke bawah** — enam toko menjadi dua baris, sembilan menjadi tiga,
+/// dan setiap baris tambahan mendorong tombol Mulai makin jauh dari jempol.
+/// Baris mendatar tingginya tetap 92 dp berapa pun jumlah tokonya.
+///
+/// ⚠️ Lebar petak 128 dp dipilih supaya pada layar 402 dp petak ketiga
+/// **terpotong sedikit**, bukan pas di tepi. Baris yang berhenti rapi di tepi
+/// layar terbaca seperti daftar yang sudah habis, dan toko keempat tidak akan
+/// pernah dicari orang. Potongan itu satu-satunya tanda bahwa barisnya masih
+/// berlanjut.
+///
+/// Logo marketplace memakai [MarketplaceBadge] yang sama dengan Riwayat dan
+/// daftar Toko — menyalinnya ke sini berarti warna dan bentuknya perlahan
+/// menyimpang di antara layar.
+class _ShopPicker extends StatefulWidget {
   const _ShopPicker({
     required this.shops,
     required this.selected,
@@ -324,25 +425,150 @@ class _ShopPicker extends StatelessWidget {
   final ValueChanged<String> onSelect;
 
   @override
+  State<_ShopPicker> createState() => _ShopPickerState();
+}
+
+class _ShopPickerState extends State<_ShopPicker> {
+  /// Lebar satu petak beserta jaraknya ke petak berikutnya.
+  static const double _lebarPetak = 128;
+  static const double _jarak = 8;
+
+  /// Sisa ruang yang sengaja disisakan di kiri petak terpilih.
+  ///
+  /// Tanpa ini petak terpilih menempel persis di tepi kiri, dan barisnya
+  /// terbaca seolah tidak ada apa-apa lagi sebelumnya. Potongan petak
+  /// sebelumnya adalah satu-satunya tanda bahwa daftarnya masih berlanjut ke
+  /// kiri — alasan yang sama dengan potongan di tepi kanan.
+  static const double _intip = 44;
+
+  late final ScrollController _gulir =
+      ScrollController(initialScrollOffset: _offsetAwal());
+
+  /// Posisi gulir awal supaya toko yang SUDAH TERPILIH terlihat.
+  ///
+  /// 🔴 Ini menutup cacat yang lahir 3 September 2026 bersama perubahan grid
+  /// menjadi baris mendatar, dan tidak tertangkap satu pun tes.
+  ///
+  /// `RecordingSetupViewModel` memilih toko terakhir dari `prefLastShopId`.
+  /// Saat pemilihnya masih grid, seluruh toko selalu terlihat sehingga
+  /// pilihan itu mustahil tersembunyi. Pada baris mendatar hanya sekitar tiga
+  /// petak yang muat di layar 402 dp — tenant dengan empat toko atau lebih
+  /// membuka layar ini dengan **pilihannya berada di luar pandangan**.
+  ///
+  /// Yang dilihat packer: tiga petak tanpa satu pun tertandai, sementara
+  /// tombol Mulai sudah menyala. Di layar yang gunanya menetapkan nama toko
+  /// yang **terbakar ke dalam video bukti**, pilihan yang tidak terlihat
+  /// bukan sekadar kurang rapi.
+  ///
+  /// ⚠️ Dihitung sekali saat controller lahir, BUKAN digulirkan ulang tiap
+  /// kali pilihannya berubah. Menggulir sendiri saat packer baru saja
+  /// mengetuk sebuah petak akan memindahkan barisnya di bawah jarinya.
+  double _offsetAwal() {
+    final i = widget.shops.indexWhere((s) => s.id == widget.selected);
+    if (i <= 0) return 0;
+
+    final offset = (i * (_lebarPetak + _jarak)) - _intip;
+    // Negatif mustahil di sini (i >= 1), tetapi dijaga supaya perubahan angka
+    // di atas tidak diam-diam menghasilkan offset tak sah.
+    return offset < 0 ? 0 : offset;
+  }
+
+  @override
+  void dispose() {
+    _gulir.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        for (final shop in shops)
-          Card(
-            margin: const EdgeInsets.only(bottom: 8),
-            color: selected == shop.id
-                ? Theme.of(context).colorScheme.primaryContainer
-                : null,
-            child: ListTile(
-              leading: const Icon(Icons.storefront_outlined),
-              title: Text(shop.shopName),
-              subtitle: Text(shop.marketName),
-              trailing:
-                  selected == shop.id ? const Icon(Icons.check_circle) : null,
-              onTap: () => onSelect(shop.id),
+    // Tinggi ditetapkan dari luar, bukan diukur dari isinya: bagian ini
+    // berdiri di dalam `ListView`, dan di dalam gulir tinggi yang tersedia
+    // tak terhingga — mengukurnya di sana melempar galat tata letak.
+    return SizedBox(
+      height: 92,
+      child: ListView.separated(
+        controller: _gulir,
+        scrollDirection: Axis.horizontal,
+        itemCount: widget.shops.length,
+        separatorBuilder: (_, _) => const SizedBox(width: _jarak),
+        itemBuilder: (context, i) {
+          final shop = widget.shops[i];
+          return SizedBox(
+            width: _lebarPetak,
+            child: _ShopTile(
+              shop: shop,
+              selected: widget.selected == shop.id,
+              onTap: () => widget.onSelect(shop.id),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ShopTile extends StatelessWidget {
+  const _ShopTile({
+    required this.shop,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final Shop shop;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return Material(
+      color: selected ? scheme.primaryContainer : scheme.surface,
+      borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+            // Terpilih dibedakan bentuk **dan** warna: garis tepi primer di
+            // atas latar container, bukan warna latar saja.
+            border: Border.all(
+              color: selected ? scheme.primary : scheme.outlineVariant,
+              width: selected ? 1.6 : 1,
             ),
           ),
-      ],
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              MarketplaceBadge(marketName: shop.marketName, size: 26),
+              const SizedBox(height: 6),
+              Text(
+                shop.marketName.toUpperCase(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppDisplayStyles.metaMono.copyWith(
+                  fontSize: 8.5,
+                  letterSpacing: 0.6,
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+              Text(
+                shop.shopName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  fontSize: 12,
+                  color: selected ? scheme.onPrimaryContainer : scheme.onSurface,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

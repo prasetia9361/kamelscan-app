@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/domain/watermark_command.dart';
 import '../../../../core/models/enums.dart';
+import '../../../../core/theme/app_text_styles.dart';
 import '../recording_camera_view_model.dart';
 
 /// Menampilkan isi watermark **selama merekam**, di tempat dan dengan bentuk
@@ -36,44 +38,21 @@ class WatermarkPreviewOverlay extends ConsumerWidget {
 
     final isTop = preview.position == WatermarkPosition.topLeft ||
         preview.position == WatermarkPosition.topRight;
-    final isLeft = preview.position == WatermarkPosition.topLeft ||
-        preview.position == WatermarkPosition.bottomLeft;
 
-    // `buildLines` menyusun dari tepi ke dalam: indeks 0 paling dekat tepi.
-    // Di bawah itu berarti indeks 0 paling bawah, jadi urutannya dibalik.
-    final ordered =
-        isTop ? preview.lines : preview.lines.reversed.toList(growable: false);
+    final lines = preview.lines;
+    if (lines.isEmpty) return const SizedBox.shrink();
 
     return IgnorePointer(
       child: SafeArea(
         child: Align(
-          alignment: switch (preview.position) {
-            WatermarkPosition.topLeft => Alignment.topLeft,
-            WatermarkPosition.topRight => Alignment.topRight,
-            WatermarkPosition.bottomLeft => Alignment.bottomLeft,
-            WatermarkPosition.bottomRight => Alignment.bottomRight,
-          },
+          alignment: isTop ? Alignment.topCenter : Alignment.bottomCenter,
           child: Padding(
             // Jarak bawah 116 dp menghindari tombol Berhenti yang bulat
             // (76 dp + 24 dp dari dasar layar) beserta sisa ruang bernapas;
-            // jarak atas 88 dp menghindari palang judul beserta nomor resinya.
+            // jarak atas 88 dp menghindari palang judul beserta pil keadaan.
             padding:
                 EdgeInsets.fromLTRB(12, isTop ? 88 : 12, 12, isTop ? 12 : 116),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment:
-                  isLeft ? CrossAxisAlignment.start : CrossAxisAlignment.end,
-              children: [
-                for (var i = 0; i < ordered.length; i++)
-                  _WatermarkLine(
-                    text: ordered[i],
-                    opacity: preview.opacity,
-                    // Baris resi (indeks 0 pada daftar aslinya) satu tingkat
-                    // lebih besar, meniru `buildFilterChain`.
-                    emphasised: isTop ? i == 0 : i == ordered.length - 1,
-                  ),
-              ],
-            ),
+            child: _Plaque(lines: lines, opacity: preview.opacity),
           ),
         ),
       ),
@@ -81,34 +60,106 @@ class WatermarkPreviewOverlay extends ConsumerWidget {
   }
 }
 
-class _WatermarkLine extends StatelessWidget {
-  const _WatermarkLine({
-    required this.text,
-    required this.opacity,
-    required this.emphasised,
-  });
+/// Plakat bukti — tiruan bentuk yang dibakar `WatermarkCommand.buildFilterChain`.
+///
+/// Susunannya: garis aksen camel di tepi kiri, kepala
+/// `KAMELSCAN · BUKTI VIDEO`, nomor resi besar bermonospace, lalu keterangan
+/// kecil. Semuanya rata kiri di dalam satu bidang gelap.
+///
+/// ⚠️ Angka-angka di sini sengaja mengikuti konstanta di `WatermarkCommand`
+/// (`resiFontSize`, `metaFontSize`, `accentWidth`, `accentGap`) supaya
+/// keduanya bergerak bersama. Kalau salah satunya diubah tanpa yang lain,
+/// packer melihat satu bentuk di layar dan mendapat bentuk lain di videonya.
+class _Plaque extends StatelessWidget {
+  const _Plaque({required this.lines, required this.opacity});
 
-  final String text;
+  final List<String> lines;
   final double opacity;
-  final bool emphasised;
 
   @override
   Widget build(BuildContext context) {
+    final resi = lines.first;
+    final meta = lines.skip(1).toList(growable: false);
+
     return Container(
-      margin: const EdgeInsets.only(top: 2),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      // Kotak gelap di belakang teks, sama seperti `box=1:boxcolor=black@…`
-      // pada perintah FFmpeg. Di atas kardus terang, garis tepi saja tidak
-      // cukup terbaca (Bab 8.5).
+      width: double.infinity,
       color: Color.fromRGBO(0, 0, 0, opacity),
-      child: Text(
-        text,
-        textAlign: TextAlign.right,
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: emphasised ? 15 : 13,
-          fontWeight: emphasised ? FontWeight.w700 : FontWeight.w500,
-          height: 1.25,
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Garis aksen camel — satu-satunya warna merek pada bukti.
+            Container(
+              width: WatermarkCommand.accentWidth.toDouble(),
+              color: const Color(WatermarkCommand.accentArgb),
+            ),
+            SizedBox(width: WatermarkCommand.accentGap.toDouble()),
+            Expanded(
+              child: Padding(
+                // 🔴 Angkanya datang dari `WatermarkCommand`, bukan ditulis
+                // ulang di sini. Sampai 3 September 2026 baris ini menulis
+                // `fromLTRB(0, 8, 10, 9)` sendiri sementara sisi video tidak
+                // punya jarak atas sama sekali — dan tidak ada apa pun yang
+                // menandai perbedaannya sampai Product Owner membandingkan
+                // layar rekam dengan videonya.
+                padding: EdgeInsets.fromLTRB(
+                  0,
+                  WatermarkCommand.padTop.toDouble(),
+                  10,
+                  WatermarkCommand.padBottom.toDouble(),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      WatermarkCommand.plaqueKicker,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Color(WatermarkCommand.kickerArgb),
+                        fontFamily: AppFonts.sans,
+                        fontSize: 8.5,
+                        height: 1.3,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    // Bab 8.3.5 — nomor resi besar. Monospace supaya 0 dan O
+                    // tidak tertukar saat bukti dibacakan lewat telepon.
+                    Text(
+                      resi,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontFamily: AppFonts.mono,
+                        fontSize: 22,
+                        height: 1.15,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    for (final line in meta)
+                      Text(
+                        line,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontFamily: AppFonts.mono,
+                          fontSize: 10,
+                          height: 1.45,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

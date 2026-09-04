@@ -6,16 +6,20 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../core/config/env.dart';
 import '../core/models/enums.dart';
 import '../pages/account/account_page.dart';
+import '../pages/account/delete_account_page.dart';
+import '../pages/account/deletion_pending_page.dart';
 import '../pages/account/edit_profile/edit_profile_page.dart';
 import '../pages/account/packers/packers_page.dart';
 import '../pages/admin/dashboard/admin_dashboard_page.dart';
 import '../pages/admin/dashboard/admin_stats_page.dart';
 import '../pages/admin/payments/admin_payments_page.dart';
+import '../pages/admin/settings/admin_banners_page.dart';
 import '../pages/admin/settings/admin_contact_page.dart';
 import '../pages/admin/settings/admin_new_admin_page.dart';
 import '../pages/admin/settings/admin_payment_methods_page.dart';
 import '../pages/admin/settings/admin_pricing_page.dart';
 import '../pages/admin/settings/admin_promos_page.dart';
+import '../pages/admin/settings/admin_tutorials_page.dart';
 import '../pages/admin/users/admin_users_page.dart';
 import '../pages/auth/callback/auth_callback_page.dart';
 import '../pages/auth/change_password/change_password_page.dart';
@@ -31,6 +35,7 @@ import '../pages/home/home_page.dart';
 import '../pages/not_found_page.dart';
 import '../pages/payment/checkout/checkout_page.dart';
 import '../pages/payment/payment_access.dart';
+import '../pages/payment/payment_history_page.dart';
 import '../pages/payment/plan_page.dart';
 import '../pages/public/public_video_page.dart';
 import '../pages/recording/camera/recording_camera_page.dart';
@@ -98,6 +103,15 @@ GoRouter appRouter(Ref ref) {
       GoRoute(
         path: Routes.completeProfile,
         builder: (_, _) => const CompleteProfilePage(),
+      ),
+
+      // Bab 9.6 — layar kunci akun yang menunggu dimusnahkan.
+      //
+      // Di luar `StatefulShellRoute` dengan sengaja: bilah tab di bawah
+      // menuju layar-layar yang justru sedang dikunci penjaga rute.
+      GoRoute(
+        path: Routes.deletionPending,
+        builder: (_, _) => const DeletionPendingPage(),
       ),
       GoRoute(
         path: Routes.resetPassword,
@@ -185,6 +199,16 @@ GoRouter appRouter(Ref ref) {
             path: 'contact',
             builder: (_, _) => const AdminContactPage(),
           ),
+          // Bab 9.9 — Admin memasukkan tautan YouTube tiap langkah.
+          GoRoute(
+            path: 'tutorials',
+            builder: (_, _) => const AdminTutorialsPage(),
+          ),
+          // Bab 11.5 — gambar iklan landing page dan kartu paket.
+          GoRoute(
+            path: 'banners',
+            builder: (_, _) => const AdminBannersPage(),
+          ),
           GoRoute(
             path: 'new-admin',
             builder: (_, _) => const AdminNewAdminPage(),
@@ -206,13 +230,26 @@ GoRouter appRouter(Ref ref) {
                 builder: (_, _) =>
                     kIsWeb ? const WebDashboardPage() : const HomePage(),
                 routes: [
-                  // Tutorial di HP hidup di bawah Beranda: dibuka dari sana,
-                  // punya tombol kembali, dan menu bawah tetap menyala di
-                  // Beranda. Di web ia menjadi cabang tersendiri — lihat
-                  // cabang 5 di bawah dan `Routes.homeTutorial`.
+                  // Tutorial di HP hidup di bawah Beranda: dibuka dari sana
+                  // dan punya tombol kembali. Di web ia menjadi cabang
+                  // tersendiri — lihat cabang 5 di bawah dan
+                  // `Routes.homeTutorial`.
+                  //
+                  // 🔴 `parentNavigatorKey: _rootNavigatorKey` — halamannya
+                  // BERDIRI DI LUAR rangka mobile, sama seperti Riwayat
+                  // pembayaran. Keputusan Product Owner 3 September 2026
+                  // sesudah melihatnya di Redmi Note 9.
+                  //
+                  // Tanpa ini ia digambar DI DALAM rangka, sehingga bilah
+                  // `KAMELSCAN` milik rangka dan bilah `Tutorial` milik
+                  // halamannya bertumpuk menjadi dua kepala di atas satu
+                  // layar — dan yang di bawahnya sudah punya tombol kembali
+                  // sendiri, jadi menu bawah yang tetap menyala hanya menambah
+                  // jalan keluar kedua yang tidak diminta siapa pun.
                   if (!kIsWeb)
                     GoRoute(
                       path: 'tutorial',
+                      parentNavigatorKey: _rootNavigatorKey,
                       builder: (_, _) => const TutorialPage(),
                     ),
                 ],
@@ -308,11 +345,33 @@ GoRouter appRouter(Ref ref) {
                     parentNavigatorKey: _rootNavigatorKey,
                     builder: (_, _) => const PackersPage(),
                   ),
+                  GoRoute(
+                    path: 'delete',
+                    parentNavigatorKey: _rootNavigatorKey,
+                    builder: (_, _) => const DeleteAccountPage(),
+                  ),
                 ],
               ),
               GoRoute(
                 path: Routes.payment,
-                builder: (_, _) => const PlanPage(),
+                // Bab 12.5 — `?plan=` dibawa dari aplikasi HP, yang menutup
+                // jalur bayarnya sendiri dan melempar pelanggan ke dasbor web.
+                //
+                // 🔴 Dicocokkan ke daftar nilai enum, BUKAN lewat
+                //    `TierPlan.fromWire`. `fromWire` menjawab `standar` untuk
+                //    apa pun yang tidak dikenal — jatuhan yang benar di
+                //    tempatnya, tetapi di sini ia akan mengubah alamat yang
+                //    salah ketik menjadi "Standar terpilih" tanpa satu pun
+                //    tanda. Tidak dikenal harus berarti "tidak memilih apa-apa",
+                //    supaya halamannya memakai pilihan bawaannya.
+                builder: (_, state) {
+                  final wire = state.uri.queryParameters['plan'];
+                  TierPlan? awal;
+                  for (final p in TierPlan.values) {
+                    if (p.wire == wire) awal = p;
+                  }
+                  return PlanPage(planAwal: awal);
+                },
                 routes: [
                   // 🔴 Bab 12.5 — halaman Checkout TIDAK didaftarkan di HP.
                   //
@@ -331,6 +390,19 @@ GoRouter appRouter(Ref ref) {
                       parentNavigatorKey: _rootNavigatorKey,
                       builder: (_, _) => const CheckoutPage(),
                     ),
+
+                  // 🔴 Riwayat pembayaran TIDAK dijaga `PaymentAccess`.
+                  //
+                  // Bab 12.5 menutup jalur MEMBAYAR di HP supaya tidak ditolak
+                  // App Store. Melihat apa yang sudah dibayar bukan pembelian
+                  // dalam aplikasi, dan justru di HP-lah kartu token dilihat
+                  // sehari-hari — Owner yang hanya memegang HP tidak punya
+                  // cara lain menjelaskan saldonya.
+                  GoRoute(
+                    path: 'history',
+                    parentNavigatorKey: _rootNavigatorKey,
+                    builder: (_, _) => const PaymentHistoryPage(),
+                  ),
                 ],
               ),
             ],

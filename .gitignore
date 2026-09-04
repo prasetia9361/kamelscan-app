@@ -104,3 +104,12 @@ supabase/.temp/
 # setiap proyek — tempat yang lebih tepat, dan tidak mungkin terlupa saat
 # worktree baru dibuat.
 .claude/
+
+# Supabase CLI yang dipasang lokal — binari Windows, jangan masuk git.
+# Dipasang begini karena `npx supabase@latest` tidak lagi jalan di Windows:
+# paket `@supabase/cli-windows-x64` gagal terpasang sebagai optional dependency
+# dan galatnya berbunyi "No matching Supabase CLI binary package found".
+.supabase-cli/
+
+# Materi investor, bukan isi repositori
+Biaya_Infrastruktur_KamelScan.docx

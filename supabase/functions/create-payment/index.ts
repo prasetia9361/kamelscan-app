@@ -55,6 +55,17 @@ function json(body: unknown, status = 200) {
 /// Sakelarnya `MIDTRANS_IS_PRODUCTION`. Sengaja **tidak** menebak dari awalan
 /// kunci (`SB-Mid-server-`): menebak berarti satu kunci yang salah tempel
 /// diam-diam mengarahkan uang sungguhan ke sandbox, atau sebaliknya.
+/// Nama paket sebagaimana tertulis di struk Midtrans.
+///
+/// ⚠️ Sengaja peta, bukan rangkaian ternary. Paket keempat yang
+/// ditambahkan tanpa menyentuh berkas ini akan tampil dengan kode
+/// mentahnya — janggal, tetapi jujur — bukan dengan nama paket lain.
+const NAMA_PAKET: Record<string, string> = {
+  standar: 'Standar',
+  pro: 'Pro',
+  bisnis: 'Bisnis',
+};
+
 function snapEndpoint(isProduction: boolean): string {
   return isProduction
     ? 'https://app.midtrans.com/snap/v1/transactions'
@@ -116,8 +127,24 @@ Deno.serve(async (req) => {
     return json({ error: 'INVALID_BODY' }, 400);
   }
 
+  // 🔴 JANGAN menyebut nama paket satu per satu di sini.
+  //
+  //    Sampai 1 September 2026 baris ini berbunyi
+  //    `if (plan !== 'standar' && plan !== 'pro')`, dan itu menolak `bisnis`
+  //    dengan INVALID_PLAN — sesudah paket Bisnis sudah ada di enum, di
+  //    katalog, di `platform_settings.pricing` (migrasi 39), dan sudah
+  //    tergambar di halaman pembayaran. Owner dapat memilihnya, menekan bayar,
+  //    lalu hanya melihat "terjadi kesalahan, coba lagi beberapa saat".
+  //
+  //    Dilaporkan Product Owner setelah mencoba dua kali berturut-turut.
+  //
+  // ⚠️ Yang sah ditentukan oleh `platform_settings.pricing` di langkah 5, satu
+  //    tempat yang sama dengan tempat harganya dibaca — jadi paket keempat
+  //    suatu hari nanti tidak menuntut berkas ini disentuh lagi. Di sini cukup
+  //    dipastikan bentuknya aman untuk dipakai sebagai kunci objek dan
+  //    dituliskan ke kolom enum `subscriptions.plan`.
   const plan = (body.plan ?? '').trim();
-  if (plan !== 'standar' && plan !== 'pro') {
+  if (!/^[a-z][a-z0-9_]{0,30}$/.test(plan)) {
     return json({ error: 'INVALID_PLAN' }, 400);
   }
 
@@ -272,7 +299,12 @@ Deno.serve(async (req) => {
         id: plan,
         price: nominal,
         quantity: 1,
-        name: `KamelScan ${plan === 'pro' ? 'Pro' : 'Standar'} 30 hari`,
+        // 🔴 Dibaca dari peta, BUKAN dari `plan === 'pro' ? ... : ...`.
+        // Bentuk lamanya menulis 'KamelScan Standar 30 hari' pada
+        // pembelian BISNIS — di struk Midtrans sungguhan yang dilihat
+        // pelanggan dan masuk ke pembukuan. Nama produk yang salah pada
+        // tagihan bukan cacat tampilan.
+        name: `KamelScan ${NAMA_PAKET[plan] ?? plan} 30 hari`,
       },
     ],
     customer_details: {
@@ -298,7 +330,16 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify(snapBody),
     });
-  } catch (_e) {
+  } catch (e) {
+    // 🔴 Ditulis ke catatan fungsi. Sampai 3 September 2026 blok ini menelan
+    // galatnya (`_e`) tanpa jejak apa pun, sehingga kegagalan jaringan dan
+    // penolakan Midtrans sama-sama tidak meninggalkan satu baris pun di
+    // Supabase Function Logs.
+    console.error('MIDTRANS_UNREACHABLE', {
+      subscription_id: sub.id,
+      production: isProduction,
+      message: e instanceof Error ? e.message : String(e),
+    });
     await admin.from('subscriptions').update({ status: 'failed' }).eq('id', sub.id);
     return json({ error: 'MIDTRANS_UNREACHABLE' }, 502);
   }
@@ -310,6 +351,23 @@ Deno.serve(async (req) => {
     // tanpa transaksi Midtrans di baliknya akan menghalangi percobaan
     // berikutnya selama 24 jam penuh (langkah 4 di atas), untuk kesalahan yang
     // sama sekali bukan kesalahan pelanggan.
+    // 🔴 Penolakan Midtrans WAJIB tertulis, dan inilah baris yang paling
+    // mahal ketiadaannya. 31 Agustus 2026 tiga pembayaran gagal beruntun
+    // karena kunci sandbox dan produksi tertukar; tidak ada satu pun petunjuk
+    // di layar maupun di catatan fungsi, dan sebabnya baru ketahuan setelah
+    // kuncinya diuji langsung ke Midtrans dengan tangan.
+    //
+    // ⚠️ Kunci servernya sendiri TIDAK BOLEH ikut tercetak. Yang dicetak hanya
+    // awalannya sampai tanda hubung pertama, cukup untuk membedakan sandbox
+    // dari produksi tanpa membocorkan apa pun yang dapat dipakai menagih.
+    console.error('MIDTRANS_REJECTED', {
+      subscription_id: sub.id,
+      http_status: snap.status,
+      production: isProduction,
+      key_prefix: serverKey.split('-').slice(0, 2).join('-'),
+      error_messages: snapJson?.error_messages ?? null,
+    });
+
     await admin.from('subscriptions').update({ status: 'failed' }).eq('id', sub.id);
     return json(
       {
@@ -320,6 +378,27 @@ Deno.serve(async (req) => {
       502,
     );
   }
+
+  // 🔴 Keberhasilan pun WAJIB meninggalkan jejak lingkungannya.
+  //
+  // Sampai 4 September 2026 hanya KEGAGALAN yang tercatat. Akibatnya tidak ada
+  // cara memastikan pembayaran berikutnya akan memakai kunci produksi tanpa
+  // lebih dulu membayarnya — dan untuk langkah yang memakai uang sungguhan,
+  // itu urutan yang terbalik.
+  //
+  // Kegagalan yang dijaga baris ini bukan pembayaran yang gagal, melainkan
+  // pembayaran yang BERHASIL DI SANDBOX sementara yang menjalankannya mengira
+  // sedang di produksi. Layarnya sama persis, dan uangnya tidak pernah
+  // berpindah.
+  //
+  // ⚠️ Yang dicetak sama seperti pada penolakan: awalan kunci sampai tanda
+  // hubung kedua, tidak pernah kuncinya sendiri.
+  console.log('MIDTRANS_SNAP_CREATED', {
+    subscription_id: sub.id,
+    production: isProduction,
+    endpoint: snapEndpoint(isProduction),
+    key_prefix: serverKey.split('-').slice(0, 2).join('-'),
+  });
 
   return json({
     order_id: orderId,

@@ -1,4 +1,5 @@
 import '../models/enums.dart';
+import '../models/queue_summary.dart';
 import '../models/upload_task.dart';
 import '../utils/result.dart';
 
@@ -54,8 +55,20 @@ abstract interface class LocalDbService {
 
   Future<Result<void>> remove(String videoId);
 
-  /// Jumlah tugas yang belum selesai — dipakai lencana di Beranda.
+  /// Jumlah tugas yang belum selesai — dipakai lencana di Beranda dan
+  /// peringatan saat keluar.
+  ///
+  /// Sama dengan `watchQueueSummary().total`; dipertahankan karena kedua
+  /// tempat itu memang hanya menanyakan *"ada berapa yang belum terkirim"*.
   Stream<int> watchPendingCount();
+
+  /// Antrian dipecah menurut **apa yang menahannya** (Bab 8.7).
+  ///
+  /// 🔴 Dipakai spanduk Beranda supaya kalimatnya menyebutkan sebab yang
+  /// sebenarnya. Sampai 3 September 2026 kalimat itu ditulis mati
+  /// *"menunggu Wi-Fi"* dan diucapkan bahkan ketika yang menahan adalah
+  /// watermark yang gagal — uraiannya di [QueueSummary].
+  Stream<QueueSummary> watchQueueSummary();
 }
 
 LocalDbService createLocalDbService() => createPlatformLocalDbService();

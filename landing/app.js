@@ -120,7 +120,7 @@
     "cara.l3.judul": "Watermarked and uploaded",
     "cara.l3.isi": "The tracking number, server time, store name and coordinates are burned into the video image, then sent to the cloud once there is signal.",
     "cara.l4.judul": "Share or download",
-    "cara.l4.isi": "One link the marketplace resolution centre can open without an account and without installing anything. That page carries a download button, so they can save the video file themselves if it is asked for as an attachment. You can download it from the app at any time as well.",
+    "cara.l4.isi": "One link the marketplace team can open without an account and without installing anything. That page carries a download button if the video is asked for as an attachment.",
     "unduh.lencana": "Coming soon",
     "unduh.judul": "The phone app that does the recording",
     "unduh.isi": "Recording can only be done from a phone — the web version does not record. The Android and iOS apps are on their way. In the meantime you can already sign up and set your store up from a browser.",
@@ -172,7 +172,7 @@
     "kontak.jam.judul": "Working hours",
     "kontak.jam.nilai": "Monday&ndash;Friday, 09.00&ndash;17.00 WIB (GMT+7)",
     "kontak.jam.isi": "Messages arriving outside these hours are answered on the next working day.",
-    "penutup.judul": "The next parcel you send could already have its proof",
+    "penutup.judul": "Start recording parcel proof today",
     "penutup.sub": "Sign up now and get 100 free videos. No credit card, and no deadline for using them.",
     "penutup.cta1": "Sign Up Free",
     "penutup.cta2": "I already have an account",
@@ -209,4 +209,82 @@
       pakai(document.documentElement.lang === 'en' ? 'id' : 'en');
     });
   }
+})();
+
+
+/* =========================================================================
+ * Spanduk landing page dari `platform_settings.banner_landing` (Bab 10.2)
+ * =========================================================================
+ *
+ * 🔴 Ini SATU-SATUNYA panggilan jaringan di seluruh landing page, dan ia
+ * sengaja dibuat tidak memblokir apa pun.
+ *
+ * Sampai 4 September 2026 halaman ini nol panggilan jaringan — keputusan
+ * sadar, karena calon pelanggan membukanya dari gudang bersinyal buruk.
+ * Keputusan itu TIDAK dibatalkan: ilustrasi SVG tetap tergambar seketika,
+ * dan gambar dari server hanya menggantikannya kalau benar-benar sampai.
+ *
+ * Product Owner memilih bentuk ini 4 September 2026, sesudah menemukan bahwa
+ * halaman Admin "Gambar iklan" menyimpan alamat spanduk yang tidak pernah
+ * dibaca siapa pun — layar yang menjanjikan sesuatu yang tidak terjadi.
+ *
+ * ⚠️ Kredensialnya DISUNTIKKAN `deploy_web.ps1`, bukan ditulis di berkas ini:
+ * `landing/` masuk git, `env.dev.json` tidak. Kunci anon memang kunci publik
+ * (ia sudah ada di dalam `main.dart.js` yang dapat diunduh siapa saja),
+ * tetapi tetap tidak dituliskan ke dalam repositori — aturan yang sama sudah
+ * dipakai halaman bukti publik `/v/`.
+ *
+ * Bila penandanya belum tergantikan — misalnya saat berkas ini dibuka
+ * langsung dari cakram untuk memeriksa tata letak — fungsinya berhenti diam
+ * dan halaman tetap memakai ilustrasinya. Itu jalur normal, bukan galat.
+ */
+(function spanduk() {
+  var URL_SB = '__SUPABASE_URL__';
+  var KUNCI = '__SUPABASE_ANON_KEY__';
+
+  // Penanda belum disuntik: dibuka dari cakram, bukan dari situs terbit.
+  //
+  // 🔴 Diperiksa dari BENTUKNYA — diawali garis bawah — dan bukan dengan
+  // menuliskan penandanya kembali di sini.
+  //
+  // Alasannya terbukti 4 September 2026: versi pertama menyebut penandanya
+  // apa adanya, teks itu ikut tertinggal di berkas terbit, dan penjaga di
+  // `deploy_web.ps1` menghentikan penerbitan karena mengira penyuntikannya
+  // gagal. Penjaga yang menghasilkan alarm palsu akan berhenti dipercaya.
+  if (URL_SB.charAt(0) === '_' || KUNCI.charAt(0) === '_') return;
+
+  var wadah = document.getElementById('hero-gambar');
+  if (!wadah) return;
+
+  var alamat = URL_SB.replace(/\/+$/, '') +
+    '/rest/v1/platform_settings?select=value&key=eq.banner_landing';
+
+  fetch(alamat, {
+    headers: { apikey: KUNCI, Authorization: 'Bearer ' + KUNCI },
+  })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (baris) {
+      if (!baris || !baris.length) return;
+      var nilai = baris[0] && baris[0].value;
+      var url = nilai && nilai.image_url;
+      if (!url) return;
+
+      // 🔴 Gambarnya dimuat DI LUAR halaman lebih dulu. Menempelkan <img>
+      // langsung ke DOM berarti ilustrasinya lenyap saat itu juga, lalu
+      // digantikan kotak kosong selama gambarnya masih diunduh — dan pada
+      // sinyal buruk kotak kosong itu bisa bertahan lama sekali.
+      var img = new Image();
+      img.onload = function () {
+        img.className = 'hero-foto';
+        img.alt = (nilai.headline || '').trim() ||
+          'Ilustrasi aplikasi KamelScan';
+        wadah.innerHTML = '';
+        wadah.appendChild(img);
+      };
+      // Gagal muat: tidak melakukan apa-apa. Ilustrasinya tetap berdiri.
+      img.src = url;
+    })
+    .catch(function () {
+      /* Sengaja diam. Halaman ini harus tetap utuh tanpa jaringan. */
+    });
 })();

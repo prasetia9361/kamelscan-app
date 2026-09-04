@@ -118,13 +118,28 @@ class PlanViewModel extends _$PlanViewModel {
     final banners = (await repo.fetchPlanBanners()).getOrElse((_) => const {});
     final pending = (await repo.fetchLatest()).valueOrNull;
 
-    // Paket yang ditawarkan lebih dulu adalah yang belum dimiliki. Owner yang
-    // sudah Standar datang ke sini untuk naik ke Pro, bukan untuk membeli
-    // Standar lagi.
     final sekarang = session.plan;
-    final pilihanAwal = (!session.isTrial && sekarang == TierPlan.standar)
-        ? TierPlan.pro
-        : TierPlan.standar;
+
+    // 🔴 Bawaannya PAKET YANG SEDANG AKTIF. Keputusan Product Owner
+    //    3 September 2026.
+    //
+    //    Sampai hari itu rumusnya sengaja menjauh dari paket yang dimiliki:
+    //    Standar ditawari Pro, selebihnya ditawari Standar. Itu benar di model
+    //    naik/turun paket — Owner datang ke sini untuk pindah paket, dan
+    //    membeli paket yang sama tidak berarti apa-apa.
+    //
+    //    Model akumulatif (migrasi 40) membalik aturan itu: beli lagi menambah
+    //    token DAN menambah sisa hari, sehingga membeli paket yang sama adalah
+    //    jalur isi-ulang yang paling sering dipakai.
+    //
+    // ⚠️ Yang membuatnya mendesak: rumus lama menjatuhkan Owner **Bisnis** ke
+    //    cabang `else`, jadi bawaannya Standar — paket TERENDAH untuk
+    //    pelanggan yang membayar paling mahal. Ditemukan Product Owner saat
+    //    menguji jalur HP → web di Android.
+    //
+    // Pelanggan uji coba ikut memakai `tenant.tier_plan`-nya, yang memang
+    // Standar (Bab 7.5), dan itu bawaan yang netral untuk pembelian pertama.
+    final pilihanAwal = sekarang;
 
     return PlanData(
       catalog: session.tierCatalog,

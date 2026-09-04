@@ -267,7 +267,33 @@ perintah unggahnya dengan awalan `!`.
 
 🔴 **Setiap rute baru di `route_names.dart` WAJIB ditambahkan ke daftar rute di
 `deploy_web.ps1`.** Yang terlupa bekerja saat diklik dari dalam aplikasi tetapi
-menjawab 404 begitu halamannya disegarkan.
+rusak begitu halamannya disegarkan atau alamatnya dikirim ke orang lain.
+
+⚠️ **Gejalanya BUKAN 404** — kalimat itu salah, dan sempat tertulis di catatan
+ini maupun di komentar `deploy_web.ps1` selama berbulan-bulan. Diukur di
+produksi 1 September 2026 pada rute `/deletion-pending` yang memang terlupa:
+
+```
+/app/complete-profile  -> 200, 13327 byte, flutter_bootstrap.js x1   (aplikasi)
+/app/deletion-pending  -> 200, 35969 byte, flutter_bootstrap.js x0   (LANDING)
+```
+
+Alamatnya menjawab **200 sambil menyajikan halaman landing**, tampil tanpa gaya
+sama sekali karena CSS-nya dicari relatif terhadap folder yang tidak ada. Itu
+lebih jahat daripada 404: 404 kelihatan jelas rusak, sedangkan ini terbaca
+seperti **aplikasinya** yang rusak — dan penyelidikan berangkat ke arah yang
+salah sejak menit pertama.
+
+🔴 **Cara memeriksanya yang benar bukan kode status, melainkan isinya:**
+
+```bash
+curl -s https://kamelscan.com/app/<rute> | grep -c "flutter_bootstrap.js"
+```
+
+Harus **1**. Nol berarti yang tersaji halaman landing, berapa pun kode
+statusnya. Pola bertanda bintang menutupi anaknya (`account/*` menutupi
+`/account/delete`), tetapi **tidak** menutupi rute tingkat atas yang kebetulan
+mirip namanya.
 
 Periksa dengan **tiga langkah**, bukan hanya kode status. Langkah ketiga yang
 menentukan, dan paling sering dilupakan:
@@ -310,8 +336,14 @@ Editor. Beri saya isi berkasnya beserta langkah yang **detail** — sebutkan men
 yang diklik dan hasil yang seharusnya muncul (`Success. No rows returned`).
 Instruksi ringkas pernah membuat saya tersinggung karena terasa seperti diuji.
 
-**Migrasi terakhir yang sudah dijalankan: 36.** Seluruhnya sudah berjalan di
-produksi:
+**Migrasi terakhir yang sudah dijalankan: 44** (2 September 2026). Seluruhnya
+sudah berjalan di produksi:
+
+⚠️ **43 ada di worktree lain, dan sudah dijalankan juga.** Berkasnya
+`43_user_settings_show_record_fab.sql` di `revisi-desain-aplikasimobile`,
+dijalankan Product Owner 3 September 2026. Diukur ke produksi hari itu: kolom
+`user_settings.show_record_fab` **ada** dan terisi. Jadi 37–44 lengkap tanpa
+lubang, hanya berkas nomor 43-nya yang tidak berada di worktree ini.
 
 - **30** `get_platform_stats()` — angka Dasbor Platform
 - **31** `admin_list_tenants()` — tabel Kelola Pengguna
@@ -321,13 +353,95 @@ produksi:
 - **34** `promos.used_count` akhirnya dihitung — batas pemakaian promo berlaku
 - **35** `admin_change_tier()` — ubah paket kini menyesuaikan kuota & saldo token
 - **36** `cancel_pending_subscription()` — pelanggan dapat membatalkan tagihannya
+- **37** hapus akun Owner + antrean `storage_purge_queue`
+- **38** tiga bug akun packer
+- **39** enum `bisnis` + `token_expired`, harga 3 paket, trial 5 packer
+- **40** rollover token, cabut cron isi ulang, token hangus, `admin_change_tier`
+- **41** antrean retensi 30 hari, cabut `mark-expired-videos`
+- **42** `get_capacity_stats()` — RPC kartu Kapasitas
+- **44** `check_packer_limit()` membaca kunci `trial`, menutup celah batas
+  packer masa uji coba yang sebelumnya tidak ditegakkan di mana pun
 
-**Edge Function terpasang: 9.** Dua yang terbaru `create-payment` dan
-`midtrans-webhook`.
+**Edge Function terpasang: 10.** Dua yang terbaru `delete-packer` (versi 6,
+di-deploy ulang 1 Sep 2026 karena memanggil RPC migrasi 38) dan `purge-storage`
+(versi 1, baru).
 
-🔴 `midtrans-webhook` WAJIB di-deploy dengan `--no-verify-jwt`. Periksa dengan
-`supabase functions list` — kolom `verify_jwt` harus `False` untuk webhook itu
-saja, `True` untuk semua yang lain.
+🔴 **`npx supabase@latest` TIDAK LAGI JALAN DI WINDOWS.** Galatnya
+`No matching Supabase CLI binary package found for win32-x64`, dan itu
+menyesatkan — Windows *didukung*, tetapi paket binari
+`@supabase/cli-windows-x64` gagal terpasang sebagai *optional dependency*
+sehingga folder `node_modules/@supabase` tinggal kosong. Jalan pintasnya:
+
+```powershell
+npm install --prefix <folder> --include=optional supabase@2.116.0
+& '<folder>\node_modules\@supabase\cli-windows-x64\bin\supabase.exe' functions deploy <nama> --project-ref ofggpithmvgnhsshglwx
+```
+
+✅ **Sudah terpasang di worktree `31-agustus`** pada 3 September 2026, di
+folder `.supabase-cli/` (ter-gitignore, isinya binari). Jadi tinggal:
+
+```powershell
+$env:SUPABASE_ACCESS_TOKEN = 'sbp_...'
+& '.\.supabase-cli\node_modules\@supabase\cli-windows-x64\bin\supabase.exe' functions deploy <nama> --project-ref ofggpithmvgnhsshglwx
+```
+
+⚠️ Tulis kedua baris itu **terpisah**. Menyatukannya dengan `;` di satu baris
+panjang pernah gagal 3 September 2026: barisnya terpotong saat ditempel, `&`
+berdiri tanpa perintah, dan PowerShell menjawab *"Missing expression after '&'
+in pipeline element"* — galat yang sama sekali tidak menyebut sebab
+sebenarnya. Tanda `<...>` pada token juga jangan ikut disalin.
+
+⚠️ `WARNING: Docker is not running` saat deploy adalah **normal**; berkasnya
+tetap diunggah. Docker hanya dibutuhkan untuk menjalankan fungsi secara lokal.
+
+⚠️ `dart run build_runner build` sekarang menolak `--delete-conflicting-outputs`
+(*"These options have been removed and were ignored"*). Bukan galat, hanya
+peringatan — tetapi perintah di bagian Lingkungan di atas perlu dibaca dengan
+itu di kepala.
+
+🔴 `midtrans-webhook` WAJIB di-deploy dengan `--no-verify-jwt`, dan hanya dia.
+
+⚠️ **Cara memeriksanya di catatan lama sudah TIDAK BERLAKU.** `supabase
+functions list` pada CLI 2.116.0 **tidak lagi punya kolom `verify_jwt`** —
+kolomnya hanya ID, NAME, SLUG, STATUS, VERSION, UPDATED_AT. Diukur
+3 September 2026; melebarkan terminal tidak menolong, kolomnya memang tidak
+ada.
+
+🔴 **Cara yang benar sekarang: panggil fungsinya TANPA header Authorization
+dan lihat siapa yang menjawab.** Tidak butuh token sama sekali:
+
+```bash
+U=https://ofggpithmvgnhsshglwx.supabase.co/functions/v1
+curl -s -o /dev/null -w "%{http_code}\n" -X POST $U/create-payment \
+     -H "Content-Type: application/json" -d '{}'
+```
+
+| Jawaban | Artinya |
+|---|---|
+| `401` `UNAUTHORIZED_NO_AUTH_HEADER` | ditolak **gerbang** → `verify_jwt` **true** |
+| apa pun yang lain | **kodenya sendiri** yang menjawab → `verify_jwt` **false** |
+
+Hasil pengukuran 3 September 2026, dan inilah keadaan yang benar:
+
+```
+create-payment    -> 401 UNAUTHORIZED_NO_AUTH_HEADER   (true)
+get-upload-url    -> 401 UNAUTHORIZED_NO_AUTH_HEADER   (true)
+purge-storage     -> 401 UNAUTHORIZED_NO_AUTH_HEADER   (true)
+midtrans-webhook  -> 403 invalid signature             (false - BENAR)
+```
+
+`midtrans-webhook` menjawab dengan kalimatnya sendiri, dan itu justru buktinya:
+gerbangnya memang dilewati, lalu tanda tangan Midtrans yang menjaganya.
+
+✅ Cara ini **lebih kuat daripada membaca kolom**, dan bukan hanya karena
+kolomnya hilang: ia membuktikan **perilaku sungguhan di produksi**, bukan label
+pengaturan. Sebuah kolom dapat berbunyi benar sementara gerbangnya tidak
+menegakkan apa pun.
+
+⚠️ `functions deploy` **tanpa** `--no-verify-jwt` menyetel `verify_jwt`
+menjadi `true`. Jadi men-deploy ulang `midtrans-webhook` tanpa flag itu akan
+mematikan webhook Midtrans secara diam-diam — pembayaran berhasil di Midtrans,
+tetapi langganan tidak pernah aktif.
 
 ## Keadaan proyek — sudah selesai dan TERBUKTI di peramban/perangkat
 
@@ -397,79 +511,529 @@ adanya setelah diberi tahu risikonya. Jangan membuka ulang keputusan itu.
    laptop layar penuh, tema gelap.
 3. Apakah ada yang berubah di server sejak prompt ini ditulis.
 
+## 🔴 SESI 31 AGUSTUS – 3 SEPTEMBER 2026 — BACA INI LEBIH DULU
+
+Seluruh pekerjaan di bawah ada di worktree **`31-agustus`** (cabang
+`worktree-31-agustus`, lahir dari master `4cb9cbc`).
+
+**Keadaannya:** `dart analyze lib test` bersih, **625 uji lolos**, dan pohon
+kerjanya **bersih — tidak ada yang belum di-commit**. Belum di-push, dan
+**belum digabung ke `master` atas keputusan Product Owner** — penggabungannya
+menyusul. Jumlah commit sengaja tidak ditulis di sini; `git log 4cb9cbc..HEAD`
+selalu lebih benar daripada angka yang disalin tangan.
+
+Migrasi **37–44 sudah dijalankan di produksi**, Edge Function berjumlah **10**,
+dan aplikasi webnya sudah diterbitkan ulang. Seluruh pekerjaan sesi ini
+**diuji Product Owner langsung di produksi**, bukan hanya lewat tes.
+
+### ✅ TABRAKAN NOMOR MIGRASI — SUDAH BERES 1 September 2026
+
+Sempat ada **dua berkas migrasi bernomor 37** di dua worktree berbeda. Product
+Owner menomori ulang yang di `revisi-desain-aplikasimobile` menjadi
+`43_user_settings_show_record_fab.sql`, dan itu arah yang benar — menomori ulang
+migrasi yang sudah terlanjur berjalan di produksi hanya merusak catatannya.
+
+✅ **43 sudah dijalankan juga**, pada 3 September 2026, dan Product Owner sudah
+menjalankan aplikasinya. Penomoran ulang itu terbukti benar: tidak ada nomor
+kembar, tidak ada yang terlewat, dan 37–44 kini lengkap di produksi.
+
+### Migrasi yang dibuat sesi ini
+
+Seluruhnya **sudah dijalankan Product Owner di produksi, 1 September 2026.**
+
+| No | Berkas | Isi | Status |
+|---|---|---|---|
+| 37 | `account_deletion` | Hapus akun Owner + antrean `storage_purge_queue` | ✅ terverifikasi |
+| 38 | `packer_fixes` | 3 bug akun packer | ✅ |
+| 39 | `tier_bisnis` | Enum `bisnis` + `token_expired`, harga 3 paket, trial 5 packer | ✅ |
+| 40 | `token_rollover` | Rollover, cabut cron isi ulang, token hangus, `admin_change_tier` | ✅ |
+| 41 | `retention_purge` | Antrean retensi 30 hari, cabut `mark-expired-videos` | ✅ |
+| 42 | `capacity_stats` | RPC kartu Kapasitas | ✅ |
+
+🔴 **39 WAJIB dijalankan terpisah dari 40.** PostgreSQL menolak memakai nilai
+enum baru di transaksi yang sama dengan penambahannya; digabung, galatnya
+berbunyi *"unsafe use of new value of enum type"* — menyesatkan, karena
+masalahnya bukan nilai itu.
+
+### Edge Function
+
+- ✅ **`delete-packer` sudah di-deploy ulang** (versi 6, 1 Sep 2026) — ia
+  memanggil RPC `purge_packer_soft_deleted_videos()` dari migrasi 38.
+- ✅ **`purge-storage` sudah terbit** (versi 1) — penguras antrean R2.
+  `verify_jwt` sengaja **`true`**: fungsinya sudah memeriksa
+  `Authorization` lawan service role key secara *constant-time* di dalam
+  dirinya sendiri, dan service role key sendiri adalah JWT yang sah sehingga
+  lolos gerbangnya. `midtrans-webhook` tetap satu-satunya yang `false`.
+- 🔴 **Pemicu antrean R2 MASIH belum ada.** `pg_net` belum aktif di proyek ini.
+  Product Owner **sengaja menundanya** sampai database produksi final, supaya
+  tidak dipasang dua kali.
+
+  ⚠️ Akibatnya sekarang: `purge-storage` sudah terpasang tetapi **tidak ada
+  satu pun yang memanggilnya**. Antreannya terisi, berkas R2-nya tetap utuh
+  dan tetap ditagihkan. Ini keadaan yang diterima, bukan cacat yang terlewat —
+  tetapi ia berhenti diterima begitu database produksi final.
+
+### Keputusan produk yang FINAL (jangan diperdebatkan ulang)
+
+**Tiga paket, hanya berbeda pada harga, jumlah token, dan durasi:**
+
+| | Standar | Pro | Bisnis |
+|---|---|---|---|
+| Harga | Rp 149.000 | Rp 299.000 | Rp 1.490.000 |
+| Token | 2.000 | 5.000 | 30.000 |
+| Durasi | 30 detik | 60 detik | **3 menit** |
+
+Retensi **30 hari ketiganya**. Packer **tak terbatas ketiganya**; masa uji coba
+**5 packer** dengan pengaturannya sendiri.
+
+**Model token — akumulatif (rollover):**
+- Beli lagi → token **ditambahkan**, sisa hari **ditambahkan**, tier mengikuti
+  **pembelian terakhir** (dua arah, naik maupun turun).
+- Token **hidup selama langganannya hidup**, hangus saat langganan berakhir
+  (pilihan B, dipilih Product Owner). Bukan 30 hari sejak pembelian.
+- **Tidak ada lagi isi ulang bulanan otomatis.** Token hanya datang dari
+  pembelian. Cron `reset-monthly-tokens` dicabut migrasi 40.
+- Tombol **Ubah Paket** milik Admin hanya mengubah tier, **tidak menyentuh
+  saldo**.
+
+**Dibatalkan, tidak jadi ada:**
+- **Watermark logo kustom** (1 Sep 2026) — seluruh paket memakai watermark
+  teks. Pembedanya sudah dibuang dari aplikasi 29 Agustus; dokumen menyusul.
+- **`package_videos.thumbnail_key`** — tidak dipakai, tidak akan dibuat.
+  Diukur 1 Sep 2026: 0 dari 50 baris terisi. Kolomnya **sengaja tidak
+  dihapus**.
+
+⚠️ **Harga Bisnis tetap Rp 1.490.000.** Claude menyarankan menurunkannya ke
+kisaran Rp 800.000 (lompatannya 5x harga untuk 3x durasi, sementara pembeda
+sesungguhnya bagi pelanggan bervolume rendah hanya durasi). Product Owner
+menimbangnya dan memutuskan tetap. Tercatat di Bab 7.1 — jangan diangkat lagi
+kecuali Product Owner yang memulai.
+
+### Yang dibangun di aplikasi
+
+1. **Hapus akun Owner** — penghalang App Store 5.1.1(v). Konfirmasi ketik nama
+   usaha (diverifikasi di server), akun langsung terkunci, data musnah 7 hari,
+   trial musnah seketika. Penjaga rute mengunci **setiap** rute.
+2. **Tiga bug akun packer** — hitungan video mengecualikan `status='deleted'`,
+   `is_active` ditegakkan di jalur masuk **dan** di `before_video_insert()`,
+   batas packer menghitung yang aktif saja.
+3. **Ekspor CSV** di Riwayat web, Owner saja. Mengekspor **hasil saringan**
+   (maks 20.000 baris), bukan halaman yang terlihat.
+4. **Kartu Kapasitas** di Statistik Platform — menonjolkan *"batas tercapai
+   sekitar N bulan lagi"*, bukan angka mentah.
+5. **Tombol ke dasbor web** di kartu peringatan bayar versi HP.
+
+### Angka biaya yang sudah diukur (bukan tebakan)
+
+Dari 50 video sungguhan di produksi: **3,49 MB per menit**
+(rata-rata 1,07 MB pada 18,4 detik). Dipakai menghitung simpanan R2 per paket.
+Kalau perlu menghitung ulang margin, mulai dari angka ini.
+
+### 🔴 Dua klaim Claude yang TERBUKTI SALAH di sesi ini
+
+Ditulis di sini supaya tidak diulang:
+
+1. **"`delete from tenants` gagal karena FK RESTRICT"** — **salah**. Diukur di
+   produksi: justru **berhasil**, karena cascade menghapus `package_videos`
+   sebelum `users`. Yang gagal adalah menghapus lewat `auth.users`
+   (`23503 package_videos_user_id_fkey`) — dan itu kebetulan memang jalur yang
+   ditempuh `purge_tenant()`. Urutannya tetap perlu; alasan yang semula
+   ditulis karangan. Sudah diperbaiki di kepala migrasi 37.
+2. **"Bug batas packer tidak tereproduksi"** — **salah**. Hanya sisi server
+   yang diperiksa. Bugnya nyata dan ada di aplikasi: `packers_page.dart`
+   memakai `items.length` yang memuat packer nonaktif.
+
+**Pelajarannya sama untuk keduanya: ukur, jangan menyimpulkan dari ingatan.**
+
+### 🔴 Dua cacat yang ditemukan 1 September 2026, SESUDAH migrasi dijalankan
+
+Keduanya lahir dari migrasi 39/40, dan **tidak satu pun tertangkap oleh 620 tes
+yang lolos** — karena tidak ada yang rusak. Keduanya sudah diperbaiki.
+
+**1. `LedgerReason` melempar untuk `token_expired`.**
+Migrasi 39 menambahkan nilai enum `token_expired`; migrasi 40 memasang cron
+`expire-tenant-tokens` (tiap 01:45) yang menulisnya ke `token_ledger`. Di Dart,
+`LedgerReason` adalah **satu-satunya** enum di `enums.dart` yang tidak punya
+nilai jatuhan — `TierPlan`, `SubStatus`, dan `VideoType` semuanya punya
+`fromWire`. Jadi ia di-decode `$enumDecode` yang **melempar**.
+
+Terpendam saat ditemukan karena `fetchLedger()` belum punya satu pun pemanggil.
+Ia akan menggigit pada hari layar riwayat token dibuat.
+
+Perbaikannya: nilai `tokenExpired`, nilai jatuhan `unknown`, `fromWire`, dan
+`@JsonKey(fromJson: LedgerReason.fromWire)` di `token_wallet.dart` supaya
+jatuhannya benar-benar dijalankan. Jatuhannya sengaja **bukan** alasan yang
+sudah ada: buku besar token dipakai menyelesaikan sengketa dengan pelanggan
+(Bab 7.2 poin 5), dan melabeli baris sistem sebagai `admin_adjust` berarti
+memalsukan bukti di dokumen yang gunanya justru membuktikan. Aman karena
+aplikasi tidak punya izin tulis ke `token_ledger` sama sekali (migrasi 14).
+
+**2. Lima kalimat Admin menjanjikan "reset" yang sudah dicabut.**
+Migrasi 40 baris 36 menjalankan `cron.unschedule('reset-monthly-tokens')` —
+tidak ada lagi reset bulanan. Tetapi lima kalimat masih menjanjikannya, dan
+dialog atur token bahkan menampilkan **tanggal dari `token_wallets.period_end`**
+untuk peristiwa yang tidak akan pernah terjadi lagi.
+
+Aturan yang berlaku sekarang: token hangus saat **langganan berakhir** —
+`expire-tenants` (01:30) membalik tenant `active` menjadi `expired`, lalu
+`expire-tenant-tokens` (01:45) menghanguskan saldonya. `expire-tenants` **tidak
+menyentuh `trial` maupun `suspended`**, jadi keduanya memang tidak hangus
+dengan sendirinya.
+
+Sumber tanggalnya dipindah ke `tenants.period_end`
+(`AdminTenantRow.tokenResetsAt` → `tokenExpiresAt`).
+
+🔴 **Yang paling perlu diingat dari cacat kedua:** ada satu tes yang justru
+**mengunci perilaku lama** — `admin_users_table_test.dart`, *"pelanggan aktif —
+memakai tanggal reset DOMPET"*. Tes itu benar saat ditulis dan menjadi salah
+tanpa pernah gagal. Sesudah mengubah aturan dagang di SQL, **tes yang lulus
+adalah tempat pertama yang harus dicurigai**, bukan yang terakhir.
+
+### 🔴 PUTARAN PENGUJIAN PRODUKSI 1–3 September 2026 — sembilan cacat lagi
+
+Product Owner menguji seluruh pekerjaan sesi ini **langsung di produksi**, satu
+butir demi satu butir. Sembilan cacat yang ditemukan tidak satu pun tertangkap
+oleh 620 tes yang lolos. Seluruhnya sudah diperbaiki dan **diverifikasi ulang
+oleh Product Owner**.
+
+⚠️ **Pelajaran nomor satu, dan ia mahal:** putaran pengujian pertama nyaris
+seluruhnya sia-sia karena **webnya tidak pernah di-deploy**. Lima dari enam
+"cacat" hari itu hanyalah kode lama yang masih tayang. Sebelum menguji apa pun,
+**buktikan dulu build yang tayang memang memuat pekerjaannya**:
+
+```bash
+curl -s https://kamelscan.com/app/main.dart.js | grep -c "<kalimat baru dari ARB>"
+```
+
+**Tiga pola yang berulang, dan ketiganya layak dicurigai lebih dulu di sesi
+berikutnya:**
+
+**Pola A — kode yang menyebut nama paket satu per satu.** Muncul **tiga kali**,
+seluruhnya berdiri tepat di sebelah komentar yang menjanjikan katalognya
+dibangun dinamis:
+
+- `admin_pricing_page.dart` menyusun `kartu[0]` dan `kartu[1]` di kedua cabang
+  tata letak, sehingga paket Bisnis **tidak pernah digambar**
+- `create-payment/index.ts` menolak `plan !== 'standar' && plan !== 'pro'`,
+  sehingga membeli Bisnis gagal dengan pesan *"terjadi kesalahan"* yang tidak
+  menyebut apa pun
+- tesnya sendiri mengunci `findsNWidgets(2)`
+
+**Pola B — tes yang lulus sambil mengunci cacatnya.** Dua kali dalam satu sesi:
+tanggal reset dompet, dan jumlah kartu paket. Keduanya benar saat ditulis.
+
+**Pola C — nilai yang dibaca penjaga rute tetapi tidak disimak notifier.**
+Jebakan nomor 11, dan ia **berulang dua kali dalam satu sesi**: pertama karena
+keadaan penghapusan tidak disimak sama sekali, lalu karena yang disimak hanya
+turunan sempitnya sementara penjaganya membaca `sessionProvider` utuh. Aturannya
+harfiah — **yang DIBACA `redirect`, itu yang wajib disimak.**
+
+**Daftar sembilan cacatnya:**
+
+| # | Cacat | Tempat |
+|---|---|---|
+| 1 | `LedgerReason` melempar untuk `token_expired` | `enums.dart` |
+| 2 | Lima kalimat Admin menjanjikan "reset" yang sudah dicabut | ARB + `admin_tenant_row.dart` |
+| 3 | Rute `/deletion-pending` tidak terdaftar di `_redirects` | `deploy_web.ps1` |
+| 4 | Landing page rusak di alamat dalam (jalur aset relatif) | `landing/*.html` |
+| 5 | Batas 5 packer masa uji coba tidak ditegakkan di mana pun | `create-packer` + migrasi 44 |
+| 6 | Admin Harga & Paket hanya menggambar dua kartu | `admin_pricing_page.dart` |
+| 7 | `create-payment` menolak paket Bisnis | `create-payment/index.ts` |
+| 8 | Paket yang sedang aktif tidak dapat dibeli lagi | `plan_page.dart` |
+| 9 | Hitungan video packer memuat video yang sudah dihapus | `user_repository.dart` |
+
+Ditambah dua cacat navigasi hapus akun (permintaan dan pembatalan), dan dua
+perbaikan kartu token pelanggan.
+
+🔴 **Cacat nomor 5 yang paling perlu diingat sebagai pelajaran menulis migrasi.**
+Migrasi 39 **meramalkannya sendiri di komentarnya** — *"pendaftar baru dapat
+membuat seratus akun packer tanpa membayar sepeser pun"* — lalu menambal
+`platform_settings` kunci `trial` dan menulis bahwa Dart harus membacanya.
+Tambalannya benar. Yang tidak pernah terjadi: **tidak ada satu pun penegak yang
+membaca kunci itu.** Menulis peringatan di komentar bukan menutup celah.
+
+**Bukti model token akumulatif, dari `token_ledger` produksi.** Tujuh pembelian
+beruntun pada akun *Sarang sarung*, seluruhnya **menambah**, tidak satu pun
+menimpa:
+
+```
++5000 → 5992    +2000 → 7992    +5000 → 12992   +30000 → 42992
++30000 → 72992  +2000 → 74992   +30000 → 104992
+```
+
+Sisa hari ikut bertumpuk (`period_end` 28 Apr 2027), dan tier mengikuti
+pembelian terakhir: Standar pukul 15:25, lalu Bisnis 15:26, dan tier akhirnya
+`bisnis`. **Ketiga aturan Bab 7.2 terbukti sekaligus pada data sungguhan** —
+jangan diuji ulang dari nol tanpa alasan.
+
+⚠️ **Jebakan Windows yang baru:** `npx supabase@latest` tidak lagi jalan di
+Windows; uraiannya di bagian Supabase di atas. CLI-nya sudah dipasang di
+`.supabase-cli/` pada 3 September 2026, jadi tidak perlu diulang.
+
+⚠️ **Dan cara memeriksa `verify_jwt` sudah berubah** — kolomnya hilang dari
+`functions list`. Penggantinya, beserta hasil pengukuran 3 September 2026,
+ada di bagian Supabase.
+
+### Catatan berkas
+
+- **`panduan_dokumentasi.md` ada di `.gitignore`.** Revisi besar sesi ini
+  (Bab 0, 2.2, 5.2, 5.6, 7.1, 7.2, 7.5, 9.6, 9.8, 12.4) **hanya hidup di
+  worktree `31-agustus`**. Salin ke checkout utama bila ingin disimpan.
+- **Dependensi baru:** `web: ^1.1.1` di `pubspec.yaml`. Sudah ada di
+  `pubspec.lock` sebagai transitif dengan versi sama, jadi tidak menarik paket
+  baru — hanya dinyatakan karena `file_download_web.dart` mengimpornya
+  langsung.
+
+## 🔴 TUGAS SESI BERIKUTNYA — ditetapkan Product Owner 3 September 2026
+
+Dikerjakan **berurutan**. Yang (a) lebih dulu, karena (b) menambah layar di
+atas rancangan yang sedang diganti — mengerjakannya terbalik berarti menulis
+layar dua kali.
+
+### a. Implementasi rancangan ulang aplikasi HP
+
+Desainer sudah membuat rancangan UI/UX aplikasi HP di worktree
+**`revisi-desain-aplikasimobile`**.
+
+🔴 **Masalah pokoknya: worktree itu lahir dari `master`, jadi programnya
+TERTINGGAL JAUH dari `31-agustus`.** Ia tidak punya satu pun pekerjaan sesi ini
+— hapus akun, tier Bisnis, rollover token, ekspor CSV, kartu Kapasitas,
+perbaikan packer, dan sembilan cacat produksi di atas.
+
+**Karena itu urutannya WAJIB begini, dan jangan dibalik:**
+
+1. **Baca dulu** program di `revisi-desain-aplikasimobile`. Jangan menyalin apa
+   pun sebelum tahu apa saja yang berubah di sana.
+2. **Buat rencana kerja** dan tunjukkan ke Product Owner sebelum menulis kode.
+3. **Bawa rancangannya ke worktree ini**, bukan sebaliknya. Menggabungkan arah
+   sebaliknya akan membuang pekerjaan sesi 31 Agustus – 3 September.
+
+⚠️ **Jangan sampai pekerjaan di worktree ini terbuang.** Itu kalimat Product
+Owner sendiri, dan ia menyebutnya sebagai syarat, bukan harapan.
+
+✅ **Migrasi 43 sudah dijalankan** (3 September 2026), dan Product Owner sudah
+menjalankan aplikasi dari worktree itu. Kolom `user_settings.show_record_fab`
+terverifikasi ada di produksi. Jadi databasenya **sudah siap** menerima
+rancangan itu — yang tertinggal hanya kode Dart-nya.
+
+⚠️ Berkas migrasi 43 **tidak ada di worktree ini**. Bila kodenya dibawa ke
+sini, berkas SQL-nya perlu ikut dibawa supaya riwayat migrasinya tidak
+berlubang — meskipun isinya sudah terlanjur berjalan di database.
+
+### b. Setelah rancangan selesai — tiga pekerjaan
+
+**1. Menu Tutorial (Bab 9.9).** Utang paling lama di proyek ini, dan sekarang
+dijadwalkan.
+
+- Admin: halaman untuk memasukkan **tautan YouTube** beserta daftarnya
+- Owner dan packer: daftar tutorial yang sudah didaftarkan Admin, diketuk →
+  membuka videonya di YouTube (`url_launcher`)
+- Tabel `tutorials` sudah ada sejak migrasi 10; CRUD Admin-nya yang belum
+
+**2. Riwayat pembayaran.** Diminta Product Owner setelah melihat saldonya
+sendiri menjadi 105.092 token dari tujuh pembelian, dan menyadari **tidak ada
+satu layar pun yang dapat menjelaskan angka itu**. Sejak model akumulatif
+(migrasi 40) riwayat berhenti menjadi kemewahan.
+
+Yang wajib ditampilkan tiap baris:
+
+- Waktu pembayaran
+- Tier yang dibeli
+- Jumlah token yang dibeli
+- Tanggal dan waktu masa aktifnya berakhir
+- Jenis pembayaran yang dipakai
+
+Datanya sudah lengkap di `subscriptions` dan `token_ledger`; belum ada yang
+menampilkannya.
+
+**3. Nomor HP di halaman Kelola Pengguna milik Admin.** Kolomnya ditambahkan
+ke tabel yang sudah ada.
+
+### c. Analisis sistem perekaman — penjelasan dulu, baru optimasi
+
+Product Owner meminta **penjelasan menyeluruh** cara kerja perekaman packing
+dan retur, dari persiapan sampai selesai, lalu menilai apakah prosesnya sudah
+efektif dan efisien.
+
+**Sasaran ukurannya:** dari **3,48 MB/menit** (angka terukur dari 50 video
+produksi) turun ke **2–3 MB/menit**.
+
+🔴 **Syarat yang tidak boleh dilanggar: FPS harus lancar, jangan sampai patah-
+patah.** Product Owner menyatakan hal lain masih dapat ditoleransi, tetapi yang
+ini tidak. Artinya: **jangan menukar kelancaran demi ukuran berkas.**
+
+⚠️ Sebelum menyelidiki laporan "patah-patah", **tanyakan dulu mode apa yang
+dipakai** — mode debug memang sengaja lambat, dan itu sudah pernah memakan
+waktu.
+
+## 🔴 Yang belum siap produksi — daftar lengkap per 3 September 2026
+
+Diurutkan menurut yang menghalangi rilis, bukan menurut kemudahannya.
+
+**Penghalang uang:**
+
+1. 🔴 **Midtrans masih SANDBOX.** Belum satu rupiah sungguhan pernah berpindah.
+   `MIDTRANS_SERVER_KEY` dan `MIDTRANS_IS_PRODUCTION` wajib diganti
+   **bersamaan** (P.7). Ditunda Product Owner sampai database produksi final.
+2. 🔴 **Database produksi belum diganti.** Rencana 31 Agustus yang belum
+   dijalankan, dan ia menghalangi butir 1 sekaligus butir 3.
+3. **Dua kegagalan Midtrans berbagi satu pesan** — `MIDTRANS_UNREACHABLE` dan
+   `MIDTRANS_REJECTED` tidak dapat dibedakan dari layar maupun dari catatan
+   fungsi. Sudah terbukti memakan waktu; ± 30 menit memperbaikinya.
+
+**Penghalang biaya yang berjalan diam-diam:**
+
+4. 🔴 **Pemicu antrean R2 belum ada.** `purge-storage` sudah terbit tetapi
+   **tidak ada yang memanggilnya** karena `pg_net` belum aktif. Antreannya
+   terisi, berkasnya tetap di R2, dan tetap ditagihkan tiap bulan. Sengaja
+   ditunda sampai database produksi final — tetapi ia berhenti dapat diterima
+   begitu database itu final.
+
+**Penghalang toko aplikasi:**
+
+5. **Rilis iOS dan persiapan Google Play / App Store** belum dimulai.
+6. **Layar putih 30 detik** saat aplikasi pertama dibuka (O.15), diserahkan ke
+   desainer 26 Agustus. (sudah tertangani, saya lupa menyampaikan )
+
+**Belum pernah diuji:**
+
+7. ✅ **Aplikasi HP sudah diuji 3 September 2026** — hapus akun benar, hitungan
+   token sama dengan web (135.092/30.000), dan tiga paket muncul. Dua temuan
+   dari putaran itu:
+
+   - **Pilihan paket hilang saat HP → web.** Nyata, sudah diperbaiki:
+     `?plan=` kini ikut dibawa. Sekalian pilihan bawaan halaman pembayaran
+     diubah menjadi **paket yang sedang aktif** (keputusan Product Owner),
+     karena rumus lama menjatuhkan Owner Bisnis ke Standar — paket terendah
+     untuk pelanggan termahal.
+   - **Hitungan video packing/return berbeda antara HP dan web.** BUKAN cacat.
+     HP menghitung sejak `token_wallets.period_start` dan layarnya menulis
+     *"sejak 31 Agu"*; web menghitung rentang hari yang dipilih. Keduanya
+     mengecualikan `status='deleted'`. Jangan "memperbaikinya" menjadi sama —
+     keduanya menjawab pertanyaan yang berbeda, dan keduanya menyebutkan
+     periodenya sendiri.
+
+   ⚠️ Yang masih belum diuji di HP: perekaman ujung ke ujung sesudah perubahan
+   sesi ini, dan ekspor CSV (web saja).
+8. **Satu video sungguhan lewat jalur unggah latar belakang** (L.8).
+9. **Perbaikan `LedgerReason`** hanya terbukti lewat 3 tes unit —
+   `fetchLedger()` belum punya pemanggil, jadi tidak ada yang dapat dilihat.
+
+**Belum ada:**
+
+10. **Bucket `public-assets`** tidak pernah dibuat, jadi unggah gambar iklan
+    (Bab 11.5) masih lewat Dashboard Supabase.
+11. **Menu Tutorial** — tugas (b) di atas.
+12. **Riwayat pembayaran** — tugas (b) di atas.
+
+**Kebersihan git:**
+
+13. Cabang `worktree-31-agustus` **belum di-push dan belum digabung ke
+    `master`**. Sembilan commit. Product Owner memutuskan penggabungannya
+    menyusul.
+
 ## 🔴 Utang yang belum lunas
 
-### 1. 🔴 Midtrans belum pernah diuji di PRODUKSI
+*Diperbarui 4 September 2026.*
 
-Kelima skenario Bab 12.3 aturan 6 sudah lulus, tetapi **seluruhnya di
-Sandbox**. Yang belum pernah terjadi sekali pun: satu rupiah sungguhan berpindah
-lewat jalur ini.
+### 1. 🔴 Midtrans produksi — TERTAHAN DI MIDTRANS, bukan di kode
 
-Untuk menyalakannya, `MIDTRANS_SERVER_KEY` dan `MIDTRANS_IS_PRODUCTION` harus
-diganti **bersamaan** (P.7). Saya menundanya sampai database produksi final.
+Seluruh sisi kita **sudah selesai**: kunci produksi dan
+`MIDTRANS_IS_PRODUCTION=true` terpasang, `create-payment` dan
+`midtrans-webhook` ter-deploy, `verify_jwt` terbukti benar (401 untuk
+`create-payment`, 403 untuk `midtrans-webhook`), dan alamat notifikasi
+menunjuk project baru.
 
-⚠️ Sesudah dinyalakan, transaksi pertama sebaiknya nominal kecil dan diperiksa
-sampai ke `token_ledger` — bukan hanya sampai layar bilang berhasil.
+🔴 Yang menahan: **akun Midtrans masih `Business review — In progress`.**
+Selama itu tidak ada satu kanal pembayaran pun yang dapat aktif, dan Snap
+menjawab *"No payment channels available"* pada nominal berapa pun — terbukti
+juga pada pratinjau bawaan Midtrans senilai Rp 400.000.
 
-### 2. Dua kegagalan Midtrans yang pesannya sama
+Yang tersisa begitu review lulus: aktifkan kanal (GoPay/QRIS tercepat, SLA
+3 hari kerja), lalu jalankan **PINDAH_PRODUKSI.md bagian 3.6** — satu transaksi
+sungguhan, diperiksa sampai `token_ledger`.
 
-`MIDTRANS_UNREACHABLE` (jaringan) dan `MIDTRANS_REJECTED` (Midtrans menolak,
-biasanya kunci salah) dipetakan ke **satu kalimat yang sama** di
-`subscription_repository.dart`, dan `create-payment` tidak menuliskan penolakan
-Midtrans ke `console.error`.
+⚠️ Tidak ada pekerjaan kode yang tersisa di sini. Menunggu pihak ketiga.
 
-Akibatnya, saat tiga pembayaran gagal berturut-turut pada 31 Agustus 2026,
-tidak ada satu pun petunjuk di layar maupun di catatan fungsi. Sebabnya baru
-ketahuan setelah kuncinya diuji langsung ke Midtrans. ± 30 menit untuk
-memperbaiki keduanya.
+### 2. 🔴 KGP — utang berjadwal, dan tenggatnya bukan milik kita
 
-### 3. Unggah gambar iklan (Bab 11.5) — butuh migrasi baru
+Setiap build Android mencetak:
 
-Bucket `public-assets` **tidak pernah dibuat**; yang ada hanya `avatars`
-(migrasi 23) dan `payment-proofs` (migrasi 25). Sisa Bab 11.5 (kontak) sudah
-selesai. Gambar landing page dan gambar halaman pembayaran karena itu masih
-diatur lewat Supabase Dashboard.
+```
+WARNING: Your app uses the following plugins that apply Kotlin Gradle Plugin (KGP):
+ffmpeg_kit_flutter_new, flutter_tts, mobile_scanner, sentry_flutter, workmanager_android
+Future versions of Flutter will fail to build if your app uses plugins that apply KGP.
+```
 
-### 4. Bab 9.9 Tutorial — DITUNDA, menunggu channel YouTube
+🔴 **Sekarang peringatan, nanti kegagalan build.** Kalimatnya menjanjikan
+bahwa Flutter versi mendatang akan MENOLAK membangun aplikasi yang memakai
+plugin ini. Saat itu tiba, Android berhenti dapat dibangun sampai kelimanya
+diperbarui — dan kelimanya inti semua: FFmpeg (perekaman), pemindai (pemicu),
+TTS, Sentry, WorkManager (unggah latar belakang).
 
-Halaman daftar bernomor dari tabel `tutorials`, membuka YouTube lewat
-`url_launcher`. Versi webnya grid kartu (Bab 10.5). CRUD-nya di panel Admin
-juga belum dibuat, dan sengaja.
+**Yang tidak dapat kita kerjakan:** memperbaikinya. Migrasinya milik penulis
+plugin, bukan kita.
 
-⚠️ **Bukan prioritas, dan bukan karena terlupa.** Isinya bergantung pada video
-tutorial yang belum dibuat; halaman yang jadi lebih dulu hanya akan menampilkan
-daftar kosong. Product Owner memutuskan 29 Agustus 2026 untuk menunggu
-channel-nya siap.
+**Yang harus kita kerjakan:**
 
-Sampai saat itu, menu Tutorial di sidebar web dan di Beranda HP tetap mendarat
-di halaman kosong. **Itu keadaan yang saya terima, bukan cacat yang terlewat.**
-Perkiraan ± 2 jam begitu videonya ada.
+| Kapan | Tindakan |
+|---|---|
+| Berkala | `flutter pub outdated` — cari versi yang sudah bermigrasi ke Built-in Kotlin |
+| Sebelum menaikkan versi Flutter | 🔴 periksa kelima plugin dulu, JANGAN naik lebih dulu lalu berharap |
+| Kalau satu plugin tak kunjung bermigrasi | laporkan ke penulisnya, atau cari penggantinya |
 
-### 5. Satu video sungguhan lewat jalur unggah latar belakang
+⚠️ **Jangan menaikkan versi Flutter tanpa alasan kuat.** `flutter_3.44.8`
+sekarang bekerja. Naik versi menukar dua peringatan yang tidak berbahaya dengan
+kemungkinan build yang gagal.
+
+Peringatan lint `flutter_tts_web.dart` saat build web berasal dari sumber paket
+yang sama dan **bukan utang** — ia kosmetik, tidak memengaruhi hasil build, dan
+tidak ada cara yang didukung untuk membungkamnya. Menyunting berkas di
+`Pub/Cache` hilang pada `pub get` berikutnya.
+
+### 3. Satu video sungguhan lewat jalur unggah latar belakang
 
 Isolatenya terbukti hidup, tetapi antriannya selalu keburu dihabiskan jalur
 aplikasi-terbuka. Prosedurnya di `DEVIASI_LIBRARY.md` **L.8**; butuh Wi-Fi.
 
-### 6. Zoom peramban pada aplikasi web
+### 4. Tugas (c) — ukuran rekaman, ditunda Product Owner
 
-Belum jelas apakah perlu diperbaiki. Tidak ada apa pun di kode yang menguncinya
-(tidak ada `user-scalable=no`), tetapi Flutter web menata ulang isinya alih-alih
-memperbesar, sehingga tidak terasa seperti zoom biasa. Bila saya
-membutuhkannya, jalan yang lebih pasti adalah menambah pengaturan **ukuran
-huruf** di Pengaturan → Tampilan (± 1 jam), bukan mengandalkan perilaku
-peramban.
+Dari **3,49 MB/menit** terukur menuju 2–3 MB/menit tanpa mengorbankan
+kehalusan FPS. Ditunda pada 3 September 2026 ("tugas c nanti dulu").
 
-### 7. Layar putih 30 detik saat aplikasi pertama dibuka
+⚠️ Berkaitan langsung dengan biaya R2: angka di
+`Biaya_Infrastruktur_KamelScan.docx` dihitung dari 3,49 MB/menit, jadi
+menurunkannya menurunkan seluruh kolom biaya di sana.
 
-Diserahkan ke desainer 26 Agustus 2026, briefnya sudah diberikan. Uraiannya di
-**O.15**. Jangan memperkecil `main.dart.js` diam-diam sambil menunggu — itu
-pekerjaan lain yang belum diputuskan.
+---
 
-### 8. Versi tabel untuk Toko, Packer, dan Pembayaran — DIBATALKAN
+## ✅ Lunas 4 September 2026
 
-Bab 10.5 memintanya, tetapi saya memutuskan 29 Agustus 2026 bahwa bentuk
-sekarang (tampilan HP di dalam rangka web) sudah cukup. **Jangan
-mengerjakannya** tanpa saya minta ulang.
+- **🔴 Soft delete video.** `deleteVideo` hanya menyetel `status = 'deleted'`;
+  berkas R2-nya tidak pernah masuk `storage_purge_queue`, jadi setiap
+  penghapusan meninggalkan berkas yatim yang ditagihkan selamanya — dan
+  Owner yang menekan Hapus percaya videonya hilang padahal masih utuh.
+  Migrasi 48 menggantinya dengan penghapusan sungguhan.
+
+
+- **Utang lama #2 — dua kegagalan Midtrans yang pesannya sama.**
+  `MIDTRANS_UNREACHABLE` dan `MIDTRANS_REJECTED` kini punya kalimat sendiri,
+  dan `create-payment` menuliskan penolakan Midtrans lengkap dengan
+  `http_status`, `error_messages`, serta awalan kunci — tidak pernah kuncinya
+  sendiri. Ditambah `MIDTRANS_SNAP_CREATED` pada jalur BERHASIL, supaya
+  lingkungan produksi dapat dipastikan **sebelum** uang berpindah.
+
+- **Utang lama #3 — gambar iklan.** Bucket `public-assets` lahir di migrasi 46,
+  beserta halaman Admin untuk mengunggah, mengganti, **dan menghapus**.
+
+- **Utang lama #4 — Tutorial Bab 9.9.** Selesai sebagai tugas (b), bersama
+  riwayat pembayaran dan nomor HP di Kelola Pengguna.
+
+- **Ikon aplikasi.** Android (warisan + adaptif), web, dan iOS berhenti memakai
+  logo Flutter.
+
+- **Pola A kelima** — promo Bisnis tidak dapat dibuat, dan tertulis "Standar"
+  di struk Midtrans sungguhan.
 
 ## ✅ Yang sudah lunas 29 Agustus 2026 — jangan dikerjakan ulang
 
