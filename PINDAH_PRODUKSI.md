@@ -248,6 +248,61 @@ lihat bagian 3.2.
 
 ---
 
+### 🔴 Web masih menampilkan data LAMA sesudah deploy
+
+⚠️ **Ini hampir pasti bukan penerbitan yang gagal**, dan saat pindah project ia
+jauh lebih menakutkan daripada biasanya: yang terlihat bukan tampilan lama,
+melainkan **daftar pengguna dari database lama**. Sangat mudah disimpulkan
+sebagai "deploy-nya tidak masuk" atau lebih buruk, "datanya tercampur".
+
+Sebabnya: Flutter web memasang **service worker**, dan ia menyajikan salinan
+aplikasi yang ia simpan sendiri sampai memutuskan memperbarui diri. Bundel lama
+itu masih memuat alamat project **lama**, jadi ia benar-benar menghubungi
+database lama.
+
+🔴 **Ctrl+Shift+R tidak mempan.** Muat ulang paksa melewati *simpanan
+peramban*, bukan *service worker*. Ini jebakan **O.17** di `DEVIASI_LIBRARY.md`,
+yang sudah memakan 40 menit pada 29 Agustus 2026.
+
+#### Uji 20 detik yang menyelesaikan perdebatan
+
+Buka aplikasinya di **Jendela Samaran (Ctrl+Shift+N)** — ia tidak punya service
+worker maupun simpanan lama sama sekali.
+
+| Di Samaran | Artinya |
+|---|---|
+| datanya **baru** | 🟢 penerbitannya benar; yang perlu dibersihkan hanya peramban Anda |
+| datanya **masih lama** | 🔴 benar-benar salah terbit — periksa Wrangler mengunggah ke branch `main`, bukan preview |
+
+#### Membersihkannya tanpa membuat Anda logout
+
+```
+F12 → tab Application → Service Workers → Unregister → Ctrl + Shift + R
+```
+
+⚠️ **Jangan memakai "Clear site data".** Sesi Supabase disimpan di
+`localStorage` dan akan ikut terhapus — masuk kembali sebagai Admin bukan
+pekerjaan sepele.
+
+#### Memastikan yang terbit memang benar
+
+Ukur, jangan menyimpulkan dari layar:
+
+```powershell
+curl.exe -s https://kamelscan.com/app/main.dart.js -o "$env:TEMP\live.js"
+Select-String -Path "$env:TEMP\live.js" -Pattern 'cgzvrhwlyzettnfbiiuk','ofggpithmvgnhsshglwx' |
+  Group-Object Pattern | Select-Object Name, Count
+```
+
+Yang benar: **hanya ref baru yang muncul**. Kalau ref lama ikut muncul, yang
+terbit memang salah dan peramban tidak ada hubungannya.
+
+🟢 **Aplikasi Android tidak punya masalah ini** — ia tidak memakai
+service worker. Kalau Android sudah benar sementara web belum, itu sendiri
+sudah menunjuk ke peramban, bukan ke penerbitan.
+
+---
+
 ## 1.6 Layanan luar yang menyimpan alamat project
 
 🔴 **Bagian ini sebelumnya tidak ada, dan itu kelalaian yang serius.**
@@ -1209,6 +1264,7 @@ Sebelum menyatakan produksi siap:
 - [ ] Log `create-payment` menunjukkan kunci `Mid-server-` dan `app.midtrans.com` — bukan sandbox
 - [ ] Satu transaksi sungguhan terlacak sampai `token_ledger`, dan tenant menjadi `active`
 - [ ] APK dan web dibangun ulang dengan kredensial baru
+- [ ] Web diperiksa di **Jendela Samaran** — bukan di tab biasa yang masih memegang service worker lama
 - [ ] Akun Owner, Admin, toko, gambar iklan, dan tutorial dibuat ulang
 - [ ] Tiga kartu paket tergambar di Admin > Harga & Paket, bukan dua
 - [ ] Project lama **belum** dihapus
