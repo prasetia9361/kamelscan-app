@@ -363,6 +363,27 @@ Deno.serve(async (req) => {
     );
   }
 
+  // 🔴 Keberhasilan pun WAJIB meninggalkan jejak lingkungannya.
+  //
+  // Sampai 4 September 2026 hanya KEGAGALAN yang tercatat. Akibatnya tidak ada
+  // cara memastikan pembayaran berikutnya akan memakai kunci produksi tanpa
+  // lebih dulu membayarnya — dan untuk langkah yang memakai uang sungguhan,
+  // itu urutan yang terbalik.
+  //
+  // Kegagalan yang dijaga baris ini bukan pembayaran yang gagal, melainkan
+  // pembayaran yang BERHASIL DI SANDBOX sementara yang menjalankannya mengira
+  // sedang di produksi. Layarnya sama persis, dan uangnya tidak pernah
+  // berpindah.
+  //
+  // ⚠️ Yang dicetak sama seperti pada penolakan: awalan kunci sampai tanda
+  // hubung kedua, tidak pernah kuncinya sendiri.
+  console.log('MIDTRANS_SNAP_CREATED', {
+    subscription_id: sub.id,
+    production: isProduction,
+    endpoint: snapEndpoint(isProduction),
+    key_prefix: serverKey.split('-').slice(0, 2).join('-'),
+  });
+
   return json({
     order_id: orderId,
     subscription_id: sub.id,

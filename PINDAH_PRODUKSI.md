@@ -1049,32 +1049,127 @@ sakelar **Production**.
 
 ## 3.6 Transaksi pertama
 
-🔴 **Nominal kecil, dan diperiksa sampai ke buku besar** — bukan hanya sampai
-layar bilang berhasil.
+🔴 **Langkah ini memakai uang sungguhan.** Paket termurah pun
+Rp 149.000, dan pembayaran produksi Midtrans **tidak dapat dibatalkan sendiri**
+— pengembaliannya lewat Midtrans Dashboard dan memakan hari.
 
-1. Beli paket **Standar** dengan akun sungguhan
-2. Bayar sungguhan
-3. Periksa berurutan:
+Karena itu ada pemeriksaan sebelum membayar.
 
-```sql
--- a. Baris pembayaran jadi 'paid'?
-select id, plan, status, amount, paid_at
-  from public.subscriptions order by created_at desc limit 1;
+---
 
--- b. Tenant naik tier dan aktif?
-select tier_plan, status, period_end from public.tenants where id = '<TENANT>';
+### Sebelum membayar — pastikan Anda benar-benar di Produksi
 
--- c. Tokennya benar-benar masuk?
-select delta, reason, balance_after, note
-  from public.token_ledger where tenant_id = '<TENANT>'
- order by created_at desc limit 3;
+⚠️ Kegagalan yang paling mahal di sini bukan pembayaran yang gagal, melainkan
+pembayaran yang **berhasil di sandbox** sementara Anda mengira sedang di
+produksi. Layarnya sama persis, dan uangnya tidak pernah berpindah.
+
+1. Buka **Pembayaran** di aplikasi, pilih paket Standar, sampai layar Midtrans
+   terbuka — **lalu berhenti. Jangan bayar dulu.**
+2. Buka **Dashboard → Edge Functions → `create-payment` → Logs**, cari baris
+   paling atas bertanda **`MIDTRANS_SNAP_CREATED`**.
+
+Isinya seperti ini:
+
+```json
+{
+  "production": true,
+  "endpoint": "https://app.midtrans.com/snap/v1/transactions",
+  "key_prefix": "Mid-server"
+}
 ```
 
-Kalau (a) `paid` tetapi (b) masih lama, **webhook-nya tidak sampai** — hampir
-selalu `--no-verify-jwt` yang terlupa, atau alamat notifikasi salah.
+| Kolom | ✅ Produksi | 🔴 Masih Sandbox |
+|---|---|---|
+| `key_prefix` | `Mid-server` | `SB-Mid` |
+| `production` | `true` | `false` |
+| `endpoint` | `app.midtrans.com` | `app.sandbox.midtrans.com` |
+
+🔴 **Ketiganya harus benar bersamaan.** Kunci produksi dengan
+`MIDTRANS_IS_PRODUCTION=false` menghasilkan penolakan yang membingungkan; kunci
+sandbox dengan `true` juga. `key_prefix` menjawab kunci mana yang dipakai,
+`production` menjawab sakelarnya — dan keduanya diset terpisah di 3.2.
+
+⚠️ **Baris `MIDTRANS_SNAP_CREATED` baru ada sejak 4 September 2026.** Kalau
+tidak muncul sama sekali, `create-payment` Anda versi lama — deploy ulang:
+
+```powershell
+& $cli functions deploy create-payment --project-ref $ref
+```
+
+---
+
+### Membayar
+
+Kalau kedua tanda di atas benar, lanjutkan pembayarannya sampai selesai.
+
+---
+
+### Memeriksa sampai ke buku besar
+
+🔴 **Jangan berhenti saat layar bilang berhasil.** Yang membuktikan
+bukan layar aplikasi, melainkan tiga tabel yang harus sepakat.
+
+Satu kueri, dan **tidak ada UUID yang perlu Anda salin** — ia menemukan
+transaksi terakhir sendiri:
+
+```sql
+with terakhir as (
+  select * from public.subscriptions order by created_at desc limit 1
+)
+select s.midtrans_order_id,
+       s.plan,
+       s.status      as status_bayar,
+       s.amount,
+       s.paid_at,
+       t.tier_plan   as tier_tenant,
+       t.status      as status_tenant,
+       t.period_end,
+       (select balance_after
+          from public.token_ledger
+         where tenant_id = s.tenant_id
+         order by created_at desc limit 1) as saldo_token
+  from terakhir s
+  join public.tenants t on t.id = s.tenant_id;
+```
+
+Yang harus terlihat:
+
+| Kolom | Harus |
+|---|---|
+| `status_bayar` | `paid` |
+| `paid_at` | terisi, bukan kosong |
+| `tier_tenant` | `standar` |
+| `status_tenant` | `active` — **bukan** `trial` |
+| `period_end` | ± 30 hari dari sekarang |
+| `saldo_token` | naik 2.000 dari saldo sebelumnya |
+
+Rinciannya, bila ada yang janggal:
+
+```sql
+select delta, reason, balance_after, note, created_at
+  from public.token_ledger
+ where tenant_id = (select tenant_id from public.subscriptions
+                     order by created_at desc limit 1)
+ order by created_at desc limit 5;
+```
+
+---
+
+### Membaca kegagalannya
+
+| Yang terjadi | Sebabnya hampir selalu |
+|---|---|
+| `status_bayar` masih `pending` | 🔴 **webhook tidak sampai** — `--no-verify-jwt` terlupa, atau Payment Notification URL salah/masih menunjuk project lama |
+| `paid` tetapi `status_tenant` masih `trial` | webhook sampai tetapi gagal di tengah — lihat **Logs `midtrans-webhook`** |
+| `paid`, tenant `active`, `saldo_token` tidak naik | pemberian token gagal — lihat `note` di kueri rinci di atas |
+
+⚠️ Baris pertama itu yang paling sering, dan **tidak menghasilkan galat di
+mana pun**: uang berpindah di Midtrans, aplikasi bilang berhasil, dan langganan
+pelanggan tidak pernah aktif. Bandingkan alamat di **Midtrans Dashboard →
+Settings → Configuration** dengan yang di 3.5, huruf demi huruf.
 
 Kalau ketiganya benar, buka **Riwayat pembayaran** di aplikasi. Barisnya harus
-muncul dengan jumlah token yang sama dengan (c).
+muncul dengan jumlah token yang sama dengan `saldo_token`.
 
 ## 3.7 Kalau gagal
 
@@ -1111,7 +1206,8 @@ Sebelum menyatakan produksi siap:
 - [ ] Migrasi 47 jalan, dan `net._http_response` menjawab **200**
 - [ ] Antrean R2 terbukti **turun** setelah dikuras
 - [ ] `verify_jwt` diuji dengan `curl.exe`: `create-payment` menjawab 401, `midtrans-webhook` TIDAK 401
-- [ ] Satu transaksi sungguhan terlacak sampai `token_ledger`
+- [ ] Log `create-payment` menunjukkan kunci `Mid-server-` dan `app.midtrans.com` — bukan sandbox
+- [ ] Satu transaksi sungguhan terlacak sampai `token_ledger`, dan tenant menjadi `active`
 - [ ] APK dan web dibangun ulang dengan kredensial baru
 - [ ] Akun Owner, Admin, toko, gambar iklan, dan tutorial dibuat ulang
 - [ ] Tiga kartu paket tergambar di Admin > Harga & Paket, bukan dua
