@@ -248,6 +248,194 @@ lihat bagian 3.2.
 
 ---
 
+## 1.6 Layanan luar yang menyimpan alamat project
+
+🔴 **Bagian ini sebelumnya tidak ada, dan itu kelalaian yang serius.**
+
+Ref project berubah, dan setiap layanan luar yang menyimpan alamat lama akan
+menunjuk ke tempat yang salah. Yang paling berbahaya: **hampir semuanya gagal
+tanpa pesan** — tombolnya ada, dipencet, lalu tidak terjadi apa-apa.
+
+### Yang berubah, dan yang TIDAK
+
+| Layanan | Menyimpan alamat Supabase? | Yang harus dikerjakan |
+|---|---|---|
+| **Supabase -> Providers -> Google** | — | 🔴 **aktifkan** (mati di project baru) |
+| **Google Cloud Console** | ya, **hanya** untuk login web | tambah redirect URI baru |
+| **Midtrans Dashboard** | ya | ganti Payment Notification URL |
+| **SMTP (Resend/Brevo)** | tidak | wajib dipasang ulang di project baru |
+| **Sentry** | 🟢 **TIDAK** | **tidak ada yang perlu diubah** |
+| **Cloudflare R2** | tidak | kuncinya lewat Edge Function Secrets (1.7) |
+| **Cloudflare Pages** | tidak | cukup deploy ulang (1.5) |
+
+⚠️ Baris **Sentry** sengaja ditulis. Sentry hanya menerima laporan **dari**
+aplikasi; ia tidak pernah memanggil Supabase. `SENTRY_DSN` milik Sentry, bukan
+milik project Supabase. Tidak perlu diapa-apakan — dan mengetahui apa yang
+**tidak** perlu dikerjakan menghemat waktu sama banyaknya.
+
+---
+
+### a. 🔴 Login Google — kenapa gagal, dan cara memperbaikinya
+
+**Penyebab paling mungkin: provider Google MATI di project baru.**
+
+Setiap project Supabase baru lahir dengan seluruh provider dalam keadaan
+nonaktif. Ini berlaku untuk **kedua** jalur login, HP maupun web.
+
+**Dashboard -> Authentication -> Sign In / Providers -> Google -> Enable.**
+
+Isi dari Google Cloud Console -> **APIs & Services -> Credentials -> OAuth 2.0
+Client IDs -> klien bertipe *Web application***:
+
+| Kolom di Supabase | Diisi dengan |
+|---|---|
+| Client IDs | Client ID **Web** — sama dengan `GOOGLE_WEB_CLIENT_ID` di `env.dev.json` |
+| Client Secret | Client secret dari klien Web yang sama |
+
+⚠️ **Client ID-nya sama persis dengan yang lama.** Anda tidak membuat klien
+Google baru — yang baru hanyalah project Supabase-nya.
+
+#### Kalau yang Anda coba di HP (Android)
+
+Jalur HP tidak memakai redirect sama sekali. Aplikasi meminta *ID token* ke
+Google, lalu menyerahkannya ke Supabase:
+
+```
+GoogleSignIn.authenticate()  ->  idToken  ->  signInWithIdToken()
+```
+
+🟢 **Karena itu Google Cloud Console TIDAK perlu diubah untuk jalur HP.**
+SHA-1, SHA-256, dan nama paketnya tidak tersentuh oleh pindah project. Dugaan
+bahwa Google Cloud perlu disinkronkan hanya benar untuk jalur **web**.
+
+Yang menolaknya adalah Supabase, karena provider-nya mati. Sesudah di-Enable,
+pastikan Client ID Web tercantum di kolom **Client IDs** — Supabase memeriksa
+`aud` di dalam ID token terhadap daftar itu, dan token yang `aud`-nya tidak
+terdaftar ditolak meski provider sudah aktif.
+
+#### Kalau yang Anda coba di web
+
+Tambahan satu langkah, di **Google Cloud Console -> Credentials -> klien Web ->
+Authorized redirect URIs**:
+
+```
+https://cgzvrhwlyzettnfbiiuk.supabase.co/auth/v1/callback
+```
+
+🔴 **TAMBAHKAN, jangan mengganti.** Alamat project lama harus tetap di
+daftar itu selama Anda masih mungkin kembali ke project lama. Menghapusnya
+mematikan login Google di sana seketika.
+
+Lalu di Supabase, **Authentication -> URL Configuration**:
+
+| Kolom | Isi |
+|---|---|
+| Site URL | `https://kamelscan.com/app` |
+| Redirect URLs | `https://kamelscan.com/app/auth/callback` |
+
+⚠️ Redirect URL yang tidak cocok **tidak menghasilkan galat**. Supabase
+diam-diam memakai Site URL. Jebakan ini sudah memakan waktu tiga kali di proyek
+ini.
+
+#### Kalau masih gagal, baca galatnya
+
+Aplikasi menyimpan sebabnya di `debugMessage`. Di HP:
+
+```powershell
+& '<adb>' logcat -d | Select-String -Pattern "provider|oauth|idToken|400"
+```
+
+| Yang terbaca | Artinya |
+|---|---|
+| `Unsupported provider` / `provider is not enabled` | provider Google masih mati |
+| `Invalid audience` / `bad_jwt` | Client ID Web belum tercantum di kolom Client IDs |
+| `redirect_uri_mismatch` | jalur web, redirect URI belum ditambahkan di Google Cloud |
+| `errorGoogleNotConfigured` | `GOOGLE_WEB_CLIENT_ID` kosong saat aplikasi dibangun |
+
+---
+
+### b. SMTP — pengirim email
+
+Project baru kembali memakai pengirim bawaan Supabase, yang **dibatasi sekitar
+3-4 email per jam** dan memang tidak diperuntukkan bagi produksi.
+
+Akibatnya khas dan menyesatkan: pendaftaran pertama dan kedua lancar, lalu email
+verifikasi berhenti datang — tanpa galat apa pun di aplikasi.
+
+**Dashboard -> Project Settings -> Authentication -> SMTP Settings**, isi dengan
+akun Resend/Brevo yang sama seperti project lama.
+
+⚠️ Periksa juga **Authentication -> Emails -> Templates**. Kalau di project
+lama templatnya pernah disunting, di project baru ia kembali ke bentuk bawaan
+berbahasa Inggris.
+
+---
+
+### c. Midtrans — Payment Notification URL
+
+Selama masih Sandbox pun alamatnya sudah harus dipindah; kalau tidak, pembayaran
+uji coba tidak akan pernah mengaktifkan langganan.
+
+**Midtrans Dashboard -> Settings -> Configuration -> Payment Notification URL:**
+
+```
+https://cgzvrhwlyzettnfbiiuk.supabase.co/functions/v1/midtrans-webhook
+```
+
+🔴 Ganti di lingkungan **Sandbox** sekarang. Bagian 3.5 mengurus
+lingkungan **Production**, dan keduanya punya kolom sendiri-sendiri yang tidak
+saling mempengaruhi.
+
+---
+
+## 1.7 Deploy ulang SELURUH Edge Function
+
+🔴 **Edge Function tidak ikut pindah.** Project baru tidak memiliki satu
+pun dari kesepuluhnya — dan aplikasi memanggil sebagian besarnya sejak layar
+pertama.
+
+```powershell
+$env:SUPABASE_ACCESS_TOKEN = 'sbp_...'
+$cli = '.\.supabase-cli\node_modules\@supabase\cli-windows-x64\bin\supabase.exe'
+$ref = 'cgzvrhwlyzettnfbiiuk'
+
+foreach ($f in 'create-packer','create-payment','create-public-link',
+               'delete-packer','get-public-video','get-upload-url',
+               'get-video-url','purge-storage','resolve-username') {
+  & $cli functions deploy $f --project-ref $ref
+}
+
+& $cli functions deploy midtrans-webhook --no-verify-jwt --project-ref $ref
+```
+
+🔴 **`midtrans-webhook` di baris terpisah, dan itu disengaja.** Midtrans
+memanggilnya tanpa JWT; penjagaannya tanda tangan, bukan gerbang. Men-deploy
+tanpa `--no-verify-jwt` mematikannya **secara diam-diam** — uang berpindah di
+Midtrans, dan langganan pelanggan tidak pernah aktif.
+
+### Rahasianya juga tidak ikut pindah
+
+```powershell
+& $cli secrets set R2_ENDPOINT=... R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=... R2_BUCKET_VIDEOS=... MIDTRANS_SERVER_KEY=... --project-ref $ref
+```
+
+Nilainya ada di `dataapp.md`. Periksa hasilnya:
+
+```powershell
+& $cli secrets list --project-ref $ref
+```
+
+⚠️ `SUPABASE_URL`, `SUPABASE_ANON_KEY`, dan `SUPABASE_SERVICE_ROLE_KEY`
+**terisi sendiri** — jangan diset manual.
+
+### Buktinya bekerja
+
+| Yang diuji | Caranya | Kalau gagal |
+|---|---|---|
+| `resolve-username` | login memakai username, bukan email | fungsinya belum ter-deploy |
+| `get-upload-url` | rekam satu video, tunggu terunggah | rahasia R2 belum diset |
+| `get-public-video` | buka tautan publik dari Riwayat | `create-public-link` atau `get-public-video` belum ada |
+
 # 2. Pemicu antrean R2 (`pg_net`)
 
 ## 2.1 Keadaan sekarang, dan kenapa ini mendesak
@@ -466,40 +654,21 @@ Harus satu baris, `schedule` `0 * * * *`, `active` `t`.
 
 ---
 
-## 2.6 Kalau `purge-storage` belum ada di project baru
+## 2.6 Dua tempat rahasia yang berbeda
 
-Edge Function **tidak ikut** saat Anda membuat project baru — ia harus
-di-deploy ulang, beserta rahasianya.
+`purge-storage` sendiri sudah di-deploy di **1.7** bersama sembilan fungsi
+lainnya, beserta rahasia R2-nya. Kalau bagian itu dilewati, kembali ke sana
+lebih dulu — `drain_purge_queue()` akan menjawab **404** tanpa fungsinya.
 
-```powershell
-$env:SUPABASE_ACCESS_TOKEN = 'sbp_...'
-```
-
-```powershell
-& '.\.supabase-cli
-ode_modules\@supabase\cli-windows-x64in\supabase.exe' functions deploy purge-storage --project-ref <REF_BARU>
-```
-
-Dan rahasia R2-nya — `purge-storage` membacanya dari Edge Function Secrets,
-bukan dari Vault:
-
-```powershell
-& '.\.supabase-cli
-ode_modules\@supabase\cli-windows-x64in\supabase.exe' secrets set R2_ENDPOINT=... --project-ref <REF_BARU>
-```
-
-Ulangi untuk `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, dan
-`R2_BUCKET_VIDEOS`. Nilainya ada di `dataapp.md`.
-
-⚠️ **Dua tempat rahasia yang berbeda, dan mudah tertukar:**
+⚠️ **Yang sering tertukar, dan tidak menghasilkan galat apa pun:**
 
 | Tempat | Isinya | Dibaca oleh |
 |---|---|---|
-| **Vault** (di database) | `service_role_key`, `purge_storage_url` | fungsi SQL `drain_purge_queue()` |
-| **Edge Function Secrets** | kunci R2, kunci Midtrans | kode Deno di dalam fungsinya |
+| **Vault** (di dalam database) | `service_role_key`, `purge_storage_url` | fungsi SQL `drain_purge_queue()` |
+| **Edge Function Secrets** | kunci R2, `MIDTRANS_SERVER_KEY` | kode Deno di dalam fungsinya |
 
-Menaruh kunci R2 di Vault tidak akan menghasilkan galat apa pun — fungsinya
-hanya tidak pernah menemukannya.
+Menaruh kunci R2 di Vault tidak akan ditolak siapa pun — fungsinya hanya tidak
+pernah menemukannya, lalu gagal dengan sebab yang terlihat seperti hal lain.
 
 # 3. Midtrans produksi
 
@@ -632,6 +801,10 @@ Kunci penuhnya sengaja tidak ikut tercetak.
 Sebelum menyatakan produksi siap:
 
 - [ ] Migrasi 00–46 jalan berurutan, tanpa lubang
+- [ ] Provider **Google aktif**, Client ID Web tercantum — daftar akun lewat Google berhasil
+- [ ] SMTP kustom terpasang — bukan pengirim bawaan yang dibatasi 3–4 email/jam
+- [ ] Kesepuluh Edge Function ter-deploy, rahasianya diset
+- [ ] Payment Notification URL Midtrans **Sandbox** menunjuk ref baru
 - [ ] Auth Hook aktif — Beranda menampilkan angka, bukan kosong
 - [ ] Redirect URL diisi lengkap
 - [ ] Tiga bucket ada, `payment-proofs` **tidak** publik
@@ -647,6 +820,14 @@ Sebelum menyatakan produksi siap:
 - [ ] Tiga kartu paket tergambar di Admin > Harga & Paket, bukan dua
 - [ ] Project lama **belum** dihapus
 
-⚠️ Yang paling mudah terlewat dari daftar ini adalah baris kedua. Auth Hook
-yang mati tidak menimbulkan galat apa pun — hanya layar kosong yang terlihat
-seperti "belum ada data".
+⚠️ **Dua kegagalan paling senyap ada di daftar ini, dan keduanya tidak
+menghasilkan satu pun pesan galat:**
+
+- **Provider Google mati** — tombol "Lanjut dengan Google" ada, dipencet, lalu
+  tidak terjadi apa-apa.
+- **Auth Hook mati** — login berhasil, lalu setiap layar kosong. Terlihat persis
+  seperti "belum ada data", padahal datanya ada.
+
+Keduanya tidak dapat dibuktikan dengan membaca layar Dashboard. Yang
+membuktikan hanya mencobanya: daftar satu akun lewat Google, lalu buka Beranda
+dan pastikan angkanya muncul.
