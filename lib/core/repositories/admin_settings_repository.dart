@@ -289,6 +289,27 @@ class AdminSettingsRepository {
     }
   }
 
+  /// Membuang satu berkas dari bucket `public-assets`.
+  ///
+  /// ⚠️ Menerima **nama berkas**, bukan alamat publiknya. Alamat yang tersimpan
+  /// di `platform_settings` berakhiran `?v=<cap waktu>` penangkal singgahan;
+  /// menyerahkannya apa adanya ke Storage berarti menghapus berkas bernama
+  /// `landing.jpg?v=1757...` yang tidak pernah ada, dan gagalnya diam.
+  ///
+  /// ⚠️ Menghapus berkas yang sudah tidak ada **bukan galat** bagi Supabase
+  /// Storage. Itu justru sifat yang diinginkan di sini: Admin yang mencoba
+  /// menghapus dua kali tidak boleh disuguhi pesan merah.
+  Future<Result<void>> deletePublicAsset(String nama) async {
+    try {
+      await _client.storage
+          .from(AppConstants.bucketPublicAssets)
+          .remove([nama]);
+      return const Result.ok(null);
+    } on Object catch (e, s) {
+      return Result.err(SupabaseService.mapError(e, s));
+    }
+  }
+
   // -------------------------------------------------------------------------
   // 9.9 Tutorial
   // -------------------------------------------------------------------------

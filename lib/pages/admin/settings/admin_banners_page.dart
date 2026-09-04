@@ -84,6 +84,54 @@ class _AdminBannersPageState extends ConsumerState<AdminBannersPage> {
     );
   }
 
+  /// Menanyakan lebih dulu, lalu menyerahkan penghapusan ke [hapus].
+  ///
+  /// 🔴 Dikonfirmasi karena tidak dapat dibatalkan: berkasnya dibuang dari
+  /// bucket, dan gambar aslinya hanya ada di HP Admin. Ini juga satu-satunya
+  /// tombol di layar ini yang merusak sesuatu.
+  Future<void> _hapus(
+    String label,
+    Future<AppFailure?> Function() hapus,
+  ) async {
+    if (_sedang) return;
+    final t = context.l10n;
+    final messenger = ScaffoldMessenger.of(context);
+
+    final yakin = await showDialog<bool>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: Text(t.adminBannerDeleteTitle),
+        content: Text(t.adminBannerDeleteBody(label)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(d, false),
+            child: Text(t.commonCancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(d, true),
+            child: Text(t.commonDelete),
+          ),
+        ],
+      ),
+    );
+    if (yakin != true || !mounted) return;
+
+    setState(() => _sedang = true);
+    final gagal = await hapus();
+    if (!mounted) return;
+    setState(() => _sedang = false);
+
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          gagal == null
+              ? t.adminBannerDeleted
+              : context.failureMessage(gagal),
+        ),
+      ),
+    );
+  }
+
   Future<void> _simpanTeks() async {
     final t = context.l10n;
     final messenger = ScaffoldMessenger.of(context);
@@ -152,6 +200,12 @@ class _AdminBannersPageState extends ConsumerState<AdminBannersPage> {
                       .read(adminBannersViewModelProvider.notifier)
                       .unggahLanding(b),
                 ),
+                onHapus: () => _hapus(
+                  t.adminBannerLandingImage,
+                  () => ref
+                      .read(adminBannersViewModelProvider.notifier)
+                      .hapusLanding(),
+                ),
               ),
 
               const SizedBox(height: 16),
@@ -199,6 +253,12 @@ class _AdminBannersPageState extends ConsumerState<AdminBannersPage> {
                         .read(adminBannersViewModelProvider.notifier)
                         .unggahPaket(plan, b),
                   ),
+                  onHapus: () => _hapus(
+                    _namaPlan(t, plan),
+                    () => ref
+                        .read(adminBannersViewModelProvider.notifier)
+                        .hapusPaket(plan),
+                  ),
                 ),
                 const SizedBox(height: 12),
               ],
@@ -216,19 +276,21 @@ class _AdminBannersPageState extends ConsumerState<AdminBannersPage> {
       };
 }
 
-/// Pratinjau satu gambar beserta tombol menggantinya.
+/// Pratinjau satu gambar beserta tombol mengganti dan menghapusnya.
 class _KotakGambar extends StatelessWidget {
   const _KotakGambar({
     required this.url,
     required this.label,
     required this.sedang,
     required this.onPilih,
+    required this.onHapus,
   });
 
   final String url;
   final String label;
   final bool sedang;
   final VoidCallback onPilih;
+  final VoidCallback onHapus;
 
   @override
   Widget build(BuildContext context) {
@@ -284,12 +346,33 @@ class _KotakGambar extends StatelessWidget {
             ),
 
             const SizedBox(height: 10),
-            OutlinedButton.icon(
-              onPressed: sedang ? null : onPilih,
-              icon: const Icon(Icons.upload_outlined, size: 18),
-              label: Text(
-                url.isEmpty ? t.adminBannerUpload : t.adminBannerReplace,
-              ),
+            // ⚠️ Wrap, bukan Row. Pada teks yang diperbesar atau bahasa yang
+            // katanya lebih panjang, dua tombol sejajar melimpah dan Flutter
+            // menggambar garis kuning-hitam alih-alih tombolnya.
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: sedang ? null : onPilih,
+                  icon: const Icon(Icons.upload_outlined, size: 18),
+                  label: Text(
+                    url.isEmpty ? t.adminBannerUpload : t.adminBannerReplace,
+                  ),
+                ),
+                // 🔴 Hanya muncul bila ADA yang dapat dihapus. Tombol hapus di
+                // samping kotak kosong menjanjikan pekerjaan yang tidak ada,
+                // dan menekannya hanya menghasilkan kebingungan.
+                if (url.isNotEmpty)
+                  TextButton.icon(
+                    onPressed: sedang ? null : onHapus,
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    label: Text(t.commonDelete),
+                    style: TextButton.styleFrom(
+                      foregroundColor: colors.danger,
+                    ),
+                  ),
+              ],
             ),
           ],
         ),

@@ -1770,5 +1770,9 @@
   "adminBannerEmpty": "Belum ada gambar",
   "adminBannerUpload": "Unggah gambar",
   "adminBannerReplace": "Ganti gambar",
+  "adminBannerDeleteTitle": "Hapus gambar?",
+  "adminBannerDeleteBody": "Gambar \"{label}\" akan dibuang dan tidak dapat dikembalikan. Halaman kembali memakai ilustrasi bawaan.",
+  "@adminBannerDeleteBody": { "placeholders": { "label": { "type": "String" } } },
+  "adminBannerDeleted": "Gambar dihapus",
   "adminBannerLoadFailed": "Gambar gagal dimuat"
 }

@@ -147,7 +147,12 @@ img { max-width: 100%; height: auto; display: block; }
 
 h1, h2, h3 { margin: 0; text-wrap: balance; }
 p { margin: 0; }
-ul { margin: 0; padding: 0; list-style: none; }
+/* 🔴 `ol` ikut di-reset, bukan hanya `ul`.
+   Langkah "Cara kerja" adalah <ol> dengan nomor yang digambar sendiri
+   (.langkah-no). Selama `ol` tidak ikut di sini, peramban menggambar
+   nomor bawaannya JUGA — pembaca melihat "1. 1", "2. 2", dan seterusnya.
+   Ditemukan Product Owner 4 September 2026. */
+ul, ol { margin: 0; padding: 0; list-style: none; }
 
 a { color: var(--primary); }
 
@@ -359,8 +364,23 @@ a { color: var(--primary); }
    tidak menggeser apa pun di sekitarnya — pergeseran tata letak yang terjadi
    sedetik setelah halaman terbuka jauh lebih mengganggu daripada gambar yang
    datang terlambat. */
-.hero-foto { width: 100%; max-width: 320px; height: auto; border-radius: 18px;
+.hero-foto { width: 100%; height: auto; border-radius: 18px;
              filter: drop-shadow(0 18px 40px rgba(16,24,40,.16)); }
+
+/* 🔴 Spanduk unggahan memenuhi kolomnya, ILUSTRASI TIDAK.
+   Keputusan Product Owner 4 September 2026.
+
+   Keduanya sengaja dibedakan: ilustrasi bawaannya bergambar badan HP
+   tegak, dan HP setinggi 600 px di layar lebar terbaca seperti galat,
+   bukan seperti desain. Foto spanduk tidak punya batasan itu — ia
+   justru kehilangan maksudnya bila dikecilkan menjadi 320 px di tengah
+   kolom yang lapang.
+
+   ⚠️ Karena keduanya kini berbeda ukuran, pergantian ilustrasi menjadi
+   spanduk MENGGESER tata letak. Itu diterima dengan sadar: `spanduk()`
+   memuat gambarnya di luar halaman lebih dulu, jadi pergeserannya
+   terjadi sekali, utuh, dan tidak diikuti kotak kosong. */
+.hero-gambar:has(.hero-foto) { display: block; }
 
 /* -------------------------------------------------------------------------
    Bagian umum

@@ -1762,5 +1762,9 @@
   "adminBannerEmpty": "No image yet",
   "adminBannerUpload": "Upload image",
   "adminBannerReplace": "Replace image",
+  "adminBannerDeleteTitle": "Delete image?",
+  "adminBannerDeleteBody": "The image “{label}” will be removed and cannot be restored. The page goes back to the built-in illustration.",
+  "@adminBannerDeleteBody": { "placeholders": { "label": { "type": "String" } } },
+  "adminBannerDeleted": "Image deleted",
   "adminBannerLoadFailed": "Image failed to load"
 }
