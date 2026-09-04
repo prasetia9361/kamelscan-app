@@ -934,64 +934,99 @@ Diurutkan menurut yang menghalangi rilis, bukan menurut kemudahannya.
 
 ## 🔴 Utang yang belum lunas
 
-### 1. 🔴 Midtrans belum pernah diuji di PRODUKSI
+*Diperbarui 4 September 2026.*
 
-Kelima skenario Bab 12.3 aturan 6 sudah lulus, tetapi **seluruhnya di
-Sandbox**. Yang belum pernah terjadi sekali pun: satu rupiah sungguhan berpindah
-lewat jalur ini.
+### 1. 🔴 Midtrans produksi — TERTAHAN DI MIDTRANS, bukan di kode
 
-Untuk menyalakannya, `MIDTRANS_SERVER_KEY` dan `MIDTRANS_IS_PRODUCTION` harus
-diganti **bersamaan** (P.7). Saya menundanya sampai database produksi final.
+Seluruh sisi kita **sudah selesai**: kunci produksi dan
+`MIDTRANS_IS_PRODUCTION=true` terpasang, `create-payment` dan
+`midtrans-webhook` ter-deploy, `verify_jwt` terbukti benar (401 untuk
+`create-payment`, 403 untuk `midtrans-webhook`), dan alamat notifikasi
+menunjuk project baru.
 
-⚠️ Sesudah dinyalakan, transaksi pertama sebaiknya nominal kecil dan diperiksa
-sampai ke `token_ledger` — bukan hanya sampai layar bilang berhasil.
+🔴 Yang menahan: **akun Midtrans masih `Business review — In progress`.**
+Selama itu tidak ada satu kanal pembayaran pun yang dapat aktif, dan Snap
+menjawab *"No payment channels available"* pada nominal berapa pun — terbukti
+juga pada pratinjau bawaan Midtrans senilai Rp 400.000.
 
-### 2. Dua kegagalan Midtrans yang pesannya sama
+Yang tersisa begitu review lulus: aktifkan kanal (GoPay/QRIS tercepat, SLA
+3 hari kerja), lalu jalankan **PINDAH_PRODUKSI.md bagian 3.6** — satu transaksi
+sungguhan, diperiksa sampai `token_ledger`.
 
-`MIDTRANS_UNREACHABLE` (jaringan) dan `MIDTRANS_REJECTED` (Midtrans menolak,
-biasanya kunci salah) dipetakan ke **satu kalimat yang sama** di
-`subscription_repository.dart`, dan `create-payment` tidak menuliskan penolakan
-Midtrans ke `console.error`.
+⚠️ Tidak ada pekerjaan kode yang tersisa di sini. Menunggu pihak ketiga.
 
-Akibatnya, saat tiga pembayaran gagal berturut-turut pada 31 Agustus 2026,
-tidak ada satu pun petunjuk di layar maupun di catatan fungsi. Sebabnya baru
-ketahuan setelah kuncinya diuji langsung ke Midtrans. ± 30 menit untuk
-memperbaiki keduanya.
+### 2. 🔴 KGP — utang berjadwal, dan tenggatnya bukan milik kita
 
-### 3. Unggah gambar iklan (Bab 11.5) — butuh migrasi baru
+Setiap build Android mencetak:
 
-Bucket `public-assets` **tidak pernah dibuat**; yang ada hanya `avatars`
-(migrasi 23) dan `payment-proofs` (migrasi 25). Sisa Bab 11.5 (kontak) sudah
-selesai. Gambar landing page dan gambar halaman pembayaran karena itu masih
-diatur lewat Supabase Dashboard.
+```
+WARNING: Your app uses the following plugins that apply Kotlin Gradle Plugin (KGP):
+ffmpeg_kit_flutter_new, flutter_tts, mobile_scanner, sentry_flutter, workmanager_android
+Future versions of Flutter will fail to build if your app uses plugins that apply KGP.
+```
 
-### 4. Bab 9.9 Tutorial — ✅ TIDAK DITUNDA LAGI, kini tugas sesi berikutnya
+🔴 **Sekarang peringatan, nanti kegagalan build.** Kalimatnya menjanjikan
+bahwa Flutter versi mendatang akan MENOLAK membangun aplikasi yang memakai
+plugin ini. Saat itu tiba, Android berhenti dapat dibangun sampai kelimanya
+diperbarui — dan kelimanya inti semua: FFmpeg (perekaman), pemindai (pemicu),
+TTS, Sentry, WorkManager (unggah latar belakang).
 
-🔴 **Bagian di bawah ini sudah kedaluwarsa.** Product Owner menjadwalkannya
-pada 3 September 2026 sebagai tugas (b) — lihat bagian **TUGAS SESI
-BERIKUTNYA** di atas. Bentuknya juga ditetapkan lebih sederhana daripada yang
-tertulis di bawah: Admin memasukkan tautan YouTube, pengguna mengetuk dan
-videonya terbuka.
+**Yang tidak dapat kita kerjakan:** memperbaikinya. Migrasinya milik penulis
+plugin, bukan kita.
 
-Teks aslinya disimpan supaya alasan penundaannya dulu tetap terbaca:
+**Yang harus kita kerjakan:**
 
-Halaman daftar bernomor dari tabel `tutorials`, membuka YouTube lewat
-`url_launcher`. Versi webnya grid kartu (Bab 10.5). CRUD-nya di panel Admin
-juga belum dibuat, dan sengaja.
+| Kapan | Tindakan |
+|---|---|
+| Berkala | `flutter pub outdated` — cari versi yang sudah bermigrasi ke Built-in Kotlin |
+| Sebelum menaikkan versi Flutter | 🔴 periksa kelima plugin dulu, JANGAN naik lebih dulu lalu berharap |
+| Kalau satu plugin tak kunjung bermigrasi | laporkan ke penulisnya, atau cari penggantinya |
 
-⚠️ **Bukan prioritas, dan bukan karena terlupa.** Isinya bergantung pada video
-tutorial yang belum dibuat; halaman yang jadi lebih dulu hanya akan menampilkan
-daftar kosong. Product Owner memutuskan 29 Agustus 2026 untuk menunggu
-channel-nya siap.
+⚠️ **Jangan menaikkan versi Flutter tanpa alasan kuat.** `flutter_3.44.8`
+sekarang bekerja. Naik versi menukar dua peringatan yang tidak berbahaya dengan
+kemungkinan build yang gagal.
 
-Sampai saat itu, menu Tutorial di sidebar web dan di Beranda HP tetap mendarat
-di halaman kosong. **Itu keadaan yang saya terima, bukan cacat yang terlewat.**
-Perkiraan ± 2 jam begitu videonya ada.
+Peringatan lint `flutter_tts_web.dart` saat build web berasal dari sumber paket
+yang sama dan **bukan utang** — ia kosmetik, tidak memengaruhi hasil build, dan
+tidak ada cara yang didukung untuk membungkamnya. Menyunting berkas di
+`Pub/Cache` hilang pada `pub get` berikutnya.
 
-### 5. Satu video sungguhan lewat jalur unggah latar belakang
+### 3. Satu video sungguhan lewat jalur unggah latar belakang
 
 Isolatenya terbukti hidup, tetapi antriannya selalu keburu dihabiskan jalur
 aplikasi-terbuka. Prosedurnya di `DEVIASI_LIBRARY.md` **L.8**; butuh Wi-Fi.
+
+### 4. Tugas (c) — ukuran rekaman, ditunda Product Owner
+
+Dari **3,49 MB/menit** terukur menuju 2–3 MB/menit tanpa mengorbankan
+kehalusan FPS. Ditunda pada 3 September 2026 ("tugas c nanti dulu").
+
+⚠️ Berkaitan langsung dengan biaya R2: angka di
+`Biaya_Infrastruktur_KamelScan.docx` dihitung dari 3,49 MB/menit, jadi
+menurunkannya menurunkan seluruh kolom biaya di sana.
+
+---
+
+## ✅ Lunas 4 September 2026
+
+- **Utang lama #2 — dua kegagalan Midtrans yang pesannya sama.**
+  `MIDTRANS_UNREACHABLE` dan `MIDTRANS_REJECTED` kini punya kalimat sendiri,
+  dan `create-payment` menuliskan penolakan Midtrans lengkap dengan
+  `http_status`, `error_messages`, serta awalan kunci — tidak pernah kuncinya
+  sendiri. Ditambah `MIDTRANS_SNAP_CREATED` pada jalur BERHASIL, supaya
+  lingkungan produksi dapat dipastikan **sebelum** uang berpindah.
+
+- **Utang lama #3 — gambar iklan.** Bucket `public-assets` lahir di migrasi 46,
+  beserta halaman Admin untuk mengunggah, mengganti, **dan menghapus**.
+
+- **Utang lama #4 — Tutorial Bab 9.9.** Selesai sebagai tugas (b), bersama
+  riwayat pembayaran dan nomor HP di Kelola Pengguna.
+
+- **Ikon aplikasi.** Android (warisan + adaptif), web, dan iOS berhenti memakai
+  logo Flutter.
+
+- **Pola A kelima** — promo Bisnis tidak dapat dibuat, dan tertulis "Standar"
+  di struk Midtrans sungguhan.
 
 ## ✅ Yang sudah lunas 29 Agustus 2026 — jangan dikerjakan ulang
 

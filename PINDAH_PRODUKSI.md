@@ -8,6 +8,28 @@ juga.
 
 ---
 
+## 📍 Sudah sampai mana — 4 September 2026
+
+| Bagian | Keadaan |
+|---|---|
+| 1.1 – 1.4 Database, migrasi, data lama | ✅ selesai |
+| 1.5 Kredensial + build ulang | ✅ selesai |
+| 1.6 Layanan luar (Google, SMTP, Midtrans) | ✅ selesai |
+| 1.7 Sepuluh Edge Function + tujuh rahasia | ✅ selesai |
+| 2.x Vault, migrasi 47, pemicu R2 | 🟡 belum dikerjakan |
+| 3.0 Business review Midtrans | 🔴 **`In progress` — menahan 3.6** |
+| 3.1 – 3.5 Kunci, deploy, `verify_jwt`, webhook | ✅ selesai |
+| 3.6 Transaksi sungguhan | 🔴 tertahan 3.0 |
+
+🟢 **3.4 sudah dibuktikan:** `create-payment` menjawab 401,
+`midtrans-webhook` menjawab 403. Keduanya benar.
+
+⚠️ Yang paling mudah dilupakan dari daftar ini: **bagian 2 belum dikerjakan
+sama sekali.** Ia tidak menahan apa pun yang terlihat, tetapi antrean R2 terus
+menumpuk dan berbiaya selama pemicunya belum ada.
+
+---
+
 ## Kenapa urutannya begini
 
 ```
