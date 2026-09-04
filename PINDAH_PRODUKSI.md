@@ -448,47 +448,181 @@ saling mempengaruhi.
 pun dari kesepuluhnya — dan aplikasi memanggil sebagian besarnya sejak layar
 pertama.
 
+Bagian ini dikerjakan dari **PowerShell**, bukan dari Dashboard. Kerjakan
+berurutan; tiap langkah punya cara memeriksanya sendiri.
+
+---
+
+### Langkah a — buka PowerShell di folder yang benar
+
+Perintah di bawah memakai jalur **relatif**, jadi folder kerjanya menentukan.
+
 ```powershell
-$env:SUPABASE_ACCESS_TOKEN = 'sbp_...'
+cd E:\kamelscan\.claude\worktrees\31-agustus
+```
+
+Pastikan CLI-nya memang ada di sana:
+
+```powershell
+Test-Path .\.supabase-cli\node_modules\@supabase\cli-windows-x64\bin\supabase.exe
+```
+
+Harus menjawab `True`. Kalau `False`, CLI-nya belum terpasang:
+
+```powershell
+npm install supabase --save-dev --prefix .supabase-cli
+```
+
+---
+
+### Langkah b — 🔴 buat Access Token yang baru
+
+**Ini yang paling sering menghentikan orang di sini, dan panduan sebelumnya
+hanya menulis `sbp_...` tanpa memberi tahu dari mana asalnya.**
+
+⚠️ Token lama Anda **sudah dicabut** (ia sempat terlihat di tangkapan layar
+4 September 2026). Token yang dicabut tidak dapat dipakai lagi — jadi memang
+harus membuat yang baru, bukan mencari yang lama.
+
+1. Buka **https://supabase.com/dashboard/account/tokens**
+2. **Generate new token**, beri nama bebas — misalnya `cli-laptop`
+3. Salin nilainya **sekarang juga**. Ia diawali `sbp_` dan **hanya
+   ditampilkan satu kali**; menutup halaman berarti membuat token lagi.
+
+```powershell
+$env:SUPABASE_ACCESS_TOKEN = 'sbp_GANTI_DENGAN_TOKEN_ANDA'
+```
+
+⚠️ Baris ini hanya berlaku **selama jendela PowerShell itu terbuka**. Menutup
+jendelanya berarti mengulanginya. Itu memang disengaja — token ini tidak
+seharusnya menetap di komputer.
+
+Sekalian siapkan dua pemboleh-ubah lain:
+
+```powershell
 $cli = '.\.supabase-cli\node_modules\@supabase\cli-windows-x64\bin\supabase.exe'
 $ref = 'cgzvrhwlyzettnfbiiuk'
+```
 
+Buktikan tokennya diterima **sebelum** melangkah:
+
+```powershell
+& $cli projects list
+```
+
+Project baru Anda harus muncul di daftarnya. Kalau jawabannya galat
+`Unauthorized` atau `invalid access token`, tokennya salah salin — ulangi
+langkah b.
+
+---
+
+### Langkah c — deploy sembilan fungsi
+
+```powershell
 foreach ($f in 'create-packer','create-payment','create-public-link',
                'delete-packer','get-public-video','get-upload-url',
                'get-video-url','purge-storage','resolve-username') {
   & $cli functions deploy $f --project-ref $ref
 }
+```
 
+Tiap fungsi memakan belasan detik. Yang benar berakhir dengan
+`Deployed Function <nama>`.
+
+---
+
+### Langkah d — deploy `midtrans-webhook` TERPISAH
+
+```powershell
 & $cli functions deploy midtrans-webhook --no-verify-jwt --project-ref $ref
 ```
 
-🔴 **`midtrans-webhook` di baris terpisah, dan itu disengaja.** Midtrans
-memanggilnya tanpa JWT; penjagaannya tanda tangan, bukan gerbang. Men-deploy
-tanpa `--no-verify-jwt` mematikannya **secara diam-diam** — uang berpindah di
-Midtrans, dan langganan pelanggan tidak pernah aktif.
+🔴 **`--no-verify-jwt` TIDAK BOLEH TERLUPA, dan karena itu ia ditulis di
+baris sendiri — bukan ikut ke dalam daftar di langkah c.**
 
-### Rahasianya juga tidak ikut pindah
+Midtrans memanggilnya tanpa JWT; penjagaannya tanda tangan, bukan gerbang.
+Men-deploy tanpa flag itu mematikannya **secara diam-diam**: uang berpindah di
+Midtrans, dan langganan pelanggan tidak pernah aktif. Tidak ada galat di mana
+pun.
+
+Periksa kesepuluhnya berdiri:
 
 ```powershell
-& $cli secrets set R2_ENDPOINT=... R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=... R2_BUCKET_VIDEOS=... MIDTRANS_SERVER_KEY=... --project-ref $ref
+& $cli functions list --project-ref $ref
 ```
 
-Nilainya ada di `dataapp.md`. Periksa hasilnya:
+---
+
+### Langkah e — 🔴 tujuh rahasia, bukan lima
+
+⚠️ **Panduan versi pertama hanya menyebut lima.** Dua yang hilang tidak
+menghasilkan galat apa pun saat di-deploy — akibatnya baru terasa jauh
+kemudian, di tempat yang tidak terhubung dengan langkah ini.
+
+| Rahasia | Dibaca fungsi | Nilainya dari | Kalau kosong |
+|---|---|---|---|
+| `R2_ENDPOINT` | 4 fungsi video | `dataapp.md`, bagian **S3 API** | unggah & pemutaran video mati |
+| `R2_ACCESS_KEY_ID` | 4 fungsi video | `dataapp.md` | sama |
+| `R2_SECRET_ACCESS_KEY` | 4 fungsi video | `dataapp.md`, **secret access key** | sama |
+| `R2_BUCKET_VIDEOS` | 4 fungsi video | nama bucket R2 Anda | memakai `kamelscan-videos` |
+| `MIDTRANS_SERVER_KEY` | `create-payment`, `midtrans-webhook` | `dataapp.md`, **Server Key** | pembayaran mati |
+| 🔴 `MIDTRANS_IS_PRODUCTION` | `create-payment` | `false` selama masih Sandbox | dianggap `false` |
+| 🔴 `PUBLIC_BASE_URL` | `create-public-link` | `https://kamelscan.com` | memakai `https://kamelscan.com` |
+
+Dua baris terakhir itulah yang hilang.
+
+🔴 **`MIDTRANS_IS_PRODUCTION` sengaja tidak ditebak dari awalan kunci.**
+Menebak berarti satu kunci yang salah tempel diam-diam mengarahkan **uang
+sungguhan** ke sandbox, atau sebaliknya. Selama masih Sandbox, isinya `false`.
+
+```powershell
+& $cli secrets set `
+    R2_ENDPOINT='https://GANTI.r2.cloudflarestorage.com' `
+    R2_ACCESS_KEY_ID='GANTI' `
+    R2_SECRET_ACCESS_KEY='GANTI' `
+    R2_BUCKET_VIDEOS='kamelscan-videos' `
+    MIDTRANS_SERVER_KEY='SB-Mid-server-GANTI' `
+    MIDTRANS_IS_PRODUCTION='false' `
+    PUBLIC_BASE_URL='https://kamelscan.com' `
+    --project-ref $ref
+```
+
+⚠️ Tanda **`` ` ``** di ujung baris adalah penyambung baris PowerShell. Ia
+harus benar-benar di ujung, tanpa spasi sesudahnya — kalau tidak, perintahnya
+terpotong dan sebagian rahasia tidak pernah terkirim.
+
+Periksa:
 
 ```powershell
 & $cli secrets list --project-ref $ref
 ```
 
-⚠️ `SUPABASE_URL`, `SUPABASE_ANON_KEY`, dan `SUPABASE_SERVICE_ROLE_KEY`
-**terisi sendiri** — jangan diset manual.
+Harus terlihat **tujuh** nama itu. CLI hanya menampilkan nama dan sidik
+nilainya, tidak isinya.
 
-### Buktinya bekerja
+⚠️ `SUPABASE_URL`, `SUPABASE_ANON_KEY`, dan `SUPABASE_SERVICE_ROLE_KEY` ikut
+muncul di daftar itu. Ketiganya **terisi sendiri** — jangan diset manual.
+
+---
+
+### Langkah f — membuktikannya lewat aplikasi
+
+🔴 `functions list` hanya membuktikan fungsinya **ada**, bukan bahwa ia
+**bekerja**. Rahasia yang salah tidak terlihat sama sekali dari daftar itu.
 
 | Yang diuji | Caranya | Kalau gagal |
 |---|---|---|
 | `resolve-username` | login memakai username, bukan email | fungsinya belum ter-deploy |
-| `get-upload-url` | rekam satu video, tunggu terunggah | rahasia R2 belum diset |
-| `get-public-video` | buka tautan publik dari Riwayat | `create-public-link` atau `get-public-video` belum ada |
+| `create-payment` | buka halaman Pembayaran, pilih satu paket | `MIDTRANS_SERVER_KEY` salah/kosong |
+| `get-upload-url` | rekam satu video, tunggu terunggah | rahasia R2 salah/kosong |
+| `get-video-url` | buka video itu dari Riwayat | rahasia R2 salah/kosong |
+| `create-public-link` | Bagikan dari Riwayat, buka tautannya | `PUBLIC_BASE_URL` salah |
+
+Kalau ada yang gagal, galat sesungguhnya ada di log fungsinya:
+
+```powershell
+& $cli functions logs get-upload-url --project-ref $ref
+```
 
 # 2. Pemicu antrean R2 (`pg_net`)
 
@@ -858,7 +992,8 @@ Sebelum menyatakan produksi siap:
 - [ ] Provider **Google aktif**, Client ID Web tercantum — daftar akun lewat Google berhasil
 - [ ] SMTP kustom terpasang — bukan pengirim bawaan yang dibatasi 3–4 email/jam
 - [ ] Alamat kontak **terbukti menerima** — satu email uji sampai ke kotak masuk
-- [ ] Kesepuluh Edge Function ter-deploy, rahasianya diset
+- [ ] Kesepuluh Edge Function ter-deploy; `midtrans-webhook` dengan `--no-verify-jwt`
+- [ ] **Tujuh** rahasia Edge Function terisi — termasuk `MIDTRANS_IS_PRODUCTION` dan `PUBLIC_BASE_URL`
 - [ ] Payment Notification URL Midtrans **Sandbox** menunjuk ref baru
 - [ ] Auth Hook aktif — Beranda menampilkan angka, bukan kosong
 - [ ] Redirect URL diisi lengkap
