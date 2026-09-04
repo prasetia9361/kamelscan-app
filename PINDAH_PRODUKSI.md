@@ -20,17 +20,22 @@ dua di antaranya menunggu pihak lain.
 | 1.6 Layanan luar (Google, SMTP, Midtrans) | ✅ selesai |
 | 1.7 Sepuluh Edge Function + tujuh rahasia | ✅ selesai |
 | 2.2 – 2.4 Ekstensi, Vault, migrasi 47 & 48 | ✅ selesai |
-| 2.5 Antrean R2 terbukti terkuras | 🔴 **403 — sedang diperbaiki migrasi 49** |
+| 2.5 Antrean R2 terbukti terkuras | ✅ **200, dan berkasnya hilang dari R2** |
+| 2.6 Migrasi 49 — rahasia bersama | ✅ menggantikan jalur kunci di 47 |
 | 3.0 Business review Midtrans | 🔴 `In progress` — menunggu Midtrans |
 | 3.1 – 3.5 Kunci, deploy, `verify_jwt`, webhook | ✅ selesai |
 | 3.6 Transaksi sungguhan | 🔴 tertahan 3.0 |
 
 ### Yang benar-benar tersisa
 
-**1. Migrasi 49** — ± 5 menit. Penguras antrean R2 berhenti bergantung pada
-`SUPABASE_SERVICE_ROLE_KEY`, yang nilainya dikendalikan Supabase dan tidak
-dapat dibaca dari mana pun. Langkahnya di kepala
-`supabase/migrations/49_purge_shared_token.sql`.
+**1. ✅ Migrasi 49 — SELESAI 5 September 2026.** Diuji sampai ke berkasnya:
+video ditua-kan dengan tangan, `expire_videos_and_queue_storage()` dijalankan,
+antreannya terkuras dengan `status_code = 200`, dan berkasnya diperiksa
+**hilang dari bucket R2** lewat Cloudflare Dashboard — bukan hanya hilang dari
+aplikasi.
+
+⚠️ Migrasi 47 kini **usang**. Ia dibiarkan di folder karena sudah terlanjur
+dijalankan; yang berlaku adalah 49.
 
 **2. Terbitkan ulang APK dan web.** Beberapa perbaikan sudah ter-commit tetapi
 belum pernah terbit: ikon aplikasi, promo paket Bisnis, penomoran landing page,
