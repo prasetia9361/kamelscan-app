@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Latar ikon peluncur.
+
+      Putih, bukan biru merek: marknya sendiri sudah bernavy pekat
+      (#072752) dan biru (#0B77EB). Menaruhnya di atas biru membuat separuh
+      bentuknya lenyap — dan yang paling dulu hilang justru huruf K-nya.
+    -->
+    <color name="ic_launcher_background">#FFFFFF</color>
+</resources>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Ikon adaptif Android 8 ke atas (API 26+).
+
+  🔴 Tanpa berkas ini, peluncur memakai `ic_launcher.png` warisan dan
+  memperlakukannya sebagai gambar asing: ia dikecilkan lalu ditempel di atas
+  petak putih buatan peluncur. Hasilnya ikon kecil di tengah kotak besar —
+  terlihat persis seperti aplikasi yang lupa diberi ikon.
+
+  Redmi Note 9 milik Product Owner berjalan di API 29, jadi berkas INILAH yang
+  ia lihat, bukan PNG warisannya.
+-->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background"/>
+    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+</adaptive-icon>
