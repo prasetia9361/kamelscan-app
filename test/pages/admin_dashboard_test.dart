@@ -217,6 +217,18 @@ void main() {
       // Rute admin tidak punya menu bawah maupun sidebar, dan penjagaan rute
       // melempar balik siapa pun yang sudah masuk. Ini satu-satunya jalan
       // kembali ke akun sendiri.
+      //
+      // ⚠️ Digulir dulu, bukan dicari langsung. Tombol ini paling bawah, dan
+      // `ListView` hanya membangun anak yang terlihat — tiap menu baru yang
+      // ditambahkan di atasnya mendorongnya keluar jangkauan itu, dan tesnya
+      // gagal untuk alasan yang tidak ada hubungannya dengan tombolnya.
+      // Terjadi 5 September 2026 saat menu Iklan & Pengumuman ditambahkan.
+      await tester.scrollUntilVisible(
+        find.byType(LogoutButton),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+
       expect(find.byType(LogoutButton), findsOneWidget);
     });
   });

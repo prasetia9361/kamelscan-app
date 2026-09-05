@@ -6,6 +6,8 @@ import '../../core/models/enums.dart';
 import '../../core/providers/session_provider.dart';
 import '../../core/providers/theme_provider.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/widgets/announcement_gate.dart';
+import '../../core/widgets/double_back_exit.dart';
 import '../../core/widgets/failure_messages.dart';
 import '../route_names.dart';
 import 'kamel_nav_bar.dart';
@@ -108,7 +110,7 @@ class MobileShell extends ConsumerWidget {
     debugPrint('KAMELSCAN_SHELL cabang=${navigationShell.currentIndex} '
         'tab=$currentTab isOwner=$isOwner role=${role?.wire}');
 
-    return Scaffold(
+    final rangka = Scaffold(
       // Bab 9.1 — kerangka tiga bagian: bilah atas, isi, menu bawah. Bilahnya
       // dipasang di sini, bukan di tiap halaman, supaya seluruh tab memakai
       // kepala yang sama persis.
@@ -126,7 +128,20 @@ class MobileShell extends ConsumerWidget {
         currentIndex: currentTab < 0 ? 0 : currentTab,
         onSelect: (index) => navigationShell.goBranch(
           branchOfTab[index],
-          initialLocation: branchOfTab[index] == navigationShell.currentIndex,
+          // 🔴 SELALU `true`, bukan hanya saat tabnya sedang terbuka.
+          //
+          // Dilaporkan Product Owner 5 September 2026: buka Pembayaran dari
+          // Beranda, pindah ke Riwayat, lalu kembali ke Beranda — yang
+          // tergambar masih Pembayaran. Sebabnya halaman yang di-`push`
+          // menumpuk DI DALAM cabang yang sedang terbuka, dan tumpukan itu
+          // disimpan GoRouter per cabang; menekan tombol menu tanpa
+          // `initialLocation` hanya menampilkan kembali tumpukan itu apa
+          // adanya.
+          //
+          // Menekan tombol menu bawah berarti "bawa saya ke menu ini", bukan
+          // "kembalikan saya ke tempat terakhir saya di menu ini" — dan itu
+          // berlaku untuk SEMUA menu, bukan hanya yang sedang bermasalah.
+          initialLocation: true,
         ),
       ),
       // Bab 9.7 — sakelar "Tombol Rekam mengambang" (Pengaturan → Perekaman).
@@ -167,6 +182,17 @@ class MobileShell extends ConsumerWidget {
                     : context.messageForKey(lock.messageKey),
               ),
             ),
+    );
+
+    // Tombol Kembali perangkat: keluar aplikasi butuh dua ketukan
+    // (keluhan Product Owner 5 September 2026). Dipasang di rangka, bukan di
+    // tiap halaman — inilah rute paling bawah, satu-satunya tempat yang
+    // ketukan Kembali-nya benar-benar menutup aplikasi.
+    // Iklan & pengumuman (migrasi 50) dipasang di rangka, bukan di tiap
+    // halaman: inilah satu-satunya tempat yang pasti terpasang begitu
+    // seseorang selesai masuk, dan hanya sekali.
+    return DoubleBackToExit(
+      child: AnnouncementGate(child: rangka),
     );
   }
 }

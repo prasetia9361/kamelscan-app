@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/config/tier_config.dart';
+import '../../../core/models/announcement.dart';
 import '../../../core/models/enums.dart';
 import '../../../core/models/payment_methods.dart';
 import '../../../core/models/platform_contact.dart';
@@ -498,4 +499,143 @@ class AdminBannersViewModel extends _$AdminBannersViewModel {
     if (hasil.isOk) await refresh();
     return hasil.failureOrNull;
   }
+}
+
+/// Iklan & pengumuman saat login (migrasi 50).
+///
+/// Diminta Product Owner 5 September 2026. Halaman ini satu-satunya cara
+/// mengumumkan sesuatu kepada seluruh pengguna — termasuk mewajibkan mereka
+/// memperbarui aplikasi — tanpa merilis aplikasi baru.
+///
+/// 🔴 Sama seperti Harga dan Metode Pembayaran, isi halaman ini berlaku bagi
+/// **seluruh pelanggan sekaligus**. Bedanya satu pengumuman yang salah di sini
+/// dapat MENGUNCI mereka semua: jenis `important` tanpa tautan aksi yang sah
+/// adalah jalan buntu. Formulirnya menolak keadaan itu sebelum disimpan.
+@riverpod
+class AdminAnnouncementsViewModel extends _$AdminAnnouncementsViewModel {
+  @override
+  Future<List<Announcement>> build() async {
+    final session = ref.watch(sessionProvider).value;
+    if (session == null) throw AppFailure.sessionExpired;
+
+    debugPrint('KAMELSCAN_ADMIN minta daftar pengumuman');
+    final hasil =
+        await ref.read(adminSettingsRepositoryProvider).fetchAnnouncements();
+
+    debugPrint(
+      'KAMELSCAN_ADMIN daftar pengumuman '
+      '${hasil.isOk ? 'OK · ${hasil.valueOrNull?.length} baris' : 'GAGAL · ${hasil.failureOrNull}'}',
+    );
+    return hasil.unwrap();
+  }
+
+  Future<void> refresh() async {
+    ref.invalidateSelf();
+    await future;
+  }
+
+  /// Menyimpan satu pengumuman, beserta gambarnya bila ada yang baru dipilih.
+  ///
+  /// 🔴 Urutannya WAJIB baris dulu, gambar belakangan, dan itu kebalikan dari
+  /// gambar iklan landing page (`unggahLanding`). Alasannya bukan gaya:
+  /// berkasnya dinamai `announcement-<id>.jpg`, sehingga **id-nya harus sudah
+  /// ada** sebelum berkasnya punya nama. Pengumuman baru belum punya id sampai
+  /// server membuatnya.
+  ///
+  /// ⚠️ Karena itu ada dua penulisan untuk satu penyimpanan, dan yang kedua
+  /// dapat gagal sendirian: barisnya sudah tersimpan, gambarnya tidak.
+  /// Kegagalannya dilaporkan apa adanya — Admin melihat pengumumannya ada di
+  /// daftar tanpa gambar, dan dapat mengulang unggahannya. Kebalikannya
+  /// (gambar tanpa baris) tidak mungkin terjadi sama sekali.
+  Future<AppFailure?> simpan(Announcement a, {Uint8List? gambar}) async {
+    final repo = ref.read(adminSettingsRepositoryProvider);
+
+    debugPrint('KAMELSCAN_ADMIN simpan pengumuman "${a.title}" '
+        '(${a.kind.wire}/${a.audience.wire})');
+
+    final baris = await repo.upsertAnnouncement(a);
+    if (baris.isErr) {
+      debugPrint('KAMELSCAN_ADMIN simpan pengumuman GAGAL · '
+          '${baris.failureOrNull}');
+      return baris.failureOrNull;
+    }
+
+    final id = baris.valueOrNull!;
+
+    if (gambar != null) {
+      final unggah = await repo.uploadPublicAsset(
+        nama: berkasGambar(id),
+        bytes: gambar,
+      );
+      if (unggah.isErr) {
+        await refresh();
+        debugPrint('KAMELSCAN_ADMIN unggah gambar pengumuman GAGAL · '
+            '${unggah.failureOrNull}');
+        return unggah.failureOrNull;
+      }
+
+      final alamat = await repo.upsertAnnouncement(
+        a.copyWith(id: id, imageUrl: unggah.valueOrNull),
+      );
+      if (alamat.isErr) {
+        await refresh();
+        return alamat.failureOrNull;
+      }
+    }
+
+    await refresh();
+    return null;
+  }
+
+  /// Menghidupkan atau mematikan satu pengumuman tanpa membuka formulirnya.
+  ///
+  /// Aksi yang paling sering dibutuhkan: event sudah lewat, dan yang diperlukan
+  /// hanya menyembunyikannya — bukan menghapusnya lalu mengetik ulang seluruh
+  /// isinya tahun depan.
+  ///
+  /// 🔴 Ini juga tombol darurat untuk pengumuman `important`. Kalau tautan
+  /// aksinya ternyata salah, mematikannya di sini adalah satu-satunya cara
+  /// melepaskan seluruh pengguna yang sedang terkunci.
+  Future<AppFailure?> setActive(Announcement a, bool active) =>
+      simpan(a.copyWith(isActive: active));
+
+  /// Menghapus satu pengumuman beserta berkas gambarnya.
+  ///
+  /// ⚠️ Catatan siapa saja yang sudah menutupnya ikut terbuang lewat
+  /// `on delete cascade` (migrasi 50). Berkas gambarnya TIDAK — Storage bukan
+  /// bagian dari cascade — jadi ia dibuang di sini, sesudah barisnya hilang.
+  ///
+  /// Kegagalan membuang berkasnya tidak dilaporkan sebagai kegagalan: bagi
+  /// Admin pengumumannya memang sudah hilang, dan itu yang ia minta. Yang
+  /// tertinggal hanya berkas yatim beberapa ratus kilobyte yang tidak dapat
+  /// ditemukan siapa pun lagi.
+  Future<AppFailure?> hapus(Announcement a) async {
+    final repo = ref.read(adminSettingsRepositoryProvider);
+
+    debugPrint('KAMELSCAN_ADMIN hapus pengumuman ${a.id}');
+    final hasil = await repo.deleteAnnouncement(a.id);
+    if (hasil.isErr) {
+      debugPrint('KAMELSCAN_ADMIN hapus pengumuman GAGAL · '
+          '${hasil.failureOrNull}');
+      return hasil.failureOrNull;
+    }
+
+    final buang = await repo.deletePublicAsset(berkasGambar(a.id));
+    if (buang.isErr) {
+      debugPrint('KAMELSCAN_ADMIN berkas ${berkasGambar(a.id)} tertinggal '
+          'di bucket · ${buang.failureOrNull}');
+    }
+
+    await refresh();
+    return null;
+  }
+
+  /// Nama berkas gambar sebuah pengumuman di bucket `public-assets`.
+  ///
+  /// 🔴 Memakai id, BUKAN nama tetap seperti `landing.jpg`. Di sana hanya ada
+  /// satu gambar yang selalu ditimpa; di sini pengumumannya banyak dan hidup
+  /// bersamaan, sehingga nama tetap berarti pengumuman kedua menimpa gambar
+  /// pengumuman pertama — dan yang pertama berubah gambarnya sendiri tanpa ada
+  /// yang menyentuhnya.
+  static String berkasGambar(String id) => 'announcement-$id.jpg';
 }

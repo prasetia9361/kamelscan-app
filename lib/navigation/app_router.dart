@@ -13,6 +13,7 @@ import '../pages/account/packers/packers_page.dart';
 import '../pages/admin/dashboard/admin_dashboard_page.dart';
 import '../pages/admin/dashboard/admin_stats_page.dart';
 import '../pages/admin/payments/admin_payments_page.dart';
+import '../pages/admin/settings/admin_announcements_page.dart';
 import '../pages/admin/settings/admin_banners_page.dart';
 import '../pages/admin/settings/admin_contact_page.dart';
 import '../pages/admin/settings/admin_new_admin_page.dart';
@@ -172,6 +173,26 @@ GoRouter appRouter(Ref ref) {
         ),
       ],
 
+      // ---------- Pembayaran — HP saja, di luar rangka ----------
+      //
+      // 🔴 Sampai 5 September 2026 halaman ini hidup DI DALAM cabang Akun,
+      // dan di situlah cacat navigasi yang dilaporkan Product Owner bermula.
+      // Pembayaran selalu dibuka dengan `context.push` dari Beranda — dari
+      // kartu token, dari peringatan kuota, dari tombol Rekam yang terkunci
+      // — sedangkan rutenya milik cabang lain. `push` menaruh halamannya di
+      // tumpukan cabang yang SEDANG terbuka, bukan di cabang pemiliknya.
+      //
+      // Akibatnya Pembayaran menumpuk di atas Beranda, dan Beranda menyimpan
+      // tumpukan itu: pindah ke Riwayat lalu kembali ke Beranda, yang
+      // tergambar masih Pembayaran. Tidak ada galat, dan tidak ada satu pun
+      // tes yang dapat menangkapnya tanpa benar-benar menekan tombolnya.
+      //
+      // Di HP Pembayaran memang BUKAN menu — tidak ada tombolnya di menu
+      // bawah. Ia dibuka dari Beranda dan Pengaturan, jadi tempatnya di luar
+      // rangka dengan tombol kembali sendiri, sama seperti Tutorial dan
+      // Riwayat pembayaran.
+      if (!kIsWeb) _rutePembayaran(),
+
       // ---------- Admin ----------
       GoRoute(
         path: Routes.adminDashboard,
@@ -208,6 +229,11 @@ GoRouter appRouter(Ref ref) {
           GoRoute(
             path: 'banners',
             builder: (_, _) => const AdminBannersPage(),
+          ),
+          // Iklan & pengumuman saat login (migrasi 50).
+          GoRoute(
+            path: 'announcements',
+            builder: (_, _) => const AdminAnnouncementsPage(),
           ),
           GoRoute(
             path: 'new-admin',
@@ -324,11 +350,14 @@ GoRouter appRouter(Ref ref) {
             ],
           ),
 
-          // Branch 3 — Akun & Pembayaran
+          // Branch 3 — Akun (dan Pembayaran, di web saja)
           //
-          // Pembayaran sengaja menumpang di sini, bukan menjadi tab sendiri:
-          // ia dicapai dari kartu token di Beranda dan dari baris Pro di
-          // Pengaturan, bukan sebagai tempat yang dikunjungi rutin.
+          // Pembayaran menumpang di sini HANYA di web, tempat ia memang satu
+          // menu sidebar di antara menu lain. Di HP ia tidak pernah menjadi
+          // tab — ia dicapai dari kartu token di Beranda dan dari baris Pro di
+          // Pengaturan — dan sejak 5 September 2026 rutenya pun tidak lagi di
+          // sini, karena menumpang cabang yang tidak pernah dibuka lewat menu
+          // justru yang membuat tumpukan halamannya mendarat di cabang salah.
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -352,59 +381,10 @@ GoRouter appRouter(Ref ref) {
                   ),
                 ],
               ),
-              GoRoute(
-                path: Routes.payment,
-                // Bab 12.5 — `?plan=` dibawa dari aplikasi HP, yang menutup
-                // jalur bayarnya sendiri dan melempar pelanggan ke dasbor web.
-                //
-                // 🔴 Dicocokkan ke daftar nilai enum, BUKAN lewat
-                //    `TierPlan.fromWire`. `fromWire` menjawab `standar` untuk
-                //    apa pun yang tidak dikenal — jatuhan yang benar di
-                //    tempatnya, tetapi di sini ia akan mengubah alamat yang
-                //    salah ketik menjadi "Standar terpilih" tanpa satu pun
-                //    tanda. Tidak dikenal harus berarti "tidak memilih apa-apa",
-                //    supaya halamannya memakai pilihan bawaannya.
-                builder: (_, state) {
-                  final wire = state.uri.queryParameters['plan'];
-                  TierPlan? awal;
-                  for (final p in TierPlan.values) {
-                    if (p.wire == wire) awal = p;
-                  }
-                  return PlanPage(planAwal: awal);
-                },
-                routes: [
-                  // 🔴 Bab 12.5 — halaman Checkout TIDAK didaftarkan di HP.
-                  //
-                  // Google Play dan Apple App Store mewajibkan pembelian dalam
-                  // aplikasi untuk konten digital; melewatkannya berisiko
-                  // aplikasi ditolak saat review, tepat di akhir proyek.
-                  // Keputusan Product Owner 30 Agustus 2026: di HP paketnya
-                  // tetap terlihat, pembayarannya diselesaikan di dasbor web.
-                  //
-                  // Rutenya dibuang, bukan sekadar tombolnya disembunyikan —
-                  // alamat yang masih hidup dapat dicapai dengan mengetiknya,
-                  // dan itu persis yang diperiksa saat review.
-                  if (PaymentAccess.canPayHere)
-                    GoRoute(
-                      path: 'checkout',
-                      parentNavigatorKey: _rootNavigatorKey,
-                      builder: (_, _) => const CheckoutPage(),
-                    ),
-
-                  // 🔴 Riwayat pembayaran TIDAK dijaga `PaymentAccess`.
-                  //
-                  // Bab 12.5 menutup jalur MEMBAYAR di HP supaya tidak ditolak
-                  // App Store. Melihat apa yang sudah dibayar bukan pembelian
-                  // dalam aplikasi, dan justru di HP-lah kartu token dilihat
-                  // sehari-hari — Owner yang hanya memegang HP tidak punya
-                  // cara lain menjelaskan saldonya.
-                  GoRoute(
-                    path: 'history',
-                    parentNavigatorKey: _rootNavigatorKey,
-                    builder: (_, _) => const PaymentHistoryPage(),
-                  ),
-                ],
-              ),
+              // Di web Pembayaran adalah salah satu menu sidebar, jadi ia
+              // tinggal di cabang yang sama dengan Akun. Di HP rutenya berdiri
+              // di luar rangka — uraiannya di `_rutePembayaran`.
+              if (kIsWeb) _rutePembayaran(),
             ],
           ),
 
@@ -442,6 +422,73 @@ GoRouter appRouter(Ref ref) {
               ],
             ),
         ],
+      ),
+    ],
+  );
+}
+
+/// Rute Pembayaran (Bab 9.8) — satu rute, dua tempat pendaftaran.
+///
+/// 🔴 Ditulis sebagai fungsi karena posisinya di pohon rute BERBEDA menurut
+/// rangka, sementara isinya harus sama persis. Menyalinnya dua kali berarti
+/// aturan Bab 12.5 — halaman Checkout tidak boleh ada di HP — harus benar di
+/// dua tempat sekaligus, dan yang terlupa tidak menimbulkan galat apa pun:
+/// ia hanya menghidupkan kembali alamat yang justru diperiksa saat review
+/// App Store.
+///
+/// Di web: anak cabang 3, sejajar dengan Akun, digambar di dalam sidebar.
+/// Di HP: rute tingkat atas, digambar di luar rangka dengan tombol kembali.
+GoRoute _rutePembayaran() {
+  return GoRoute(
+    path: Routes.payment,
+    // Bab 12.5 — `?plan=` dibawa dari aplikasi HP, yang menutup
+    // jalur bayarnya sendiri dan melempar pelanggan ke dasbor web.
+    //
+    // 🔴 Dicocokkan ke daftar nilai enum, BUKAN lewat
+    //    `TierPlan.fromWire`. `fromWire` menjawab `standar` untuk
+    //    apa pun yang tidak dikenal — jatuhan yang benar di
+    //    tempatnya, tetapi di sini ia akan mengubah alamat yang
+    //    salah ketik menjadi "Standar terpilih" tanpa satu pun
+    //    tanda. Tidak dikenal harus berarti "tidak memilih apa-apa",
+    //    supaya halamannya memakai pilihan bawaannya.
+    builder: (_, state) {
+      final wire = state.uri.queryParameters['plan'];
+      TierPlan? awal;
+      for (final p in TierPlan.values) {
+        if (p.wire == wire) awal = p;
+      }
+      return PlanPage(planAwal: awal);
+    },
+    routes: [
+      // 🔴 Bab 12.5 — halaman Checkout TIDAK didaftarkan di HP.
+      //
+      // Google Play dan Apple App Store mewajibkan pembelian dalam
+      // aplikasi untuk konten digital; melewatkannya berisiko
+      // aplikasi ditolak saat review, tepat di akhir proyek.
+      // Keputusan Product Owner 30 Agustus 2026: di HP paketnya
+      // tetap terlihat, pembayarannya diselesaikan di dasbor web.
+      //
+      // Rutenya dibuang, bukan sekadar tombolnya disembunyikan —
+      // alamat yang masih hidup dapat dicapai dengan mengetiknya,
+      // dan itu persis yang diperiksa saat review.
+      if (PaymentAccess.canPayHere)
+        GoRoute(
+          path: 'checkout',
+          parentNavigatorKey: _rootNavigatorKey,
+          builder: (_, _) => const CheckoutPage(),
+        ),
+
+      // 🔴 Riwayat pembayaran TIDAK dijaga `PaymentAccess`.
+      //
+      // Bab 12.5 menutup jalur MEMBAYAR di HP supaya tidak ditolak
+      // App Store. Melihat apa yang sudah dibayar bukan pembelian
+      // dalam aplikasi, dan justru di HP-lah kartu token dilihat
+      // sehari-hari — Owner yang hanya memegang HP tidak punya
+      // cara lain menjelaskan saldonya.
+      GoRoute(
+        path: 'history',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) => const PaymentHistoryPage(),
       ),
     ],
   );
