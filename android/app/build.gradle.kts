@@ -1,3 +1,18 @@
+import java.io.FileInputStream
+import java.util.Properties
+
+// Kredensial penandatanganan rilis. Berkasnya di-gitignore dan TIDAK ada di
+// repo: setiap mesin harus punya salinannya sendiri. Bila tidak ada, build
+// rilis jatuh kembali ke kunci debug supaya `flutter run --release` tetap
+// jalan - tetapi .aab hasilnya tidak dapat diunggah ke Play Console.
+val keystorePropertiesFile = rootProject.file("key.properties")
+val keystoreProperties = Properties().apply {
+    if (keystorePropertiesFile.exists()) {
+        FileInputStream(keystorePropertiesFile).use { load(it) }
+    }
+}
+val hasReleaseSigning = keystorePropertiesFile.exists()
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -41,11 +56,27 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+                storeFile = keystoreProperties.getProperty("storeFile")?.let { file(it) }
+                storePassword = keystoreProperties.getProperty("storePassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Kunci upload dipakai bila android/key.properties ada; kalau tidak,
+            // kunci debug supaya build lokal tidak berhenti. Cek berkas .aab
+            // dengan `keytool -printcert -jarfile` sebelum mengunggah.
+            signingConfig = if (hasReleaseSigning) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
 
             // Pemangkasan ukuran rilis (R8): buang kode & resource yang tidak
             // terpakai. `isShrinkResources` hanya boleh menyala bila
