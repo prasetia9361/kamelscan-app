@@ -183,6 +183,14 @@ class AppConstants {
   static const String tblTutorials = 'tutorials';
   static const String tblAuditLogs = 'audit_logs';
 
+  /// Iklan & pengumuman saat login (migrasi 50).
+  ///
+  /// ⚠️ Dua tabel, dan keduanya diperlukan. Yang kedua menyimpan APA YANG
+  /// SUDAH DITUTUP oleh tiap orang — keadaan milik pengguna, bukan milik
+  /// platform, dan karena itu tidak dapat menumpang `platform_settings`.
+  static const String tblAnnouncements = 'announcements';
+  static const String tblAnnouncementDismissals = 'announcement_dismissals';
+
   // ---------- Bucket Supabase Storage ----------
   //
   // ⚠️ Hanya foto profil. Video bukti TIDAK pernah masuk Supabase Storage —

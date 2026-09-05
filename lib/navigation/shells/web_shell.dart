@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/models/enums.dart';
 import '../../core/providers/session_provider.dart';
+import '../../core/widgets/announcement_gate.dart';
 import '../../core/widgets/failure_messages.dart';
 import '../../l10n/generated/app_localizations.dart';
 import '../route_names.dart';
@@ -165,14 +166,20 @@ class WebShell extends ConsumerWidget {
                 ),
               ),
             ),
-      body: Row(
-        children: [
-          if (wide) ...[
-            SizedBox(width: 240, child: sidebar),
-            const VerticalDivider(width: 1),
+      // Iklan & pengumuman (migrasi 50) — sama persis dengan rangka HP,
+      // termasuk pengumuman yang mengunci. Bab 10 tidak pernah menjanjikan
+      // dasbor web sebagai jalan memutar dari versi aplikasi yang wajib
+      // diperbarui, dan Owner yang membayar justru dari sinilah.
+      body: AnnouncementGate(
+        child: Row(
+          children: [
+            if (wide) ...[
+              SizedBox(width: 240, child: sidebar),
+              const VerticalDivider(width: 1),
+            ],
+            Expanded(child: navigationShell),
           ],
-          Expanded(child: navigationShell),
-        ],
+        ),
       ),
     );
   }

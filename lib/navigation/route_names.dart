@@ -141,6 +141,16 @@ class Routes {
   /// Tercakup pola `admin/*` di `deploy_web.ps1`.
   static const String adminBanners = '/admin/banners';
 
+  /// Iklan & pengumuman yang muncul sesudah pengguna masuk (migrasi 50).
+  ///
+  /// Diminta Product Owner 5 September 2026. Berbeda dari [adminBanners],
+  /// yang mengurus gambar landing page dan kartu paket: yang ini muncul
+  /// **di dalam** aplikasi kepada pengguna yang sudah masuk, dan salah
+  /// satu jenisnya dapat mengunci mereka sampai memperbarui aplikasi.
+  ///
+  /// Tercakup pola `admin/*` di `deploy_web.ps1`.
+  static const String adminAnnouncements = '/admin/announcements';
+
   /// Bab 2.2 — panduan membuat akun Admin baru.
   ///
   /// 🔴 Halaman ini TIDAK membuat akun. Bab 2.2 melarang jalur registrasi

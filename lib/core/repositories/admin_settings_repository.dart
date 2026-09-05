@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_constants.dart';
 import '../config/tier_config.dart';
+import '../models/announcement.dart';
 import '../models/payment_methods.dart';
 import '../models/platform_contact.dart';
 import '../models/promo.dart';
@@ -380,6 +381,103 @@ class AdminSettingsRepository {
   Future<Result<void>> deleteTutorial(String id) async {
     try {
       await _client.from(AppConstants.tblTutorials).delete().eq('id', id);
+      return okVoid;
+    } on Object catch (e, s) {
+      return Result.err(SupabaseService.mapError(e, s));
+    }
+  }
+  // -------------------------------------------------------------------------
+  // Iklan & pengumuman saat login (migrasi 50)
+  // -------------------------------------------------------------------------
+
+  /// Seluruh pengumuman, **termasuk yang nonaktif**.
+  ///
+  /// 🔴 Berbeda dari `AnnouncementRepository.fetchFor()` yang dipakai
+  /// pelanggan, dan perbedaannya bukan pilihan gaya. Policy
+  /// `announcements_read` memakai `using (is_active)`, sehingga pengumuman
+  /// nonaktif **tidak terlihat sama sekali** lewat jalur itu — Admin yang
+  /// menonaktifkan sebuah pengumuman akan melihatnya lenyap dan tidak punya
+  /// cara menghidupkannya kembali.
+  ///
+  /// Yang membuat kueri ini melihat semuanya adalah policy kedua,
+  /// `announcements_admin` (`for all using (is_admin())`); policy PostgreSQL
+  /// digabung dengan OR, jadi Admin lolos lewat policy itu tanpa peduli
+  /// `is_active`.
+  Future<Result<List<Announcement>>> fetchAnnouncements() async {
+    try {
+      final rows =
+          await _client.from(AppConstants.tblAnnouncements).select();
+
+      final daftar = rows.map(Announcement.fromJson).toList()
+        ..sort(Announcement.urutkan);
+      return Result.ok(List.unmodifiable(daftar));
+    } on Object catch (e, s) {
+      return Result.err(SupabaseService.mapError(e, s));
+    }
+  }
+
+  /// Membuat atau memperbarui satu pengumuman, dan menjawab **id**-nya.
+  ///
+  /// 🔴 Id-nya dikembalikan, bukan diabaikan seperti pada `upsertTutorial`.
+  /// Nama berkas gambarnya dibangun dari id (`announcement-<id>.jpg`, lihat
+  /// migrasi 50), sehingga pengumuman baru mustahil punya gambar sebelum
+  /// barisnya ada. Tanpa id yang kembali dari server, satu-satunya cara adalah
+  /// membaca ulang seluruh daftar dan menerka mana yang barusan dibuat.
+  ///
+  /// ⚠️ `id` kosong berarti **pengumuman baru**: kuncinya dibiarkan dibuat
+  /// server lewat `default gen_random_uuid()`. Mengirim string kosong sebagai
+  /// `id` akan ditolak PostgreSQL sebagai uuid tidak sah — galat yang benar,
+  /// tetapi dengan pesan yang tidak menolong siapa pun.
+  ///
+  /// `created_at` dan `updated_at` tidak pernah ikut dikirim; keduanya milik
+  /// server (trigger `trg_touch_announcements`).
+  Future<Result<String>> upsertAnnouncement(Announcement a) async {
+    try {
+      final baris = <String, dynamic>{
+        if (a.id.isNotEmpty) 'id': a.id,
+        'title': a.title,
+        'body': a.body,
+        'image_url': a.imageUrl,
+        'kind': a.kind.wire,
+        'audience': a.audience.wire,
+        'action_url': a.actionUrl,
+        'action_label': a.actionLabel,
+        'is_active': a.isActive,
+      };
+
+      final hasil = a.id.isEmpty
+          ? await _client
+              .from(AppConstants.tblAnnouncements)
+              .insert(baris)
+              .select('id')
+              .single()
+          : await _client
+              .from(AppConstants.tblAnnouncements)
+              .upsert(baris)
+              .select('id')
+              .single();
+
+      return Result.ok((hasil['id'] as String?) ?? a.id);
+    } on Object catch (e, s) {
+      return Result.err(SupabaseService.mapError(e, s));
+    }
+  }
+
+  /// Menghapus satu pengumuman secara permanen.
+  ///
+  /// ⚠️ Catatan siapa saja yang sudah menutupnya ikut terbuang lewat
+  /// `on delete cascade` (migrasi 50). Berkas gambarnya **tidak** — Storage
+  /// bukan bagian dari cascade, dan itu dibereskan pemanggilnya.
+  ///
+  /// Seperti tutorial, layar tetap menawarkan **menonaktifkan** lebih dulu:
+  /// pengumuman event tahunan hampir selalu ingin kembali dengan isi yang
+  /// sama.
+  Future<Result<void>> deleteAnnouncement(String id) async {
+    try {
+      await _client
+          .from(AppConstants.tblAnnouncements)
+          .delete()
+          .eq('id', id);
       return okVoid;
     } on Object catch (e, s) {
       return Result.err(SupabaseService.mapError(e, s));

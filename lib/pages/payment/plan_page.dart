@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -60,7 +61,7 @@ class _PlanPageState extends ConsumerState<PlanPage> {
       });
     }
 
-    return SafeArea(
+    final isi = SafeArea(
       child: switch (async) {
         AsyncValue(:final value?) => _Body(data: value),
         AsyncError(:final error) => AppErrorView(
@@ -69,6 +70,23 @@ class _PlanPageState extends ConsumerState<PlanPage> {
         ),
         _ => const AppListSkeleton(),
       },
+    );
+
+    // 🔴 Satu halaman, dua rangka — dan sejak 5 September 2026 rangkanya
+    // tidak lagi sejenis.
+    //
+    // Di web halaman ini salah satu menu sidebar: ia menumpang `WebShell`,
+    // yang sudah menyediakan Scaffold beserta kepalanya sendiri.
+    //
+    // Di HP ia berdiri DI LUAR rangka (lihat `_rutePembayaran`), jadi tidak
+    // ada yang menyediakan keduanya. Tanpa Scaffold di sini halamannya
+    // digambar tanpa latar — dan yang lebih buruk, tanpa satu pun tombol
+    // kembali ke Beranda, tempat ia selalu dibuka.
+    if (kIsWeb) return isi;
+
+    return Scaffold(
+      appBar: AppBar(title: Text(context.l10n.navPayment)),
+      body: isi,
     );
   }
 }

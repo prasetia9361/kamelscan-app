@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../repositories/account_deletion_repository.dart';
 import '../repositories/admin_repository.dart';
 import '../repositories/admin_settings_repository.dart';
+import '../repositories/announcement_repository.dart';
 import '../repositories/auth_repository.dart';
 import '../repositories/dashboard_repository.dart';
 import '../repositories/home_repository.dart';
@@ -165,3 +166,12 @@ AdminSettingsRepository adminSettingsRepository(Ref ref) =>
 @Riverpod(keepAlive: true)
 TutorialRepository tutorialRepository(Ref ref) =>
     TutorialRepository(ref.watch(supabaseClientProvider));
+
+/// Iklan & pengumuman yang muncul sesudah pengguna masuk (migrasi 50).
+///
+/// Sisi bacanya saja, ditambah pencatatan bahwa sebuah pengumuman sudah
+/// ditutup. CRUD milik Admin hidup di [adminSettingsRepository], mengikuti
+/// pemisahan yang sudah dipakai promo dan tutorial.
+@Riverpod(keepAlive: true)
+AnnouncementRepository announcementRepository(Ref ref) =>
+    AnnouncementRepository(ref.watch(supabaseClientProvider));

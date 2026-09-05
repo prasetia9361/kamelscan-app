@@ -501,7 +501,14 @@ class _FailedBanner extends StatelessWidget {
       icon: Icons.error_outline_rounded,
       color: colors.danger,
       actionLabel: t.homeFailedAction,
-      onAction: () => context.push(Routes.history),
+      // 🔴 `go`, bukan `push`. Riwayat adalah cabang lain dari rangka, dan
+      // `push` menaruh halamannya di tumpukan cabang yang sedang terbuka —
+      // yaitu Beranda. Akibatnya Riwayat tergambar sambil menu bawah tetap
+      // menyorot Beranda, dan Beranda menyimpan Riwayat di tumpukannya:
+      // pindah ke tab lain lalu kembali, yang muncul Riwayat lagi.
+      //
+      // `go` memindahkan cabangnya, persis seperti menekan tombol Riwayat.
+      onAction: () => context.go(Routes.history),
     );
   }
 }

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/widgets/double_back_exit.dart';
 import '../../../core/widgets/failure_messages.dart';
 import '../../../navigation/route_names.dart';
 import '../../account/widgets/logout_button.dart';
@@ -38,137 +39,166 @@ class AdminDashboardPage extends ConsumerWidget {
     final t = context.l10n;
     final menunggu = ref.watch(adminPaymentsViewModelProvider);
 
-    return Scaffold(
-      appBar: AppBar(title: Text(t.navAdmin)),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-          children: [
-            _MenuAdmin(
-              icon: Icons.fact_check_outlined,
-              title: t.adminPaymentsTitle,
-              // Jumlahnya ditulis di menunya, bukan hanya di dalam halaman.
-              // Inilah satu-satunya pekerjaan admin yang punya tenggat: uang
-              // sudah masuk ke rekening dan pelanggannya sedang menunggu.
-              subtitle: menunggu.when(
-                loading: () => t.commonLoading,
-                error: (_, _) => t.errorUnknown,
-                data: (d) => d.isEmpty
-                    ? t.dashboardPendingNone
-                    : t.adminPendingCount(Formatters.number(d.length)),
+    // Tombol Kembali perangkat: keluar aplikasi butuh dua ketukan
+    // (keluhan Product Owner 5 September 2026).
+    //
+    // 🔴 Dipasang di sini juga, bukan hanya di rangka mobile. Rute admin
+    // berdiri DI LUAR rangka — alasan yang sama yang dulu membuat tombol
+    // Keluar wajib ada di halaman ini — sehingga halaman ini adalah rute
+    // paling bawah bagi seorang admin, dan satu ketukan Kembali di sini
+    // menutup aplikasi persis seperti di Beranda.
+    //
+    // ⚠️ Sub-halaman admin dibuka dengan `context.go`, yang tetap menyusun
+    // /admin di bawahnya. Jadi Kembali dari Kelola Pengguna memulangkan ke
+    // halaman ini lebih dulu, bukan langsung menutup aplikasi.
+    return DoubleBackToExit(
+      child: Scaffold(
+        appBar: AppBar(title: Text(t.navAdmin)),
+        body: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+            children: [
+              _MenuAdmin(
+                icon: Icons.fact_check_outlined,
+                title: t.adminPaymentsTitle,
+                // Jumlahnya ditulis di menunya, bukan hanya di dalam halaman.
+                // Inilah satu-satunya pekerjaan admin yang punya tenggat: uang
+                // sudah masuk ke rekening dan pelanggannya sedang menunggu.
+                subtitle: menunggu.when(
+                  loading: () => t.commonLoading,
+                  error: (_, _) => t.errorUnknown,
+                  data: (d) => d.isEmpty
+                      ? t.dashboardPendingNone
+                      : t.adminPendingCount(Formatters.number(d.length)),
+                ),
+                badge: menunggu.value?.length ?? 0,
+                onTap: () => context.go(Routes.adminPayments),
               ),
-              badge: menunggu.value?.length ?? 0,
-              onTap: () => context.go(Routes.adminPayments),
-            ),
-            const SizedBox(height: 12),
+              const SizedBox(height: 12),
 
-            _MenuAdmin(
-              icon: Icons.query_stats_outlined,
-              title: t.adminStatsTitle,
-              subtitle: t.adminStatsMenuSubtitle,
-              onTap: () => context.go(Routes.adminStats),
-            ),
-            const SizedBox(height: 12),
+              _MenuAdmin(
+                icon: Icons.query_stats_outlined,
+                title: t.adminStatsTitle,
+                subtitle: t.adminStatsMenuSubtitle,
+                onTap: () => context.go(Routes.adminStats),
+              ),
+              const SizedBox(height: 12),
 
-            // 🔴 SATU menu, bukan dua. Sampai 29 Agustus 2026 di sini berdiri
-            // "Kelola Pengguna" dan "Daftar Pelanggan" — keduanya karangan
-            // saya, bukan dari dokumen. Bab 11.2 hanya menyebut satu halaman:
-            // tabel seluruh pelanggan beserta tombol aksinya.
-            //
-            // Menu yang tidak ada di spesifikasi membuat orang berikutnya
-            // membangun dua halaman untuk pekerjaan yang satu.
-            _MenuAdmin(
-              icon: Icons.group_outlined,
-              title: t.adminMenuUsers,
-              subtitle: t.adminUsersMenuSubtitle,
-              onTap: () => context.go(Routes.adminUsers),
-            ),
-            const SizedBox(height: 12),
+              // 🔴 SATU menu, bukan dua. Sampai 29 Agustus 2026 di sini berdiri
+              // "Kelola Pengguna" dan "Daftar Pelanggan" — keduanya karangan
+              // saya, bukan dari dokumen. Bab 11.2 hanya menyebut satu halaman:
+              // tabel seluruh pelanggan beserta tombol aksinya.
+              //
+              // Menu yang tidak ada di spesifikasi membuat orang berikutnya
+              // membangun dua halaman untuk pekerjaan yang satu.
+              _MenuAdmin(
+                icon: Icons.group_outlined,
+                title: t.adminMenuUsers,
+                subtitle: t.adminUsersMenuSubtitle,
+                onTap: () => context.go(Routes.adminUsers),
+              ),
+              const SizedBox(height: 12),
 
-            // Berdiri di kelompok atas bersama menu yang menyentuh orang,
-            // bukan di Pengaturan Platform — yang diurus di sini akun
-            // seseorang, bukan aturan yang berlaku bagi semua.
-            _MenuAdmin(
-              icon: Icons.admin_panel_settings_outlined,
-              title: t.adminNewAdminTitle,
-              subtitle: t.adminNewAdminMenuSubtitle,
-              onTap: () => context.go(Routes.adminNewAdmin),
-            ),
+              // Berdiri di kelompok atas bersama menu yang menyentuh orang,
+              // bukan di Pengaturan Platform — yang diurus di sini akun
+              // seseorang, bukan aturan yang berlaku bagi semua.
+              _MenuAdmin(
+                icon: Icons.admin_panel_settings_outlined,
+                title: t.adminNewAdminTitle,
+                subtitle: t.adminNewAdminMenuSubtitle,
+                onTap: () => context.go(Routes.adminNewAdmin),
+              ),
 
-            // 🔴 Batas antara dua jenis pekerjaan yang berbeda, dan bukan
-            // hiasan. Menu di ATAS mengubah SATU pelanggan; menu di BAWAH
-            // mengubah aturan yang berlaku bagi SELURUH pelanggan sekaligus.
-            //
-            // Keempatnya sengaja ditunda ke Fase 2 saat MVP disusun (Bab 11,
-            // "Keputusan lingkup MVP") dan dikerjakan lewat Supabase Dashboard
-            // — antarmuka teknis berbahasa Inggris berupa tabel database.
-            // Selesai 29 Agustus 2026, sehari sebelum integrasi Midtrans.
-            const SizedBox(height: 24),
-            _JudulKelompok(t.adminGroupPlatform),
-            const SizedBox(height: 8),
+              // 🔴 Batas antara dua jenis pekerjaan yang berbeda, dan bukan
+              // hiasan. Menu di ATAS mengubah SATU pelanggan; menu di BAWAH
+              // mengubah aturan yang berlaku bagi SELURUH pelanggan sekaligus.
+              //
+              // Keempatnya sengaja ditunda ke Fase 2 saat MVP disusun (Bab 11,
+              // "Keputusan lingkup MVP") dan dikerjakan lewat Supabase Dashboard
+              // — antarmuka teknis berbahasa Inggris berupa tabel database.
+              // Selesai 29 Agustus 2026, sehari sebelum integrasi Midtrans.
+              const SizedBox(height: 24),
+              _JudulKelompok(t.adminGroupPlatform),
+              const SizedBox(height: 8),
 
-            _MenuAdmin(
-              icon: Icons.sell_outlined,
-              title: t.adminPricingTitle,
-              subtitle: t.adminPricingMenuSubtitle,
-              onTap: () => context.go(Routes.adminPricing),
-            ),
-            const SizedBox(height: 12),
+              _MenuAdmin(
+                icon: Icons.sell_outlined,
+                title: t.adminPricingTitle,
+                subtitle: t.adminPricingMenuSubtitle,
+                onTap: () => context.go(Routes.adminPricing),
+              ),
+              const SizedBox(height: 12),
 
-            // Ditaruh sebelum Promo dengan sengaja: inilah satu-satunya menu
-            // yang dapat menghentikan seluruh pendapatan bila salah disetel,
-            // dan yang paling sering dibuka menjelang Midtrans dinyalakan.
-            _MenuAdmin(
-              icon: Icons.account_balance_wallet_outlined,
-              title: t.adminMethodsTitle,
-              subtitle: t.adminMethodsMenuSubtitle,
-              onTap: () => context.go(Routes.adminPaymentMethods),
-            ),
-            const SizedBox(height: 12),
+              // Ditaruh sebelum Promo dengan sengaja: inilah satu-satunya menu
+              // yang dapat menghentikan seluruh pendapatan bila salah disetel,
+              // dan yang paling sering dibuka menjelang Midtrans dinyalakan.
+              _MenuAdmin(
+                icon: Icons.account_balance_wallet_outlined,
+                title: t.adminMethodsTitle,
+                subtitle: t.adminMethodsMenuSubtitle,
+                onTap: () => context.go(Routes.adminPaymentMethods),
+              ),
+              const SizedBox(height: 12),
 
-            _MenuAdmin(
-              icon: Icons.local_offer_outlined,
-              title: t.adminPromosTitle,
-              subtitle: t.adminPromosMenuSubtitle,
-              onTap: () => context.go(Routes.adminPromos),
-            ),
-            const SizedBox(height: 12),
+              _MenuAdmin(
+                icon: Icons.local_offer_outlined,
+                title: t.adminPromosTitle,
+                subtitle: t.adminPromosMenuSubtitle,
+                onTap: () => context.go(Routes.adminPromos),
+              ),
+              const SizedBox(height: 12),
 
-            _MenuAdmin(
-              icon: Icons.support_agent_outlined,
-              title: t.adminContactTitle,
-              subtitle: t.adminContactMenuSubtitle,
-              onTap: () => context.go(Routes.adminContact),
-            ),
-            const SizedBox(height: 12),
+              _MenuAdmin(
+                icon: Icons.support_agent_outlined,
+                title: t.adminContactTitle,
+                subtitle: t.adminContactMenuSubtitle,
+                onTap: () => context.go(Routes.adminContact),
+              ),
+              const SizedBox(height: 12),
 
-            // Bab 9.9 — utang paling lama di proyek ini, dijadwalkan Product
-            // Owner 3 September 2026. Tabelnya ada sejak migrasi 10; yang
-            // selama ini kurang hanyalah layarnya.
-            _MenuAdmin(
-              icon: Icons.ondemand_video_outlined,
-              title: t.adminTutorialsTitle,
-              subtitle: t.adminTutorialsMenuSubtitle,
-              onTap: () => context.go(Routes.adminTutorials),
-            ),
-            const SizedBox(height: 12),
+              // Bab 9.9 — utang paling lama di proyek ini, dijadwalkan Product
+              // Owner 3 September 2026. Tabelnya ada sejak migrasi 10; yang
+              // selama ini kurang hanyalah layarnya.
+              _MenuAdmin(
+                icon: Icons.ondemand_video_outlined,
+                title: t.adminTutorialsTitle,
+                subtitle: t.adminTutorialsMenuSubtitle,
+                onTap: () => context.go(Routes.adminTutorials),
+              ),
+              const SizedBox(height: 12),
 
-            // Bab 11.5 — utang nomor 3 daftar kesiapan produksi. Bucket-nya
-            // baru lahir di migrasi 46; sampai itu gambar iklan hanya dapat
-            // diganti lewat Supabase Dashboard.
-            _MenuAdmin(
-              icon: Icons.image_outlined,
-              title: t.adminBannersTitle,
-              subtitle: t.adminBannersMenuSubtitle,
-              onTap: () => context.go(Routes.adminBanners),
-            ),
+              // Bab 11.5 — utang nomor 3 daftar kesiapan produksi. Bucket-nya
+              // baru lahir di migrasi 46; sampai itu gambar iklan hanya dapat
+              // diganti lewat Supabase Dashboard.
+              _MenuAdmin(
+                icon: Icons.image_outlined,
+                title: t.adminBannersTitle,
+                subtitle: t.adminBannersMenuSubtitle,
+                onTap: () => context.go(Routes.adminBanners),
+              ),
+              const SizedBox(height: 12),
 
-            const SizedBox(height: 28),
-            // Bab 9.6 butir 6 — Keluar berwarna merah dan selalu meminta
-            // konfirmasi. Dipakai ulang apa adanya dari halaman Akun supaya
-            // peringatan antrean unggah (Bab 8.7) tidak perlu ditulis dua kali.
-            const LogoutButton(),
-          ],
+              // Migrasi 50 — diminta Product Owner 5 September 2026.
+              //
+              // 🔴 Satu-satunya menu di halaman ini yang dapat MENGUNCI
+              // seluruh pengguna sekaligus: pengumuman berjenis penting
+              // menahan aplikasi sampai mereka memperbaruinya. Itu memang
+              // gunanya, dan itu pula alasan tombol nonaktifnya ada di
+              // tiap baris daftar.
+              _MenuAdmin(
+                icon: Icons.campaign_outlined,
+                title: t.adminAnnouncementsTitle,
+                subtitle: t.adminAnnouncementsMenuSubtitle,
+                onTap: () => context.go(Routes.adminAnnouncements),
+              ),
+
+              const SizedBox(height: 28),
+              // Bab 9.6 butir 6 — Keluar berwarna merah dan selalu meminta
+              // konfirmasi. Dipakai ulang apa adanya dari halaman Akun supaya
+              // peringatan antrean unggah (Bab 8.7) tidak perlu ditulis dua kali.
+              const LogoutButton(),
+            ],
+          ),
         ),
       ),
     );
