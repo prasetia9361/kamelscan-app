@@ -62,7 +62,13 @@ class AdminPricingViewModel extends _$AdminPricingViewModel {
     );
   }
 
+  /// Memuat ulang isinya.
+  ///
+  /// Penjagaan `ref.mounted` dijelaskan di
+  /// [AdminAnnouncementsViewModel.refresh] — ia menutup galat fatal yang
+  /// terjadi bila providernya dibuang selagi penyimpanan masih menunggu server.
   Future<void> refresh() async {
+    if (!ref.mounted) return;
     ref.invalidateSelf();
     await future;
   }
@@ -124,7 +130,13 @@ class AdminPaymentMethodsViewModel extends _$AdminPaymentMethodsViewModel {
     return hasil.unwrap();
   }
 
+  /// Memuat ulang isinya.
+  ///
+  /// Penjagaan `ref.mounted` dijelaskan di
+  /// [AdminAnnouncementsViewModel.refresh] — ia menutup galat fatal yang
+  /// terjadi bila providernya dibuang selagi penyimpanan masih menunggu server.
   Future<void> refresh() async {
+    if (!ref.mounted) return;
     ref.invalidateSelf();
     await future;
   }
@@ -169,7 +181,13 @@ class AdminContactViewModel extends _$AdminContactViewModel {
     return hasil.unwrap();
   }
 
+  /// Memuat ulang isinya.
+  ///
+  /// Penjagaan `ref.mounted` dijelaskan di
+  /// [AdminAnnouncementsViewModel.refresh] — ia menutup galat fatal yang
+  /// terjadi bila providernya dibuang selagi penyimpanan masih menunggu server.
   Future<void> refresh() async {
+    if (!ref.mounted) return;
     ref.invalidateSelf();
     await future;
   }
@@ -207,7 +225,13 @@ class AdminPromosViewModel extends _$AdminPromosViewModel {
     return hasil.unwrap();
   }
 
+  /// Memuat ulang isinya.
+  ///
+  /// Penjagaan `ref.mounted` dijelaskan di
+  /// [AdminAnnouncementsViewModel.refresh] — ia menutup galat fatal yang
+  /// terjadi bila providernya dibuang selagi penyimpanan masih menunggu server.
   Future<void> refresh() async {
+    if (!ref.mounted) return;
     ref.invalidateSelf();
     await future;
   }
@@ -273,7 +297,13 @@ class AdminTutorialsViewModel extends _$AdminTutorialsViewModel {
     return hasil.unwrap();
   }
 
+  /// Memuat ulang isinya.
+  ///
+  /// Penjagaan `ref.mounted` dijelaskan di
+  /// [AdminAnnouncementsViewModel.refresh] — ia menutup galat fatal yang
+  /// terjadi bila providernya dibuang selagi penyimpanan masih menunggu server.
   Future<void> refresh() async {
+    if (!ref.mounted) return;
     ref.invalidateSelf();
     await future;
   }
@@ -366,7 +396,13 @@ class AdminBannersViewModel extends _$AdminBannersViewModel {
     );
   }
 
+  /// Memuat ulang isinya.
+  ///
+  /// Penjagaan `ref.mounted` dijelaskan di
+  /// [AdminAnnouncementsViewModel.refresh] — ia menutup galat fatal yang
+  /// terjadi bila providernya dibuang selagi penyimpanan masih menunggu server.
   Future<void> refresh() async {
+    if (!ref.mounted) return;
     ref.invalidateSelf();
     await future;
   }
@@ -529,7 +565,32 @@ class AdminAnnouncementsViewModel extends _$AdminAnnouncementsViewModel {
     return hasil.unwrap();
   }
 
+  /// Memuat ulang isinya.
+  ///
+  /// 🔴 `ref.mounted` diperiksa lebih dulu, dan itu bukan kehati-hatian
+  /// berlebihan — ia menutup galat **fatal** yang dilaporkan Sentry 5 September
+  /// 2026 dari HP Product Owner saat menyimpan pengumuman:
+  ///
+  ///     UnmountedRefException: Cannot use the Ref of
+  ///     adminAnnouncementsViewModelProvider after it has been disposed.
+  ///
+  /// Sebabnya bukan penyimpanannya, melainkan **jarak waktu di dalamnya**.
+  /// `simpan` menunggu dua sampai tiga perjalanan ke server — menulis baris,
+  /// mengunggah gambar, menulis alamatnya. Selama itu providernya dapat
+  /// dibangun ulang (ia `ref.watch(sessionProvider)`) atau dibuang karena tidak
+  /// ada lagi yang menyimaknya; notifier yang sedang menjalankan `simpan` ikut
+  /// dibuang, lalu baris di bawah menyentuh `ref` yang sudah mati.
+  ///
+  /// ⚠️ Melewatkan pemuatan ulang di keadaan itu **tidak menghilangkan apa
+  /// pun**: providernya dibuang justru karena akan dibangun ulang — dan
+  /// `build()` membaca daftarnya lagi dari awal — atau karena tidak ada lagi
+  /// layar yang menampilkannya.
+  ///
+  /// Seluruh ViewModel di berkas ini memakai penjagaan yang sama. Yang
+  /// dilaporkan Sentry baru satu, tetapi bentuknya identik di ketujuhnya, dan
+  /// yang membedakan hanya berapa lama jendela waktunya terbuka.
   Future<void> refresh() async {
+    if (!ref.mounted) return;
     ref.invalidateSelf();
     await future;
   }
