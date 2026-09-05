@@ -46,6 +46,19 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+
+            // Pemangkasan ukuran rilis (R8): buang kode & resource yang tidak
+            // terpakai. `isShrinkResources` hanya boleh menyala bila
+            // `isMinifyEnabled` menyala — Gradle menolak build bila tidak.
+            //
+            // Aturan pengecualian ada di `proguard-rules.pro`. Baca berkas itu
+            // sebelum menambah pustaka pihak ketiga yang memakai refleksi.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 }
